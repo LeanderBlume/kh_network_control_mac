@@ -27,11 +27,11 @@ class SSCParameter<T> where T: Equatable, T: Codable {
     func isDirty() -> Bool {
         return value != deviceValue
     }
-    
+
     func send(to device: SSCDevice) throws {
         try device.sendSSCValue(path: path, value: value)
     }
-    
+
     func fetch(from device: SSCDevice) throws {
         value = try device.fetchSSCValue(path: path)
         deviceValue = value

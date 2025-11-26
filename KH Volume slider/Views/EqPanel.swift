@@ -68,7 +68,7 @@ struct EqSlider: View {
                         if !editing {
                             Task {
                                 try await khAccess.send()
-                            }
+                            } 
                         }
                     }
                 }
@@ -78,12 +78,14 @@ struct EqSlider: View {
                     value: binding[selectedEqBand],
                     format: .number.precision(.fractionLength(1))
                 )
-                .frame(width: 80)
                 .onSubmit {
                     Task {
                         try await khAccess.send()
                     }
                 }
+                /// This doesn't have a return button...
+                // .keyboardType(.decimalPad)
+                .frame(width: 80)
             }
         }
         #endif
@@ -304,9 +306,14 @@ struct EqPanel: View {
 
     @State private var selectedEq: Int = 0
     var body: some View {
-        EqChart(khAccess: khAccess).frame(height: 200)
-
         ScrollView {
+            let enabledBands = khAccess.eqs
+                .map({$0.enabled.count(where: {$0})})
+                .reduce(0, +)
+            Text("Bands enabled: \(enabledBands)").padding(.vertical)
+
+            EqChart(khAccess: khAccess).frame(height: 150)
+
             VStack(spacing: 20) {
                 Picker("", selection: $selectedEq) {
                     Text("post EQ").tag(0)

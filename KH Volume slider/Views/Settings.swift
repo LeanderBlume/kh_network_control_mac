@@ -16,7 +16,11 @@ struct SettingsView: View {
         VStack {
             Form {
                 Section(header: Text("SSC parameter paths")) {
-                    TextField("Volume", text: $volumePath)
+                    LabeledContent {
+                        TextField("Volume", text: $volumePath)
+                    } label: {
+                        Text("Volume:")
+                    }
                     TextField("Mute", text: $mutePath)
                     TextField("Logo brightness", text: $logoBrightnessPath)
                 }
