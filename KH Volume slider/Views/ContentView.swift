@@ -5,8 +5,10 @@
 //  Created by Leander Blume on 21.12.24.
 //
 
-import SwiftUI
 import Foundation
+import SwiftUI
+
+typealias KHAccess = KHAccessDummy
 
 
 struct ContentView: View {

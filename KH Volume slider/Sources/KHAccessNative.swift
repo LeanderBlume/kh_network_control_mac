@@ -7,8 +7,6 @@
 
 import SwiftUI
 
-typealias KHAccess = KHAccessNative
-
 @Observable
 class KHAccessNative {
     /*
