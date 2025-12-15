@@ -35,6 +35,7 @@ struct EqChart: View {
                             result += magnitudeResponseParametric(f: f, boost: eq.boost[band], q: eq.q[band], f0: eq.frequency[band])
                         // Not implemented ones
                         case "LOSHELF":
+                            /*
                             let N = 2.0 // order of filter (?)
                             let boost = eq.boost[band]
                             // let q = eq.q[band]
@@ -42,6 +43,8 @@ struct EqChart: View {
                             let fpow2N = pow(f, 2 * N)
                             let bandResult = sqrt((fpow2N + boost * boost) / (fpow2N + 1))
                             // result += bandResult
+                             */
+                            break
                         case "HISHELF": break
                         case "LOWPASS": break
                         case "HIGHPASS": break
