@@ -10,35 +10,34 @@ import SwiftUI
 
 typealias KHAccess = KHAccessDummy
 
-
 struct ContentView: View {
     @State var khAccess = KHAccess()
 
     var body: some View {
         VStack {
             #if os(iOS)
-            ZStack(alignment: .center) {
-                StatusDisplay(status: khAccess.status)
+                ZStack(alignment: .center) {
+                    StatusDisplay(status: khAccess.status)
 
-                HStack {
-                    Button("Fetch") {
-                        Task {
-                            try await khAccess.checkSpeakersAvailable()
+                    HStack {
+                        Button("Fetch") {
+                            Task {
+                                try await khAccess.checkSpeakersAvailable()
+                            }
+                        }
+
+                        Spacer()
+
+                        Button("Rescan") {
+                            Task {
+                                khAccess.clearDevices()
+                                try await khAccess.checkSpeakersAvailable()
+                            }
                         }
                     }
-
-                    Spacer()
-
-                    Button("Rescan") {
-                        Task {
-                            khAccess.clearDevices()
-                            try await khAccess.checkSpeakersAvailable()
-                        }
-                    }
+                    .disabled(khAccess.status == .checkingSpeakerAvailability)
                 }
-                .disabled(khAccess.status == .checkingSpeakerAvailability)
-            }
-            .scenePadding()
+                .scenePadding()
             #endif
 
             TabView {
@@ -59,8 +58,8 @@ struct ContentView: View {
                 }
             }
             #if os(macOS)
-            .scenePadding()
-            .frame(minWidth: 450)
+                .scenePadding()
+                .frame(minWidth: 450)
             #endif
             .onAppear {
                 Task {
@@ -68,34 +67,33 @@ struct ContentView: View {
                 }
             }
             .textFieldStyle(.roundedBorder)
-            
-            #if os(macOS)
-            HStack {
-                Button("Fetch") {
-                    Task {
-                        try await khAccess.checkSpeakersAvailable()
-                    }
-                }
-                .disabled(khAccess.status == .checkingSpeakerAvailability)
-                
-                
-                Button("Rescan") {
-                    Task {
-                        khAccess.clearDevices()
-                        try await khAccess.checkSpeakersAvailable()
-                    }
-                }
-                .disabled(khAccess.status == .checkingSpeakerAvailability)
-                
-                Spacer()
-                
-                StatusDisplay(status: khAccess.status)
 
-                Button("Quit") {
-                    NSApplication.shared.terminate(nil)
+            #if os(macOS)
+                HStack {
+                    Button("Fetch") {
+                        Task {
+                            try await khAccess.checkSpeakersAvailable()
+                        }
+                    }
+                    .disabled(khAccess.status == .checkingSpeakerAvailability)
+
+                    Button("Rescan") {
+                        Task {
+                            khAccess.clearDevices()
+                            try await khAccess.checkSpeakersAvailable()
+                        }
+                    }
+                    .disabled(khAccess.status == .checkingSpeakerAvailability)
+
+                    Spacer()
+
+                    StatusDisplay(status: khAccess.status)
+
+                    Button("Quit") {
+                        NSApplication.shared.terminate(nil)
+                    }
                 }
-            }
-            .padding([.leading, .bottom, .trailing])
+                .padding([.leading, .bottom, .trailing])
             #endif
         }
     }
