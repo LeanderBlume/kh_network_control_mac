@@ -9,6 +9,14 @@ import SwiftUI
 
 struct StatusDisplay: View {
     var status: KHAccess.Status
+    
+    @State private var showCheckmark: Bool = false
+    
+    private func playAnimation() async throws {
+        showCheckmark = true
+        try await Task.sleep(nanoseconds: 1000_000_000)
+        showCheckmark = false
+    }
 
     var body: some View {
         HStack {
@@ -31,12 +39,33 @@ struct StatusDisplay: View {
                     circ.foregroundColor(.green)
                 case .fetching:
                     pv
+                    Text("FETCHING")
+                case .fetchingSuccess:
+                    Group {
+                        if showCheckmark {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.green)
+                        } else {
+                            circ.foregroundColor(.yellow)
+                        }
+                    }
+                    .onAppear {
+                        Task {
+                            try await playAnimation()
+                        }
+                    }
                 case .checkingSpeakerAvailability:
                     pv
+                    Text("CHECKING AVAILABILITY")
+                case .speakersAvailable:
+                    EmptyView()  // TODO
                 case .speakersUnavailable:
                     circ.foregroundColor(.red)
                 case .scanning:
                     pv
+                    Text("SCANNING")
+                case .speakersFound:
+                    EmptyView()  // TODO
                 case .noSpeakersFoundDuringScan:
                     circ.foregroundColor(.red)
                 }

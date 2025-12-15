@@ -43,10 +43,24 @@ class KHAccessNative {
     enum Status {
         case clean
         case fetching
+        case fetchingSuccess
         case checkingSpeakerAvailability
+        case speakersAvailable
         case speakersUnavailable
         case scanning
+        case speakersFound
         case noSpeakersFoundDuringScan
+
+        func isClean() -> Bool {
+            let cleanyVals: [Status] = [
+                .clean, .fetchingSuccess, .speakersAvailable, .speakersFound,
+            ]
+            if cleanyVals.contains(self) {
+                return true
+            } else {
+                return false
+            }
+        }
     }
 
     enum KHAccessError: Error {
