@@ -52,7 +52,7 @@ struct HardwareTab: View {
                         }
                     }
                 }
-                .disabled(khAccess.status == .speakersUnavailable)
+                .disabled(!khAccess.status.isClean())
                 
                 TextField(
                     "Logo brightness",

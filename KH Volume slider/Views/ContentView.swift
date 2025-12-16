@@ -32,7 +32,7 @@ struct ContentView: View {
                             }
                         }
                     }
-                    .disabled(khAccess.status == .checkingSpeakerAvailability)
+                    .disabled(khAccess.status.isBusy())
                 }
                 .scenePadding()
             #endif
