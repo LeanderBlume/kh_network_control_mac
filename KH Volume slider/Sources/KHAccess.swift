@@ -144,6 +144,11 @@ class KHAccessNative: KHAccessProtocol {
         if devices.isEmpty {
             try await scan()
         }
+        if case .speakersFound(let n) = status {
+            if n == 0 {
+                return
+            }
+        }
         try await connectAll()
         status = .speakersAvailable
         disconnectAll()

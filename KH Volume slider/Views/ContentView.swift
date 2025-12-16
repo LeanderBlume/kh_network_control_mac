@@ -61,7 +61,9 @@ struct ContentView: View {
             .onAppear {
                 Task {
                     try await khAccess.checkSpeakersAvailable()
-                    try await khAccess.fetch()
+                    if khAccess.status.isClean() {
+                        try await khAccess.fetch()
+                    }
                 }
             }
             .textFieldStyle(.roundedBorder)
@@ -73,7 +75,7 @@ struct ContentView: View {
                             try await khAccess.fetch()
                         }
                     }
-                    .disabled(khAccess.status.isBusy())
+                    .disabled(khAccess.status.isBusy() || !khAccess.status.isClean())
 
                     Button("Rescan") {
                         Task {
