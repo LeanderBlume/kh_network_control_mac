@@ -8,8 +8,6 @@
 import Foundation
 import SwiftUI
 
-typealias KHAccess = KHAccessDummy
-
 struct ContentView: View {
     @State var khAccess = KHAccess()
 
@@ -22,7 +20,7 @@ struct ContentView: View {
                     HStack {
                         Button("Fetch") {
                             Task {
-                                try await khAccess.checkSpeakersAvailable()
+                                try await khAccess.fetch()
                             }
                         }
 
@@ -30,8 +28,7 @@ struct ContentView: View {
 
                         Button("Rescan") {
                             Task {
-                                khAccess.clearDevices()
-                                try await khAccess.checkSpeakersAvailable()
+                                try await khAccess.scan()
                             }
                         }
                     }
@@ -44,17 +41,17 @@ struct ContentView: View {
                 Tab("Volume", systemImage: "speaker.wave.3") {
                     VolumeTab(khAccess: khAccess)
                         .padding(.horizontal).padding(.bottom)
-                        .disabled(khAccess.status != .clean)
+                        .disabled(!khAccess.status.isClean())
                 }
                 Tab("DSP", systemImage: "slider.vertical.3") {
                     EqPanel(khAccess: khAccess)
                         .padding()
-                        .disabled(khAccess.status != .clean)
+                        .disabled(!khAccess.status.isClean())
                 }
                 Tab("Hardware", systemImage: "hifispeaker") {
                     HardwareTab(khAccess: khAccess)
                         .padding(.horizontal).padding(.bottom)
-                        .disabled(khAccess.status != .clean)
+                        .disabled(!khAccess.status.isClean())
                 }
             }
             #if os(macOS)
@@ -64,6 +61,7 @@ struct ContentView: View {
             .onAppear {
                 Task {
                     try await khAccess.checkSpeakersAvailable()
+                    try await khAccess.fetch()
                 }
             }
             .textFieldStyle(.roundedBorder)
@@ -72,18 +70,17 @@ struct ContentView: View {
                 HStack {
                     Button("Fetch") {
                         Task {
-                            try await khAccess.checkSpeakersAvailable()
+                            try await khAccess.fetch()
                         }
                     }
-                    .disabled(khAccess.status == .checkingSpeakerAvailability)
+                    .disabled(khAccess.status.isBusy())
 
                     Button("Rescan") {
                         Task {
-                            khAccess.clearDevices()
-                            try await khAccess.checkSpeakersAvailable()
+                            try await khAccess.scan()
                         }
                     }
-                    .disabled(khAccess.status == .checkingSpeakerAvailability)
+                    .disabled(khAccess.status.isBusy())
 
                     Spacer()
 

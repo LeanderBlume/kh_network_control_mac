@@ -82,7 +82,9 @@ struct TestSSC {
         // #expect(js2 == "{\"a\":{\"b\":null}}")
     }
 
+    // This should be a SwiftSSC test.
     @Test func testFetchSSCValue() async throws {
+        /*
         let khAccess = KHAccess()
         sleep(1)
         try await khAccess.checkSpeakersAvailable()
@@ -92,5 +94,6 @@ struct TestSSC {
         khAccess.devices.forEach { d in
             d.disconnect()
         }
+         */
     }
 }

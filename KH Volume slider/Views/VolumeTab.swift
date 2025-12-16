@@ -26,7 +26,7 @@ struct VolumeTab: View {
                     }
                 }
             }
-            .disabled(khAccess.status == .speakersUnavailable)
+            .disabled(!khAccess.status.isClean())
 
             #if os(iOS)
             // Text("\(Int(khAccess.volume))")
@@ -53,7 +53,7 @@ struct VolumeTab: View {
                     try await khAccess.send()
                 }
             }
-            .disabled(khAccess.status == .speakersUnavailable)
+            .disabled(!khAccess.status.isClean())
         }
         .scenePadding()
     }

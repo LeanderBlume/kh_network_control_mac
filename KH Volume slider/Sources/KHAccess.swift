@@ -7,8 +7,62 @@
 
 import SwiftUI
 
+typealias KHAccess = KHAccessNative
+
+enum KHAccessStatus {
+    case clean
+    case fetching
+    case fetchingSuccess
+    case checkingSpeakerAvailability
+    case speakersAvailable
+    case speakersUnavailable
+    case scanning
+    case speakersFound(Int)
+
+    func isClean() -> Bool {
+        switch self {
+        case .clean, .fetchingSuccess, .speakersAvailable:
+            return true
+        case .speakersFound(let n):
+            return n > 0
+        default:
+            return false
+        }
+    }
+
+    func isBusy() -> Bool {
+        switch self {
+        case .fetching, .checkingSpeakerAvailability, .scanning:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+enum KHAccessError: Error {
+    case speakersNotReachable
+    case noSpeakersFoundDuringScan
+}
+
+protocol KHAccessProtocol: Observable {
+    var volume: Double { get set }
+    var eqs: [Eq] { get set }
+    var muted: Bool { get set }
+    var logoBrightness: Double { get set }
+
+    var status: KHAccessStatus { get }
+
+    init(devices devices_: [SSCDevice]?)
+
+    func scan() async throws
+    func checkSpeakersAvailable() async throws
+    func send() async throws
+    func fetch() async throws
+}
+
 @Observable
-class KHAccessNative {
+class KHAccessNative: KHAccessProtocol {
     /*
      Fetches, sends and stores data from speakers.
      */
@@ -28,10 +82,10 @@ class KHAccessNative {
     private var mutedDevice = false
     private var logoBrightnessDevice = 100.0
 
-    var status: Status = .clean
-    var devices: [SSCDevice]
+    var status: KHAccessStatus = .clean
+    private var devices: [SSCDevice]
 
-    init(devices devices_: [SSCDevice]? = nil) {
+    required init(devices devices_: [SSCDevice]? = nil) {
         if let devices_ = devices_ {
             devices = devices_
             return
@@ -40,44 +94,22 @@ class KHAccessNative {
         }
     }
 
-    enum Status {
-        case clean
-        case fetching
-        case checkingSpeakerAvailability
-        case speakersUnavailable
-        case scanning
-        case noSpeakersFoundDuringScan
-    }
-
-    enum KHAccessError: Error {
-        case speakersNotReachable
-        case noSpeakersFoundDuringScan
-    }
-
-    func sendSSCValue<T>(path: [String], value: T) async throws where T: Encodable {
+    private func sendSSCValue<T>(path: [String], value: T) async throws
+    where T: Encodable {
         for d in devices {
             try d.sendSSCValue(path: path, value: value)
         }
     }
 
-    func fetchSSCValue<T>(path: [String]) async throws -> T where T: Decodable {
+    private func fetchSSCValue<T>(path: [String]) async throws -> T where T: Decodable {
         return try devices[0].fetchSSCValue(path: path)
     }
-    
-    func clearDevices() {
-        devices.removeAll()
-    }
 
-    private func scan() async throws {
+    func scan() async throws {
         /// Scan for devices, replacing current device list.
         status = .scanning
         devices = SSCDevice.scan()
-        if devices.isEmpty {
-            status = .noSpeakersFoundDuringScan
-            throw KHAccessError.noSpeakersFoundDuringScan
-        } else {
-            status = .clean
-        }
+        status = .speakersFound(devices.count)
     }
 
     private func connectAll() async throws {
@@ -99,7 +131,6 @@ class KHAccessNative {
                 throw KHAccessError.speakersNotReachable
             }
         }
-        status = .clean
     }
 
     private func disconnectAll() {
@@ -114,8 +145,7 @@ class KHAccessNative {
             try await scan()
         }
         try await connectAll()
-        status = .clean
-        try await fetch()
+        status = .speakersAvailable
         disconnectAll()
     }
 
@@ -156,13 +186,14 @@ class KHAccessNative {
                 "audio", "out", eqName, "type",
             ])
         }
+
         volume = volumeDevice
         muted = mutedDevice
         logoBrightness = logoBrightnessDevice
         eqs = eqsDevice
 
+        status = .fetchingSuccess
         disconnectAll()
-        status = .clean
     }
 
     private func sendVolumeToDevice() async throws {
@@ -265,5 +296,51 @@ class KHAccessNative {
         }
 
         disconnectAll()
+    }
+}
+
+@Observable
+class KHAccessDummy: KHAccessProtocol {
+    /*
+     Fetches, sends and stores data from speakers.
+     */
+    /// I was wondering whether we should just store a KHJSON instance instead of these values because the whole
+    /// thing seems a bit doubled up. But maybe this is good as an abstraction layer between the json and the GUI.
+
+    // UI state
+    var volume = 54.0
+    var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
+    var muted = false
+    var logoBrightness = 100.0
+
+    var status: KHAccessStatus = .clean
+
+    required init(devices devices_: [SSCDevice]? = nil) {
+
+    }
+
+    private func sleepOneSecond() async throws {
+        try await Task.sleep(nanoseconds: 1000_000_000)
+    }
+
+    func scan() async throws {
+        status = .scanning
+        try await sleepOneSecond()
+        status = .speakersFound(2)
+    }
+
+    func checkSpeakersAvailable() async throws {
+        status = .checkingSpeakerAvailability
+        try await sleepOneSecond()
+        status = .clean
+    }
+
+    func fetch() async throws {
+        status = .fetching
+        try await sleepOneSecond()
+        status = .fetchingSuccess
+    }
+
+    func send() async throws {
     }
 }

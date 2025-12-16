@@ -8,42 +8,44 @@
 import SwiftUI
 
 struct StatusDisplay: View {
-    var status: KHAccess.Status
+    var status: KHAccessStatus
 
     var body: some View {
-        HStack {
+        let pv = ProgressView()
+            #if os(macOS)
+                .scaleEffect(0.5)
+            #endif
+        let circ = Image(systemName: "circle.fill")
+        Group {
             switch status {
+            case .clean, .speakersAvailable:
+                circ.foregroundColor(.green)
+            case .fetching:
+                Text("Fetching...")
+                pv
+            case .checkingSpeakerAvailability:
+                Text("Connecting...")
+                pv
+            case .scanning:
+                Text("Scanning...")
+                pv
             case .speakersUnavailable:
                 Text("Speakers unavailable")
-            case .noSpeakersFoundDuringScan:
-                Text("No speakers found during scan")
-            default:
-                EmptyView()
-
-            let pv = ProgressView()
-                #if os(macOS)
-                    .scaleEffect(0.5)
-                #endif
-            let circ = Image(systemName: "circle.fill")
-            Group {
-                switch status {
-                case .clean:
+                circ.foregroundColor(.red)
+            case .speakersFound(let n):
+                if n == 0 {
+                    Text("No speakers discovered")
+                    circ.foregroundColor(.red)
+                } else {
+                    Text("Discovered \(n) speakers")
                     circ.foregroundColor(.green)
-                case .fetching:
-                    pv
-                case .checkingSpeakerAvailability:
-                    pv
-                case .speakersUnavailable:
-                    circ.foregroundColor(.red)
-                case .scanning:
-                    pv
-                case .noSpeakersFoundDuringScan:
-                    circ.foregroundColor(.red)
                 }
-            }
-            .frame(height: 20)
-            .frame(minWidth: 33)
+            case .fetchingSuccess:
+                Text("Parameters fetched")
+                Image(systemName: "checkmark").foregroundColor(.green)
             }
         }
+        .frame(height: 20)
+        .frame(minWidth: 33)
     }
 }
