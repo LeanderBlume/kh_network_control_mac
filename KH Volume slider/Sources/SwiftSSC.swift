@@ -13,31 +13,6 @@ class SSCTransaction {
     var error: String = ""
 }
 
-class SSCParameter<T> where T: Equatable, T: Codable {
-    var value: T
-    private var deviceValue: T
-    private var path: [String]
-
-    init(value: T, path: [String]) {
-        self.value = value
-        self.deviceValue = value
-        self.path = path
-    }
-
-    func isDirty() -> Bool {
-        return value != deviceValue
-    }
-
-    func send(to device: SSCDevice) throws {
-        try device.sendSSCValue(path: path, value: value)
-    }
-
-    func fetch(from device: SSCDevice) throws {
-        value = try device.fetchSSCValue(path: path)
-        deviceValue = value
-    }
-}
-
 class SSCDevice {
     var connection: NWConnection
     private let dispatchQueue: DispatchQueue
