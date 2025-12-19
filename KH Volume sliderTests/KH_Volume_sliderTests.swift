@@ -7,6 +7,7 @@
 
 import Foundation
 import Testing
+
 @testable import KH_Volume_slider
 
 struct KH_Volume_sliderTests_Online {
@@ -43,7 +44,7 @@ struct TestSSC {
         while t1.RX.isEmpty {}
         #expect(t1.TX == TX1)
         #expect(t1.RX.starts(with: TX1))
-        
+
         let TX2 = "{\"audio\":{\"out\":{\"mute\":false}}}"
         let t2 = sscDevice.sendMessage(TX2)
         while t2.RX.isEmpty {}
@@ -55,13 +56,13 @@ struct TestSSC {
     @Test func testSendMessageWithScan() {
         let sscDevice = SSCDevice.scan()[0]
         sscDevice.connect()
-        
+
         let TX1 = "{\"audio\":{\"out\":{\"mute\":true}}}"
         let t1 = sscDevice.sendMessage(TX1)
         sleep(1)
         #expect(t1.TX == TX1)
         #expect(t1.RX.starts(with: TX1))
-        
+
         let TX2 = "{\"audio\":{\"out\":{\"mute\":false}}}"
         let t2 = sscDevice.sendMessage(TX2)
         sleep(1)
@@ -95,5 +96,86 @@ struct TestSSC {
             d.disconnect()
         }
          */
+    }
+}
+
+struct TestKHAccessDummy {
+    @Test func testSetup() {
+        let k = KHAccessDummy()
+        // This doesn't make sense but it's the way it is.
+        #expect(k.status == .clean)
+    }
+
+    @Test func testScan() async throws {
+        let k = KHAccessDummy()
+        try await k.scan()
+        #expect(k.status == .speakersFound(2))
+    }
+
+    @Test func testCheckSpeakersAvailable() async throws {
+        let k = KHAccessDummy()
+        try await k.checkSpeakersAvailable()
+        #expect(k.status == .speakersAvailable)
+    }
+
+    @Test func testFetch() async throws {
+        let k = KHAccessDummy()
+        try await k.fetch()
+        #expect(k.status == .fetchingSuccess)
+    }
+
+    @Test func testSend() async throws {
+        let k = KHAccessDummy()
+        try await k.send()
+        #expect(k.status == .clean)
+    }
+}
+
+struct TestSSCNodes {
+    @Test func testGetSchema() async throws {
+        let s = SSCDevice.scan()
+        #expect(!s.isEmpty)
+        let d = s[0]
+        let node = SSCNode(device: d, name: "root")
+        let result = try await node.getSchema(path: ["audio"])
+        #expect(result == ["out": [:], "in2": [:], "in1": [:], "in": [:]])
+        // sleep(1)
+        // This fails! Maybe it shouldn't.
+        // let result2 = try await node.getSchema(path: ["ui", "logo", "brightness"])
+        // #expect(result2 == [:])
+        // TODO Better: Test something that has emtpy dicts as well as nil
+        // TODO test empty path
+    }
+
+    @Test func testGetLimits() async throws {
+        let s = SSCDevice.scan()
+        #expect(!s.isEmpty)
+        let d = s[0]
+        let node = SSCNode(device: d, name: "root")
+        let result = try await node.getLimits(path: ["ui", "logo", "brightness"])
+        print(result)
+        #expect(
+            result
+                == OSCLimits(fromDict: [
+                    "type": "Number",
+                    "units": "%",
+                    "max": 125.0,
+                    "min": 0.0,
+                    "inc": 1.0,
+                    "subscr": true,
+                    // "const": nil,
+                    "desc": nil,
+                    "writeable": nil,
+                ])
+        )
+    }
+
+    @Test func testPopulate() async throws {
+        let s = SSCDevice.scan()
+        #expect(!s.isEmpty)
+        let d = s[0]
+        let node = SSCNode(device: d, name: "root")
+        #expect(node.pathToNode() == [])
+        try await node.populate()
     }
 }

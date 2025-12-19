@@ -23,6 +23,7 @@ class SSCDevice {
         case noResponse
         case addressNotFound
         case messageNotUnderstood
+        case wrongType
     }
 
     init?(ip: String, port: Int = 45) {
@@ -47,7 +48,9 @@ class SSCDevice {
         var retval: [SSCDevice] = []
         let q = DispatchQueue(label: "KH Discovery")
         let browser = NWBrowser(
-            for: .bonjour(type: "_ssc._tcp", domain: nil), using: .tcp)
+            for: .bonjour(type: "_ssc._tcp", domain: nil),
+            using: .tcp
+        )
         browser.browseResultsChangedHandler = { (results, changes) in
             for result in results {
                 retval.append(SSCDevice(endpoint: (result.endpoint)))
@@ -97,7 +100,7 @@ class SSCDevice {
             transaction.RX = String(data: content, encoding: .utf8) ?? "No Response"
         }
         return transaction
-    }    
+    }
 
     static func pathToJSONString<T>(path: [String], value: T) throws -> String
     where T: Encodable {
@@ -109,7 +112,7 @@ class SSCDevice {
         return jsonPath
     }
 
-    private func sendSSCCommand(command: String) throws -> SSCTransaction {
+    func sendSSCCommand(command: String) throws -> SSCTransaction {
         let transaction = sendMessage(command)
         let deadline = Date.now.addingTimeInterval(5)
         var success = false
@@ -150,7 +153,9 @@ class SSCDevice {
         for p in path.dropLast() {
             result = result[p] as! [String: Any]
         }
-        let retval = result[lastKey] as! T
+        guard let retval = result[lastKey] as? T else {
+            throw SSCDeviceError.wrongType
+        }
         return retval
     }
 }
