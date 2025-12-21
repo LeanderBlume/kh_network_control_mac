@@ -131,27 +131,42 @@ struct TestKHAccessDummy {
     }
 }
 
-struct TestSSCNodes {
+@Suite struct TestSSCNodes {
+    // TODO can't run this as a test suite because tests are run concurrently.
+    let device: SSCDevice
+
+    private enum Errors: Error {
+        case noDevicesFound
+    }
+
+    private init() throws {
+        let scan = SSCDevice.scan()
+        if scan.isEmpty {
+            throw Errors.noDevicesFound
+        }
+        device = scan[0]
+    }
+
     @Test func testGetSchema() async throws {
-        let s = SSCDevice.scan()
-        #expect(!s.isEmpty)
-        let d = s[0]
-        let node = SSCNode(device: d, name: "root")
+        let node = SSCNode(device: device, name: "root")
         let result = try await node.getSchema(path: ["audio"])
         #expect(result == ["out": [:], "in2": [:], "in1": [:], "in": [:]])
-        // sleep(1)
-        // This fails! Maybe it shouldn't.
-        // let result2 = try await node.getSchema(path: ["ui", "logo", "brightness"])
-        // #expect(result2 == [:])
-        // TODO Better: Test something that has emtpy dicts as well as nil
-        // TODO test empty path
+        sleep(1)
+        let result2 = try await node.getSchema(path: [])
+        #expect(
+            result2 == [
+                "audio": [:], "device": [:], "m": [:], "osc": [:], "ui": [:],
+                "warnings": nil,
+            ]
+        )
+        sleep(1)
+        // This is not used in
+        let result3 = try await node.getSchema(path: ["ui", "logo", "brightness"])
+        #expect(result3 == nil)
     }
 
     @Test func testGetLimits() async throws {
-        let s = SSCDevice.scan()
-        #expect(!s.isEmpty)
-        let d = s[0]
-        let node = SSCNode(device: d, name: "root")
+        let node = SSCNode(device: device, name: "root")
         let result = try await node.getLimits(path: ["ui", "logo", "brightness"])
         print(result)
         #expect(
@@ -171,10 +186,7 @@ struct TestSSCNodes {
     }
 
     @Test func testPopulate() async throws {
-        let s = SSCDevice.scan()
-        #expect(!s.isEmpty)
-        let d = s[0]
-        let node = SSCNode(device: d, name: "root")
+        let node = SSCNode(device: device, name: "root")
         #expect(node.pathToNode() == [])
         try await node.populate()
     }

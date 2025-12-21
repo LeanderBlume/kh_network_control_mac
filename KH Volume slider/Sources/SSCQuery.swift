@@ -47,7 +47,7 @@ struct OSCLimits: Equatable {
     }
 }
 
-class SSCNode {
+class SSCNode: Identifiable, Equatable, Hashable {
     var device: SSCDevice
     var name: String
     var value: JSONData?
@@ -58,6 +58,8 @@ class SSCNode {
         case speakersNotReachable
         case badData
         case unknownTypeFromLimits(String?)
+        case unexpectedResponse(String)
+        case caseDistinctionFailed
     }
 
     init(
@@ -106,9 +108,17 @@ class SSCNode {
         // The root node doesn't have a name, so we drop it.
         return result.dropLast().reversed()
     }
+    
+    static func ==(lhs: SSCNode, rhs: SSCNode) -> Bool {
+        return lhs.pathToNode() == rhs.pathToNode()
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(pathToNode())
+    }
 
     // TODO lots of duplicate code between these functions. Factor out.
-    func getSchema(path: [String]) async throws -> [String: [String: String]?] {
+    func getSchema(path: [String]) async throws -> [String: [String: String]?]? {
         var pathString = try SSCDevice.pathToJSONString(
             path: path,
             value: nil as String?
@@ -127,10 +137,13 @@ class SSCNode {
             try! JSONSerialization.jsonObject(with: data, options: [])
             as! [String: [String: [[String: Any]]]]
         var result_ = result["osc"]!["schema"]![0]
-        for p in path {
+        if path.isEmpty {
+            return result_ as? [String: [String: String]?]
+        }
+        for p in path.dropLast() {
             result_ = result_[p] as! [String: Any]
         }
-        return result_ as! [String: [String: String]?]
+        return result_[path.last!] as? [String: [String: String]?]
     }
 
     func getLimits(path: [String]) async throws -> OSCLimits {
@@ -222,7 +235,7 @@ class SSCNode {
             break
         case .null:
             try await populateLeaf(path: path)
-            print(value)
+            // print(value)
             return
         case .error:
             // idk
@@ -234,7 +247,9 @@ class SSCNode {
             return
         }
         // We are not at a leaf node and need to discover subcommands.
-        let resultStripped = try await getSchema(path: path)
+        guard let resultStripped = try await getSchema(path: path) else {
+            throw SSCNodeError.caseDistinctionFailed
+        }
         var subNodeArray: [SSCNode] = []
         for (k, v) in resultStripped {
             let subNodeValue: JSONData?
@@ -247,11 +262,47 @@ class SSCNode {
                 SSCNode(device: self.device, name: k, value: subNodeValue, parent: self)
             )
         }
+        subNodeArray.sort { $0.name < $1.name }
         value = .object(subNodeArray)
         for n in subNodeArray {
-            sleep(1)
+            sleep(1)  // TODO this is quite inelegant.
             try await n.populate()
         }
         disconnect()
+    }
+
+    // Returns list of child nodes, if there are any.
+    var children: [SSCNode]? {
+        if case .object(let c) = value {
+            return c
+        }
+        return nil
+    }
+
+    func description() -> String {
+        var result = ""
+        switch value {
+        case .none:
+            result = "unpopulated"
+        case .null:
+            result = "unqueried"
+        case .error(let s):
+            result = "ERROR: " + s
+        case .object:
+            return name
+        case .string(let v):
+            result = #"""# + String(v) + #"""#
+        case .number(let v):
+            result = String(v)
+        case .bool(let v):
+            result = String(v)
+        case .arrayString(let v):
+            result = String(describing: v)
+        case .arrayNumber(let v):
+            result = String(describing: v)
+        case .arrayBool(let v):
+            result = String(describing: v)
+        }
+        return name + ": " + result
     }
 }
