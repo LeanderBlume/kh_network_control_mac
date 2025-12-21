@@ -160,7 +160,6 @@ struct TestKHAccessDummy {
             ]
         )
         sleep(1)
-        // This is not used in
         let result3 = try await node.getSchema(path: ["ui", "logo", "brightness"])
         #expect(result3 == nil)
     }

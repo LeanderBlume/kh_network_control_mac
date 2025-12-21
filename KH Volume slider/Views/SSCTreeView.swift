@@ -30,7 +30,7 @@ struct SSCTreeView: View {
                     throw Errors.noDevicesFound
                 }
                 rootNode = SSCNode(device: scan.first!, name: "Root")
-                try await rootNode!.populate()
+                try await rootNode!.populate(recursive: true)
                 status = "Querying successful"
             } catch {
                 rootNode = nil

@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum JSONData {
+enum JSONData: Equatable {
     case object([SSCNode])
     case string(String)
     case number(Double)
@@ -108,11 +108,11 @@ class SSCNode: Identifiable, Equatable, Hashable {
         // The root node doesn't have a name, so we drop it.
         return result.dropLast().reversed()
     }
-    
-    static func ==(lhs: SSCNode, rhs: SSCNode) -> Bool {
+
+    static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
         return lhs.pathToNode() == rhs.pathToNode()
     }
-    
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(pathToNode())
     }
@@ -133,10 +133,21 @@ class SSCNode: Identifiable, Equatable, Hashable {
         guard let data = response.data(using: .utf8) else {
             throw SSCNodeError.badData
         }
+        // this breaks stuff. Wut?
+        /*
+        guard
+            let result =
+                try JSONSerialization.jsonObject(with: data, options: [])
+                as? [String: [String: [[String: Any]]]]
+        else {
+            throw SSCNodeError.unexpectedResponse(response)
+        }
+         */
         let result =
-            try! JSONSerialization.jsonObject(with: data, options: [])
+            try JSONSerialization.jsonObject(with: data, options: [])
             as! [String: [String: [[String: Any]]]]
         var result_ = result["osc"]!["schema"]![0]
+        // print(result_)
         if path.isEmpty {
             return result_ as? [String: [String: String]?]
         }
@@ -227,7 +238,7 @@ class SSCNode: Identifiable, Equatable, Hashable {
         }
     }
 
-    func populate() async throws {
+    func populate(recursive: Bool = true) async throws {
         let path = pathToNode()
         print(path)
         switch value {
@@ -265,14 +276,25 @@ class SSCNode: Identifiable, Equatable, Hashable {
         subNodeArray.sort { $0.name < $1.name }
         value = .object(subNodeArray)
         for n in subNodeArray {
-            sleep(1)  // TODO this is quite inelegant.
-            try await n.populate()
+            if (n.value == .null) || (recursive && (n.value == nil)) {
+                try await Task.sleep(nanoseconds: 1_000_000)
+                try await n.populate()
+            }
         }
         disconnect()
     }
 
     // Returns list of child nodes, if there are any.
     var children: [SSCNode]? {
+        // We need a better way to rate-limit this
+        /*
+        if value == nil {
+            Task {
+                try await Task.sleep(nanoseconds: 1_000_000)
+                try await populate(recursive: false)
+            }
+        }
+         */
         if case .object(let c) = value {
             return c
         }
@@ -303,6 +325,6 @@ class SSCNode: Identifiable, Equatable, Hashable {
         case .arrayBool(let v):
             result = String(describing: v)
         }
-        return name + ": " + result
+        return name + " = " + result
     }
 }
