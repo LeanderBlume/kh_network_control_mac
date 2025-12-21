@@ -23,5 +23,8 @@ struct KH_Volume_sliderApp: App {
             ContentView()
         }
         #endif
+        WindowGroup(id: "tree-viewer") {
+            SSCTreeView()
+        }
     }
 }

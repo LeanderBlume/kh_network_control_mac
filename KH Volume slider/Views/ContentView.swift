@@ -10,6 +10,8 @@ import SwiftUI
 
 struct ContentView: View {
     @State var khAccess = KHAccess()
+    
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack {
@@ -83,6 +85,10 @@ struct ContentView: View {
                         }
                     }
                     .disabled(khAccess.status.isBusy())
+                    
+                    Button("Browse") {
+                        openWindow(id: "tree-viewer")
+                    }
 
                     Spacer()
 
