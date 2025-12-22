@@ -41,7 +41,6 @@
 		C5B99A552D1DB3B7003366EB /* Exceptions for "KH Volume slider" folder in "KH Volume slider" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Assets.xcassets,
 				"Preview Content/Preview Assets.xcassets",
 			);
 			target = C50DCA5E2D17309900780112 /* KH Volume slider */;
