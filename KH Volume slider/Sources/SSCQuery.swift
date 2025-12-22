@@ -265,19 +265,35 @@ class SSCNode: Identifiable, Equatable, Hashable {
         for (k, v) in resultStripped {
             let subNodeValue: JSONData?
             if v == nil {
+                // There's a parameter!
                 subNodeValue = .null
-            } else {
+            } else if v == [:] {
+                // There are subnodes to be discovered.
+                // TODO .null and nil are pretty confusing. Maybe use a different value?
                 subNodeValue = nil
+            } else {
+                throw SSCNodeError.unexpectedResponse(
+                    String(describing: v) + " is neither null nor {}."
+                )
             }
             subNodeArray.append(
                 SSCNode(device: self.device, name: k, value: subNodeValue, parent: self)
             )
         }
-        subNodeArray.sort { $0.name < $1.name }
+        subNodeArray.sort { a, b in
+            // We want to put non-objects first.
+            if a.value == .null && b.value == nil {
+                return true
+            }
+            if a.value == nil && b.value == .null {
+                return false
+            }
+            return a.name < b.name
+        }
         value = .object(subNodeArray)
         for n in subNodeArray {
             if (n.value == .null) || (recursive && (n.value == nil)) {
-                try await Task.sleep(nanoseconds: 1_000_000)
+                try await Task.sleep(nanoseconds: 10_000_000)
                 try await n.populate()
             }
         }
@@ -299,32 +315,5 @@ class SSCNode: Identifiable, Equatable, Hashable {
             return c
         }
         return nil
-    }
-
-    func description() -> String {
-        var result = ""
-        switch value {
-        case .none:
-            result = "unpopulated"
-        case .null:
-            result = "unqueried"
-        case .error(let s):
-            result = "ERROR: " + s
-        case .object:
-            return name
-        case .string(let v):
-            result = #"""# + String(v) + #"""#
-        case .number(let v):
-            result = String(v)
-        case .bool(let v):
-            result = String(v)
-        case .arrayString(let v):
-            result = String(describing: v)
-        case .arrayNumber(let v):
-            result = String(describing: v)
-        case .arrayBool(let v):
-            result = String(describing: v)
-        }
-        return name + " = " + result
     }
 }

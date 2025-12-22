@@ -10,7 +10,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State var khAccess = KHAccess()
-    
+
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -55,6 +55,11 @@ struct ContentView: View {
                         .padding(.horizontal).padding(.bottom)
                         .disabled(!khAccess.status.isClean())
                 }
+                #if os(iOS)
+                    Tab("Browser", systemImage: "list.bullet.indent") {
+                        SSCTreeView()
+                    }
+                #endif
             }
             #if os(macOS)
                 .scenePadding()
@@ -85,7 +90,7 @@ struct ContentView: View {
                         }
                     }
                     .disabled(khAccess.status.isBusy())
-                    
+
                     Button("Browse") {
                         openWindow(id: "tree-viewer")
                     }

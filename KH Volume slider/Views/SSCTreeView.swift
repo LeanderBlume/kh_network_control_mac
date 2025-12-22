@@ -15,12 +15,41 @@ struct SSCTreeView: View {
     private enum Errors: Error {
         case noDevicesFound
     }
+    
+    @ViewBuilder
+    private func description(_ node: SSCNode) -> some View {
+        HStack {
+            Text(node.name)
+            Spacer()
+            switch node.value {
+            case .none:
+                Text("unknown subtree")
+            case .null:
+                Text("unknown value")
+            case .error(let s):
+                Text("ERROR: " + s)
+            case .object:
+                EmptyView()
+            case .string(let v):
+                Text(#""\(v)""#)
+            case .number(let v):
+                Text(String(v))
+            case .bool(let v):
+                Text(v ? "yes" : "no")
+            case .arrayString(let v):
+                Text(String(describing: v))
+            case .arrayNumber(let v):
+                Text(String(describing: v))
+            case .arrayBool(let v):
+                Text(String(describing: v))
+            }
+        }
+    }
 
     var body: some View {
         Text(status)
         List(rootNode?.children ?? [], children: \.children, selection: $selectedNode) {
-            item in
-            Text(item.description())
+            node in description(node)
         }
         .task {
             status = "Querying..."
@@ -34,7 +63,7 @@ struct SSCTreeView: View {
                 status = "Querying successful"
             } catch {
                 rootNode = nil
-                status = "Scan failed"
+                status = "Querying failed"
             }
         }
     }
