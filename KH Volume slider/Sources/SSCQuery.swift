@@ -109,14 +109,6 @@ class SSCNode: Identifiable, Equatable, Hashable {
         return result.dropLast().reversed()
     }
 
-    static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
-        return lhs.pathToNode() == rhs.pathToNode()
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(pathToNode())
-    }
-
     // TODO lots of duplicate code between these functions. Factor out.
     func getSchema(path: [String]) async throws -> [String: [String: String]?]? {
         var pathString = try SSCDevice.pathToJSONString(
@@ -300,7 +292,7 @@ class SSCNode: Identifiable, Equatable, Hashable {
         disconnect()
     }
 
-    // Returns list of child nodes, if there are any.
+    // Returns list of child nodes, if there are any. This is for SSCTreeView.
     var children: [SSCNode]? {
         // We need a better way to rate-limit this
         /*
@@ -315,5 +307,13 @@ class SSCNode: Identifiable, Equatable, Hashable {
             return c
         }
         return nil
+    }
+    
+    static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
+        return lhs.pathToNode() == rhs.pathToNode()
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(pathToNode())
     }
 }
