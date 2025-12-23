@@ -77,21 +77,7 @@ class SSCNode: Identifiable, Equatable, Hashable {
     }
 
     private func connect() async throws {
-        if device.connection.state != .ready {
-            device.connect()
-        }
-        let deadline = Date.now.addingTimeInterval(5)
-        var success = false
-        while Date.now < deadline {
-            if device.connection.state == .ready {
-                success = true
-                break
-            }
-        }
-        if !success {
-            print("SSCNode connect timed out")
-            throw SSCNodeError.speakersNotReachable
-        }
+        try await device.connect()
     }
 
     private func disconnect() {
@@ -139,7 +125,6 @@ class SSCNode: Identifiable, Equatable, Hashable {
             try JSONSerialization.jsonObject(with: data, options: [])
             as! [String: [String: [[String: Any]]]]
         var result_ = result["osc"]!["schema"]![0]
-        // print(result_)
         if path.isEmpty {
             return result_ as? [String: [String: String]?]
         }
