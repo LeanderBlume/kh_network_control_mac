@@ -55,7 +55,7 @@ protocol KHAccessProtocol: Observable {
 
     init(devices devices_: [SSCDevice]?)
 
-    func scan() async throws
+    func scan(scanTime: UInt32) async throws
     func checkSpeakersAvailable() async throws
     func send() async throws
     func fetch() async throws
@@ -105,10 +105,10 @@ class KHAccessNative: KHAccessProtocol {
         return try devices[0].fetchSSCValue(path: path)
     }
 
-    func scan() async throws {
+    func scan(scanTime: UInt32 = 1) async throws {
         /// Scan for devices, replacing current device list.
         status = .scanning
-        devices = SSCDevice.scan()
+        devices = SSCDevice.scan(scanTime: scanTime)
         status = .speakersFound(devices.count)
     }
 
@@ -329,7 +329,7 @@ class KHAccessDummy: KHAccessProtocol {
         try await Task.sleep(nanoseconds: 1000_000_000)
     }
 
-    func scan() async throws {
+    func scan(scanTime: UInt32 = 1) async throws {
         status = .scanning
         try await sleepOneSecond()
         status = .speakersFound(2)
