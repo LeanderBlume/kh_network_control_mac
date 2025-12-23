@@ -149,6 +149,7 @@ struct TestKHAccessDummy {
 
     @Test func testGetSchema() async throws {
         let node = SSCNode(device: device, name: "root")
+        try await node.connect()
         let result = try await node.getSchema(path: ["audio"])
         #expect(result == ["out": [:], "in2": [:], "in1": [:], "in": [:]])
         sleep(1)
@@ -162,10 +163,12 @@ struct TestKHAccessDummy {
         sleep(1)
         let result3 = try await node.getSchema(path: ["ui", "logo", "brightness"])
         #expect(result3 == nil)
+        node.disconnect()
     }
 
     @Test func testGetLimits() async throws {
         let node = SSCNode(device: device, name: "root")
+        try await node.connect()
         let result = try await node.getLimits(path: ["ui", "logo", "brightness"])
         print(result)
         #expect(
@@ -182,11 +185,14 @@ struct TestKHAccessDummy {
                     "writeable": nil,
                 ])
         )
+        node.disconnect()
     }
 
     @Test func testPopulate() async throws {
         let node = SSCNode(device: device, name: "root")
+        try await node.connect()
         #expect(node.pathToNode() == [])
         try await node.populate()
+        node.disconnect()
     }
 }
