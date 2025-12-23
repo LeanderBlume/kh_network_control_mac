@@ -76,11 +76,13 @@ class SSCNode: Identifiable, Equatable, Hashable {
         limits = limits_
     }
 
-    private func connect() async throws {
+    func connect() async throws {
+        print("Node connecting")
         try await device.connect()
     }
 
-    private func disconnect() {
+    func disconnect() {
+        print("Node disconnecting")
         device.disconnect()
     }
 
@@ -95,8 +97,12 @@ class SSCNode: Identifiable, Equatable, Hashable {
         return result.dropLast().reversed()
     }
 
-    // TODO lots of duplicate code between these functions. Factor out.
-    func getSchema(path: [String]) async throws -> [String: [String: String]?]? {
+    private func queryAux(query: [String], path: [String]) async throws -> [String: Any]
+    {
+        // Queries device with
+        // {query[0]: { ... { query[-1]: [ pathToNode() ] } ... }
+        // and returns unwrapped result.
+        // In reality, query will be either ["osc", "schema"] or ["osc", "limits"].
         var pathString = try SSCDevice.pathToJSONString(
             path: path,
             value: nil as String?
@@ -104,61 +110,40 @@ class SSCNode: Identifiable, Equatable, Hashable {
         if !path.isEmpty {
             pathString = "[" + pathString + "]"
         }
-        let queryCommand = #"{"osc":{"schema":"# + pathString + "}}"
-        try await connect()
+        var queryCommand = pathString
+        for p in query.reversed() {
+            queryCommand = "{\"\(p)\":\(queryCommand)}"
+        }
         let response: String = try device.sendSSCCommand(command: queryCommand).RX
-        // disconnect()
         guard let data = response.data(using: .utf8) else {
             throw SSCNodeError.badData
         }
-        // this breaks stuff. Wut?
-        /*
-        guard
-            let result =
-                try JSONSerialization.jsonObject(with: data, options: [])
-                as? [String: [String: [[String: Any]]]]
-        else {
-            throw SSCNodeError.unexpectedResponse(response)
-        }
-         */
         let result =
             try JSONSerialization.jsonObject(with: data, options: [])
             as! [String: [String: [[String: Any]]]]
-        var result_ = result["osc"]!["schema"]![0]
+        return result[query[0]]![query[1]]![0]
+    }
+
+    // TODO lots of duplicate code between these functions. Factor out.
+    func getSchema(path: [String]) async throws -> [String: [String: String]?]? {
+        var result = try await queryAux(query: ["osc", "schema"], path: path)
         if path.isEmpty {
-            return result_ as? [String: [String: String]?]
+            return result as? [String: [String: String]?]
         }
         for p in path.dropLast() {
-            result_ = result_[p] as! [String: Any]
+            result = result[p] as! [String: Any]
         }
-        return result_[path.last!] as? [String: [String: String]?]
+        return result[path.last!] as? [String: [String: String]?]
     }
 
     func getLimits(path: [String]) async throws -> OSCLimits {
-        var pathString = try SSCDevice.pathToJSONString(
-            path: path,
-            value: nil as String?
-        )
-        if !path.isEmpty {
-            pathString = "[" + pathString + "]"
-        }
-        let queryCommand = #"{"osc":{"limits":"# + pathString + "}}"
-        try await connect()
-        let response: String = try device.sendSSCCommand(command: queryCommand).RX
-        // disconnect()
-        guard let data = response.data(using: .utf8) else {
-            throw SSCNodeError.badData
-        }
-        let result =
-            try! JSONSerialization.jsonObject(with: data, options: [])
-            as! [String: [String: [[String: Any?]]]]
-        var result_ = result["osc"]!["limits"]![0]
+        var result = try await queryAux(query: ["osc", "limits"], path: path)
         for p in path.dropLast() {
-            result_ = result_[p] as! [String: Any?]
+            result = result[p] as! [String: Any]
         }
-        let result__ = result_[path.last!] as! [[String: Any?]]
-        let result___ = result__[0]
-        return OSCLimits(fromDict: result___)
+        let result_ = result[path.last!] as! [[String: Any?]]
+        let result__ = result_[0]
+        return OSCLimits(fromDict: result__)
     }
 
     func populateLeaf(path: [String]) async throws {
@@ -178,7 +163,7 @@ class SSCNode: Identifiable, Equatable, Hashable {
         // Now do limits to discover the type
         limits = try await getLimits(path: path)
 
-        // Count is given -> array type
+        // Count is given => array type
         if let count = limits!.count {
             if count > 1 {
                 switch limits!.type {
@@ -196,7 +181,6 @@ class SSCNode: Identifiable, Equatable, Hashable {
         }
 
         // standard case, single values
-        // This catch block doesn't catch anything. why
         do {
             switch limits!.type {
             case "Number":
@@ -214,26 +198,8 @@ class SSCNode: Identifiable, Equatable, Hashable {
             value = .error("Wrong type given by limits")
         }
     }
-
-    func populate(recursive: Bool = true) async throws {
-        let path = pathToNode()
-        print(path)
-        switch value {
-        case nil:
-            break
-        case .null:
-            try await populateLeaf(path: path)
-            // print(value)
-            return
-        case .error:
-            // idk
-            return
-        default:  // An actual type
-            print("already populated")
-            // Or maybe an error?
-            // Or maybe refetch?
-            return
-        }
+    
+    func populateInternal(path: [String]) async throws {
         // We are not at a leaf node and need to discover subcommands.
         guard let resultStripped = try await getSchema(path: path) else {
             throw SSCNodeError.caseDistinctionFailed
@@ -241,12 +207,12 @@ class SSCNode: Identifiable, Equatable, Hashable {
         var subNodeArray: [SSCNode] = []
         for (k, v) in resultStripped {
             let subNodeValue: JSONData?
+            // TODO .null and nil are pretty confusing. Maybe use a different value?
             if v == nil {
                 // There's a parameter!
                 subNodeValue = .null
             } else if v == [:] {
                 // There are subnodes to be discovered.
-                // TODO .null and nil are pretty confusing. Maybe use a different value?
                 subNodeValue = nil
             } else {
                 throw SSCNodeError.unexpectedResponse(
@@ -268,13 +234,31 @@ class SSCNode: Identifiable, Equatable, Hashable {
             return a.name < b.name
         }
         value = .object(subNodeArray)
-        for n in subNodeArray {
-            if (n.value == .null) || (recursive && (n.value == nil)) {
-                try await Task.sleep(nanoseconds: 10_000_000)
-                try await n.populate()
+    }
+
+    func populate(recursive: Bool = true) async throws {
+        // Populates the tree. Does not refresh previously fetched values!
+        let path = pathToNode()
+        print("populating", path)
+        switch value {
+        case nil:
+            try await populateInternal(path: path)
+            if case .object(let subNodeArray) = value {
+                for n in subNodeArray {
+                    if recursive && (n.value == .null || n.value == nil) {
+                        // WOW with the better connection handling (WIP), we don't even
+                        // need a delay here anymore.
+                        try await n.populate()
+                    }
+                }
+            } else {
+                throw SSCNodeError.caseDistinctionFailed
             }
+        case .null:
+            try await populateLeaf(path: path)
+        default:  // An actual type
+            break
         }
-        disconnect()
     }
 
     // Returns list of child nodes, if there are any. This is for SSCTreeView.
@@ -293,7 +277,7 @@ class SSCNode: Identifiable, Equatable, Hashable {
         }
         return nil
     }
-    
+
     static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
         return lhs.pathToNode() == rhs.pathToNode()
     }

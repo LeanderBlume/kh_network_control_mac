@@ -31,7 +31,7 @@ struct SSCTreeView: View {
             case .object:
                 EmptyView()
             case .string(let v):
-                Text(#""\(v)""#)
+                Text(#"""# + v + #"""#)
             case .number(let v):
                 Text(String(v))
             case .bool(let v):
@@ -56,10 +56,13 @@ struct SSCTreeView: View {
             do {
                 let scan = SSCDevice.scan()
                 if scan.isEmpty {
+                    status = "Scan found no devices"
                     throw Errors.noDevicesFound
                 }
                 rootNode = SSCNode(device: scan.first!, name: "Root")
+                try await rootNode!.connect()
                 try await rootNode!.populate(recursive: true)
+                rootNode!.disconnect()
                 status = "Querying successful"
             } catch {
                 rootNode = nil
