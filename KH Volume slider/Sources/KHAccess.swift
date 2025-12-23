@@ -9,7 +9,7 @@ import SwiftUI
 
 typealias KHAccess = KHAccessNative
 
-enum KHAccessStatus {
+enum KHAccessStatus: Equatable {
     case clean
     case fetching
     case fetchingSuccess
@@ -113,6 +113,7 @@ class KHAccessNative: KHAccessProtocol {
     }
 
     private func connectAll() async throws {
+        /// TODO why is the deadline stuff not happening in SSCDevice?
         for d in devices {
             if d.connection.state != .ready {
                 d.connect()
@@ -337,7 +338,7 @@ class KHAccessDummy: KHAccessProtocol {
     func checkSpeakersAvailable() async throws {
         status = .checkingSpeakerAvailability
         try await sleepOneSecond()
-        status = .clean
+        status = .speakersAvailable
     }
 
     func fetch() async throws {
@@ -347,5 +348,6 @@ class KHAccessDummy: KHAccessProtocol {
     }
 
     func send() async throws {
+        status = .clean
     }
 }
