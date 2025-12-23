@@ -25,13 +25,13 @@ struct KH_Volume_sliderTests_Offline {
 }
 
 struct TestSSC {
-    @Test func testSendMessage() {
+    @Test func testSendMessage() async throws {
         let ip = "fe80::2a36:38ff:fe61:7933"
         guard let sscDevice = SSCDevice(ip: ip) else {
             #expect(Bool(false))
             return
         }
-        sscDevice.connect()
+        try await sscDevice.connect()
         while sscDevice.connection.state != .ready {
             print(sscDevice.connection.state)
             sleep(1)
@@ -52,10 +52,10 @@ struct TestSSC {
         sscDevice.disconnect()
     }
 
-    @Test func testSendMessageWithScan() {
+    @Test func testSendMessageWithScan() async throws {
         let sscDevice = SSCDevice.scan()[0]
-        sscDevice.connect()
-        
+        try await sscDevice.connect()
+
         let TX1 = "{\"audio\":{\"out\":{\"mute\":true}}}"
         let t1 = sscDevice.sendMessage(TX1)
         sleep(1)
