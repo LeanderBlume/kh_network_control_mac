@@ -58,7 +58,7 @@ class SSCDevice {
         return retval
     }
 
-    func connect() {
+    func connect() async throws {
         switch connection.state {
         case .ready, .preparing:
             return
@@ -69,6 +69,20 @@ class SSCDevice {
             connection.start(queue: dispatchQueue)
         default:
             connection.start(queue: dispatchQueue)
+        }
+        let deadline = Date.now.addingTimeInterval(5)
+        var success = false
+        while Date.now < deadline {
+            if connection.state == .ready {
+                success = true
+                break
+            }
+        }
+        if !success {
+            throw SSCDeviceError.noResponse
+            // print("timed out, could not connect")
+            // status = .speakersUnavailable
+            // throw KHAccessError.speakersNotReachable
         }
     }
 

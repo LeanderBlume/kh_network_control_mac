@@ -113,23 +113,14 @@ class KHAccessNative: KHAccessProtocol {
     }
 
     private func connectAll() async throws {
-        /// TODO why is the deadline stuff not happening in SSCDevice?
         for d in devices {
             if d.connection.state != .ready {
-                d.connect()
-            }
-            let deadline = Date.now.addingTimeInterval(5)
-            var success = false
-            while Date.now < deadline {
-                if d.connection.state == .ready {
-                    success = true
-                    break
+                do {
+                    try await d.connect()
+                } catch SSCDevice.SSCDeviceError.noResponse {
+                    status = .speakersUnavailable
+                    throw KHAccessError.speakersNotReachable
                 }
-            }
-            if !success {
-                print("timed out, could not connect")
-                status = .speakersUnavailable
-                throw KHAccessError.speakersNotReachable
             }
         }
     }
