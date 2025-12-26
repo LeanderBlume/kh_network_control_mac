@@ -9,6 +9,13 @@ import SwiftUI
 
 typealias KHAccess = KHAccessNative
 
+struct KHAccessState: Equatable {
+    var volume = 54.0
+    var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
+    var muted = false
+    var logoBrightness = 100.0
+}
+
 enum KHAccessStatus: Equatable {
     case clean
     case fetching
@@ -45,12 +52,6 @@ enum KHAccessError: Error {
     case noSpeakersFoundDuringScan
 }
 
-struct KHAccessState {
-    var volume = 54.0
-    var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
-    var muted = false
-    var logoBrightness = 100.0
-}
 
 protocol KHAccessProtocol: Observable {
     init(devices devices_: [SSCDevice]?)
