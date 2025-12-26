@@ -12,8 +12,8 @@ struct VolumeTab: View {
 
     var body: some View {
         VStack {
-            Text("\(Int(khAccess.volume)) dB")
-            Slider(value: $khAccess.volume, in: 0...120, step: 3) {
+            Text("\(Int(khAccess.state.volume)) dB")
+            Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
                 Text("")
             } minimumValueLabel: {
                 Text("0")
@@ -31,7 +31,7 @@ struct VolumeTab: View {
             #if os(iOS)
             // Text("\(Int(khAccess.volume))")
 
-            Stepper("+/- 3 db", value: $khAccess.volume, in: 0...120, step: 3) {
+            Stepper("+/- 3 db", value: $khAccess.state.volume, in: 0...120, step: 3) {
                 editing in
                 if editing {
                     return
@@ -45,10 +45,10 @@ struct VolumeTab: View {
             Toggle(
                 "Mute",
                 systemImage: "speaker.slash.fill",
-                isOn: $khAccess.muted
+                isOn: $khAccess.state.muted
             )
             .toggleStyle(.button)
-            .onChange(of: khAccess.muted) {
+            .onChange(of: khAccess.state.muted) {
                 Task {
                     try await khAccess.send()
                 }

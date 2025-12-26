@@ -15,10 +15,10 @@ func magnitudeResponseParametric(
 }
 
 struct EqChart: View {
-    var khAccess: KHAccess
+    var state: KHAccessState
 
     var body: some View {
-        let eqs = khAccess.eqs
+        let eqs = state.eqs
         let activeBands = eqs.map { eq in
             eq.enabled.indices.filter { eq.enabled[$0] }
         }

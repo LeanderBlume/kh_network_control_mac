@@ -14,7 +14,7 @@ struct HardwareTab: View {
         #if os(macOS)
         HStack {
             Text("Logo brightness")
-            Slider(value: $khAccess.logoBrightness, in: 0...125) {
+            Slider(value: $khAccess.state.logoBrightness, in: 0...125) {
                 Text("")
             } onEditingChanged: { editing in
                 if !editing {
@@ -27,7 +27,7 @@ struct HardwareTab: View {
 
             TextField(
                 "Logo brightness",
-                value: $khAccess.logoBrightness,
+                value: $khAccess.state.logoBrightness,
                 format: .number.precision(.fractionLength(0))
             )
             .frame(width: 80)
@@ -43,7 +43,7 @@ struct HardwareTab: View {
             Text("Logo brightness")
             
             HStack {
-                Slider(value: $khAccess.logoBrightness, in: 0...125) {
+                Slider(value: $khAccess.state.logoBrightness, in: 0...125) {
                     Text("")
                 } onEditingChanged: { editing in
                     if !editing {
@@ -56,7 +56,7 @@ struct HardwareTab: View {
                 
                 TextField(
                     "Logo brightness",
-                    value: $khAccess.logoBrightness,
+                    value: $khAccess.state.logoBrightness,
                     format: .number.precision(.fractionLength(0))
                 )
                 .frame(width: 80)
