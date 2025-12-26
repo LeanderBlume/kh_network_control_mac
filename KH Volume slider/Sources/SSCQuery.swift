@@ -47,20 +47,20 @@ struct OSCLimits: Equatable {
     }
 }
 
+enum SSCNodeError: Error {
+    case speakersNotReachable
+    case badData
+    case unknownTypeFromLimits(String?)
+    case unexpectedResponse(String)
+    case caseDistinctionFailed
+}
+
 class SSCNode: Identifiable, Equatable, Hashable {
     var device: SSCDevice
     var name: String
     var value: JSONData?
     var parent: SSCNode?
     var limits: OSCLimits?
-
-    enum SSCNodeError: Error {
-        case speakersNotReachable
-        case badData
-        case unknownTypeFromLimits(String?)
-        case unexpectedResponse(String)
-        case caseDistinctionFailed
-    }
 
     init(
         device device_: SSCDevice,
@@ -77,12 +77,10 @@ class SSCNode: Identifiable, Equatable, Hashable {
     }
 
     func connect() async throws {
-        print("Node connecting")
         try await device.connect()
     }
 
     func disconnect() {
-        print("Node disconnecting")
         device.disconnect()
     }
 
@@ -146,7 +144,7 @@ class SSCNode: Identifiable, Equatable, Hashable {
         return OSCLimits(fromDict: result__)
     }
 
-    func populateLeaf(path: [String]) async throws {
+    private func populateLeaf(path: [String]) async throws {
         // Special cases that we just need to handle manually because the type given by
         // limits is wrong.
         switch path {
@@ -198,8 +196,8 @@ class SSCNode: Identifiable, Equatable, Hashable {
             value = .error("Wrong type given by limits")
         }
     }
-    
-    func populateInternal(path: [String]) async throws {
+
+    private func populateInternal(path: [String]) async throws {
         // We are not at a leaf node and need to discover subcommands.
         guard let resultStripped = try await getSchema(path: path) else {
             throw SSCNodeError.caseDistinctionFailed
@@ -261,7 +259,7 @@ class SSCNode: Identifiable, Equatable, Hashable {
         }
     }
 
-    // Returns list of child nodes, if there are any. This is for SSCTreeView.
+    /// Returns list of child nodes, if there are any. This is for SSCTreeView lazy loading. Maybe we don't need this.
     var children: [SSCNode]? {
         // We need a better way to rate-limit this
         /*

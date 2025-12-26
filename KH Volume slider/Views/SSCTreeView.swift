@@ -18,6 +18,8 @@ struct SSCTreeView: View {
     
     @ViewBuilder
     private func description(_ node: SSCNode) -> some View {
+        /// Ideas:
+        /// - Colors for different types (at least expandable / not expandable
         HStack {
             Text(node.name)
             Spacer()
