@@ -56,6 +56,7 @@ protocol KHAccessProtocol: Observable {
     init(devices devices_: [SSCDevice]?)
 
     var state: KHAccessState { get set }
+    var parameters: [SSCNode] { get }
     var status: KHAccessStatus { get }
 
     func scan(scanTime: UInt32) async throws
@@ -77,6 +78,7 @@ final class KHAccessNative: KHAccessProtocol {
     // (last known) device state. We compare UI state against this to selectively send
     // changed values to the device.
     private var deviceState = KHAccessState()
+    var parameters: [SSCNode] = []
 
     var status: KHAccessStatus = .clean
 
@@ -89,6 +91,7 @@ final class KHAccessNative: KHAccessProtocol {
         } else {
             devices = SSCDevice.scan()
         }
+        parameters = devices.map { SSCNode(device: $0, name: "root") }
     }
 
     private func sendSSCValue<T>(path: [String], value: T) async throws
