@@ -300,6 +300,7 @@ final class KHAccessDummy: KHAccessProtocol {
     // UI state
     var state = KHAccessState()
     var status: KHAccessStatus = .clean
+    var parameters: [SSCNode] = []
 
     required init(devices devices_: [SSCDevice]? = nil) {
 
