@@ -52,7 +52,6 @@ enum KHAccessError: Error {
     case noSpeakersFoundDuringScan
 }
 
-
 protocol KHAccessProtocol: Observable {
     init(devices devices_: [SSCDevice]?)
 
@@ -280,7 +279,7 @@ final class KHAccessNative: KHAccessProtocol {
                 try await sendEqType(eqIdx: eqIdx, eqName: eqName)
             }
         }
-        
+
         deviceState = state
 
         disconnectAll()
