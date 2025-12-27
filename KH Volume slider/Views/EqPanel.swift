@@ -288,7 +288,7 @@ struct EqPanel_: View {
         #elseif os(iOS)
         VStack {
             Stepper(value: $selectedEqBand, in: 0 ... numBands - 1) {
-                Text("Band \(self.selectedEqBand + 1) / \(numBands)")
+                Text("Band \(selectedEqBand + 1) / \(numBands)")
             }
 
             EqBandPanel(
@@ -307,6 +307,7 @@ struct EqPanel: View {
     @State private var selectedEq: Int = 0
     var body: some View {
         ScrollView {
+
             let enabledBands = khAccess.state.eqs
                 .map({$0.enabled.count(where: {$0})})
                 .reduce(0, +)
@@ -320,7 +321,6 @@ struct EqPanel: View {
                     Text("calibration EQ").tag(1)
                 }
                 .pickerStyle(.segmented)
-                //.padding()
                 
                 ZStack {
                     EqPanel_(khAccess: khAccess, selectedEq: 0)
@@ -328,9 +328,20 @@ struct EqPanel: View {
                     EqPanel_(khAccess: khAccess, selectedEq: 1)
                         .opacity(selectedEq == 1 ? 1 : 0)
                 }
-                //.padding()
             }
             .padding()
         }
     }
+}
+
+#Preview {
+    let khAccess = KHAccess()
+    EqPanel(khAccess: khAccess)
+        .task {
+            do {
+                try await khAccess.fetch()
+            } catch {
+                return
+            }
+        }
 }

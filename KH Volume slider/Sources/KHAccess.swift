@@ -56,7 +56,7 @@ enum KHAccessError: Error {
 protocol KHAccessProtocol: Observable, Identifiable {
     init(devices devices_: [SSCDevice]?)
 
-    var state: KHAccessState { get set }
+    var state: KHAccessState { get }
     var parameters: [SSCNode] { get }
     var status: KHAccessStatus { get }
 
@@ -298,7 +298,6 @@ final class KHAccessNative: KHAccessProtocol {
         }
 
         deviceState = state
-
         disconnectAll()
     }
 }
