@@ -19,17 +19,17 @@ struct KHAccessState: Equatable {
 enum KHAccessStatus: Equatable {
     case clean
     case fetching
-    case fetchingSuccess
     case checkingSpeakerAvailability
     case speakersAvailable
     case speakersUnavailable
     case scanning
     case queryingParameters
     case speakersFound(Int)
+    case success
 
     func isClean() -> Bool {
         switch self {
-        case .clean, .fetchingSuccess, .speakersAvailable:
+        case .clean, .success, .speakersAvailable:
             return true
         case .speakersFound(let n):
             return n > 0
@@ -40,7 +40,7 @@ enum KHAccessStatus: Equatable {
 
     func isBusy() -> Bool {
         switch self {
-        case .fetching, .checkingSpeakerAvailability, .scanning:
+        case .fetching, .checkingSpeakerAvailability, .scanning, .queryingParameters:
             return true
         default:
             return false
@@ -60,7 +60,7 @@ protocol KHAccessProtocol: Observable, Identifiable {
     var parameters: [SSCNode] { get }
     var status: KHAccessStatus { get }
 
-    func scan(scanTime: UInt32) async throws
+    func scan(seconds: UInt32) async throws
     func checkSpeakersAvailable() async throws
     func populateParameters() async throws
     func send() async throws
@@ -107,10 +107,11 @@ final class KHAccessNative: KHAccessProtocol {
         return try devices[0].fetchSSCValue(path: path)
     }
 
-    func scan(scanTime: UInt32 = 1) async throws {
+    func scan(seconds: UInt32 = 1) async throws {
         /// Scan for devices, replacing current device list.
         status = .scanning
-        devices = SSCDevice.scan(scanTime: scanTime)
+        devices = SSCDevice.scan(seconds: seconds)
+        parameters = devices.map { SSCNode(device: $0, name: "root") }
         status = .speakersFound(devices.count)
     }
 
@@ -155,7 +156,7 @@ final class KHAccessNative: KHAccessProtocol {
         try await connectAll()
         status = .queryingParameters
         try await parameters.first!.populate(recursive: true)
-        status = .clean
+        status = .success
         disconnectAll()
     }
 
@@ -199,7 +200,7 @@ final class KHAccessNative: KHAccessProtocol {
 
         state = deviceState
 
-        status = .fetchingSuccess
+        status = .success
         disconnectAll()
     }
 
@@ -323,7 +324,7 @@ final class KHAccessDummy: KHAccessProtocol {
         try await Task.sleep(nanoseconds: 1000_000_000)
     }
 
-    func scan(scanTime: UInt32 = 1) async throws {
+    func scan(seconds: UInt32 = 1) async throws {
         status = .scanning
         try await sleepOneSecond()
         status = .speakersFound(2)
@@ -344,7 +345,7 @@ final class KHAccessDummy: KHAccessProtocol {
     func fetch() async throws {
         status = .fetching
         try await sleepOneSecond()
-        status = .fetchingSuccess
+        status = .success
     }
 
     func send() async throws {

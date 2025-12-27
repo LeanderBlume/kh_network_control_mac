@@ -21,30 +21,45 @@ struct StatusDisplay: View {
             case .clean, .speakersAvailable:
                 circ.foregroundColor(.green)
             case .fetching:
-                Text("Fetching...")
-                pv
+                HStack {
+                    Text("Fetching...")
+                    pv
+                }
             case .checkingSpeakerAvailability:
-                Text("Connecting...")
-                pv
+                HStack {
+                    Text("Connecting...")
+                    pv
+                }
             case .scanning:
-                Text("Scanning...")
-                pv
+                HStack {
+                    Text("Scanning...")
+                    pv
+                }
+            case .queryingParameters:
+                HStack {
+                    Text("Querying...")
+                    pv
+                }
             case .speakersUnavailable:
-                Text("Speakers unavailable")
-                circ.foregroundColor(.red)
+                HStack {
+                    Text("Speakers unavailable")
+                    circ.foregroundColor(.red)
+                }
             case .speakersFound(let n):
                 if n == 0 {
-                    Text("No speakers discovered")
-                    circ.foregroundColor(.red)
+                    HStack {
+                        Text("No speakers found")
+                        circ.foregroundColor(.red)
+                    }
                 } else {
-                    Text("Discovered \(n) speakers")
-                    circ.foregroundColor(.green)
+                    HStack {
+                        Text("Discovered \(n) speakers")
+                        circ.foregroundColor(.green)
+                    }
                 }
-            case .fetchingSuccess:
-                Text("Parameters fetched")
+            case .success:
+                // Text("Parameters fetched")
                 Image(systemName: "checkmark").foregroundColor(.green)
-            case .queryingParameters:
-                Text("Querying...")
             }
         }
         .frame(height: 20)

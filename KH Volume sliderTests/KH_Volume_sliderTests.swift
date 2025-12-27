@@ -121,7 +121,7 @@ struct TestKHAccessDummy {
     @Test func testFetch() async throws {
         let k = KHAccessDummy()
         try await k.fetch()
-        #expect(k.status == .fetchingSuccess)
+        #expect(k.status == .success)
     }
 
     @Test func testSend() async throws {

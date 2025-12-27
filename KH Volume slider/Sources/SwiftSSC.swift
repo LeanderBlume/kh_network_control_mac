@@ -44,7 +44,7 @@ class SSCDevice {
         dispatchQueue = DispatchQueue(label: "KH Speaker connection")
     }
 
-    static func scan(scanTime: UInt32 = 1) -> [SSCDevice] {
+    static func scan(seconds: UInt32 = 1) -> [SSCDevice] {
         var retval: [SSCDevice] = []
         let q = DispatchQueue(label: "KH Discovery")
         let browser = NWBrowser(
@@ -57,7 +57,7 @@ class SSCDevice {
             }
         }
         browser.start(queue: q)
-        sleep(scanTime)
+        sleep(seconds)
         return retval
     }
 
