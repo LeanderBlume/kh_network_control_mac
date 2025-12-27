@@ -292,7 +292,8 @@ struct EqPanel_: View {
                                     Button(String(i + 1)) {
                                         selectedEqBand = i
                                     }
-                                    .background(selectedEqBand == i ? .green : .clear)
+                                    .foregroundStyle(selectedEqBand == i ? .green : .accentColor)
+                                    // .background(selectedEqBand == i ? .green : .clear)
                                     
                                     Toggle(
                                         "x",
