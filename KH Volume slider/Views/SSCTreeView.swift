@@ -8,14 +8,21 @@
 import SwiftUI
 
 struct SSCTreeView: View {
-    @State var rootNode: SSCNode?
+    var khAccess: KHAccess
     @State var selectedNode: SSCNode.ID?
-    @State var status = "Idle"
 
     private enum Errors: Error {
         case noDevicesFound
     }
-    
+
+    private func buildTree() async {
+        do {
+            try await khAccess.populateParameters()
+        } catch {
+            khAccess.status = .speakersUnavailable
+        }
+    }
+
     @ViewBuilder
     private func description(_ node: SSCNode) -> some View {
         /// Ideas:
@@ -49,31 +56,19 @@ struct SSCTreeView: View {
     }
 
     var body: some View {
-        Text(status)
-        List(rootNode?.children ?? [], children: \.children, selection: $selectedNode) {
-            node in description(node)
+        List(
+            khAccess.parameters.first!.children ?? [],
+            children: \.children,
+            selection: $selectedNode
+        ) {
+            description($0)
         }
-        .task {
-            status = "Querying..."
-            do {
-                let scan = SSCDevice.scan()
-                if scan.isEmpty {
-                    status = "Scan found no devices"
-                    throw Errors.noDevicesFound
-                }
-                rootNode = SSCNode(device: scan.first!, name: "Root")
-                try await rootNode!.connect()
-                try await rootNode!.populate(recursive: true)
-                rootNode!.disconnect()
-                status = "Querying successful"
-            } catch {
-                rootNode = nil
-                status = "Querying failed"
-            }
-        }
+        .task { await buildTree() }
+        /// TODO write a different method that just re-fetches leaf node values?
+        // .refreshable { await buildTree() }
     }
 }
 
 #Preview {
-    SSCTreeView()
+    SSCTreeView(khAccess: KHAccess())
 }

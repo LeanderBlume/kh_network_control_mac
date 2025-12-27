@@ -43,6 +43,8 @@ struct StatusDisplay: View {
             case .fetchingSuccess:
                 Text("Parameters fetched")
                 Image(systemName: "checkmark").foregroundColor(.green)
+            case .queryingParameters:
+                Text("Querying...")
             }
         }
         .frame(height: 20)

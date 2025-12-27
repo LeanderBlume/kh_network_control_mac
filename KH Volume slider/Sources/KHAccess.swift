@@ -24,6 +24,7 @@ enum KHAccessStatus: Equatable {
     case speakersAvailable
     case speakersUnavailable
     case scanning
+    case queryingParameters
     case speakersFound(Int)
 
     func isClean() -> Bool {
@@ -52,7 +53,7 @@ enum KHAccessError: Error {
     case noSpeakersFoundDuringScan
 }
 
-protocol KHAccessProtocol: Observable {
+protocol KHAccessProtocol: Observable, Identifiable {
     init(devices devices_: [SSCDevice]?)
 
     var state: KHAccessState { get set }
@@ -61,6 +62,7 @@ protocol KHAccessProtocol: Observable {
 
     func scan(scanTime: UInt32) async throws
     func checkSpeakersAvailable() async throws
+    func populateParameters() async throws
     func send() async throws
     func fetch() async throws
 }
@@ -143,6 +145,17 @@ final class KHAccessNative: KHAccessProtocol {
         }
         try await connectAll()
         status = .speakersAvailable
+        disconnectAll()
+    }
+    
+    func populateParameters() async throws {
+        if parameters.isEmpty {
+            throw KHAccessError.noSpeakersFoundDuringScan
+        }
+        try await connectAll()
+        status = .queryingParameters
+        try await parameters.first!.populate(recursive: true)
+        status = .clean
         disconnectAll()
     }
 
@@ -320,6 +333,12 @@ final class KHAccessDummy: KHAccessProtocol {
         status = .checkingSpeakerAvailability
         try await sleepOneSecond()
         status = .speakersAvailable
+    }
+    
+    func populateParameters() async throws {
+        status = .queryingParameters
+        try await sleepOneSecond()
+        status = .clean
     }
 
     func fetch() async throws {

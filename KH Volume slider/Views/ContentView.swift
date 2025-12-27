@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct ContentView: View {
-    @State var khAccess = KHAccess()
+    @State var khAccess: KHAccess
 
     @Environment(\.openWindow) private var openWindow
 
@@ -57,7 +57,7 @@ struct ContentView: View {
                 }
                 #if os(iOS)
                     Tab("Browser", systemImage: "list.bullet.indent") {
-                        SSCTreeView()
+                        SSCTreeView(khAccess: khAccess)
                     }
                 #endif
             }
@@ -110,5 +110,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(khAccess: KHAccess())
 }

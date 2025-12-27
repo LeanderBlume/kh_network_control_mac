@@ -55,6 +55,7 @@ enum SSCNodeError: Error {
     case caseDistinctionFailed
 }
 
+@Observable
 class SSCNode: Identifiable, Equatable, Hashable {
     var device: SSCDevice
     var name: String
@@ -122,7 +123,6 @@ class SSCNode: Identifiable, Equatable, Hashable {
         return result[query[0]]![query[1]]![0]
     }
 
-    // TODO lots of duplicate code between these functions. Factor out.
     func getSchema(path: [String]) async throws -> [String: [String: String]?]? {
         var result = try await queryAux(query: ["osc", "schema"], path: path)
         if path.isEmpty {
