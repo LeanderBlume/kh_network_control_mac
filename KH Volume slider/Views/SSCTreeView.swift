@@ -32,9 +32,9 @@ struct SSCTreeView: View {
             Spacer()
             switch node.value {
             case .none, .null:
-                Text("?")
+                ProgressView()
             case .error(let s):
-                Text("ERR: " + s)
+                Text("⚠️ " + s)
             case .object:
                 EmptyView()
             case .string(let v):
@@ -62,20 +62,16 @@ struct SSCTreeView: View {
                 }
             }
         } else {
-            VStack {
-                List(
-                    khAccess.parameters.first?.children ?? [],
-                    children: \.children,
-                    selection: $selectedNode
-                ) {
-                    description($0)
-                }
-                // .task { await buildTree() }
-                /// TODO write a different method that just re-fetches leaf node values?
-                // .refreshable { await buildTree() }
-                
+            List(
+                khAccess.parameters.first?.children ?? [],
+                children: \.children,
+                selection: $selectedNode
+            ) {
+                description($0)
             }
-            .padding()
+            // .task { await buildTree() }
+            /// TODO write a different method that just re-fetches leaf node values?
+            // .refreshable { await buildTree() }
         }
     }
 }

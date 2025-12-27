@@ -180,12 +180,12 @@ class SSCNode: Identifiable, Equatable, Hashable {
             case "Boolean":
                 value = .bool(try device.fetchSSCValue(path: path))
             case nil:
-                value = .error("No type given by limits")
+                value = .error("Unknown type")
             default:
                 throw SSCNodeError.unknownTypeFromLimits(limits!.type)
             }
         } catch SSCDevice.SSCDeviceError.wrongType {
-            value = .error("Wrong type given by limits")
+            value = .error("Wrong type")
         }
     }
 
