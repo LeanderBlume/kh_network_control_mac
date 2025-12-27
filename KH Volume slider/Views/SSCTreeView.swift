@@ -31,20 +31,19 @@ struct SSCTreeView: View {
             Text(node.name)
             Spacer()
             switch node.value {
-            case .none:
-                Text("unknown subtree")
-            case .null:
-                Text("unknown value")
+            case .none, .null:
+                Text("?")
             case .error(let s):
-                Text("ERROR: " + s)
+                Text("ERR: " + s)
             case .object:
                 EmptyView()
             case .string(let v):
-                Text(#"""# + v + #"""#)
+                Text("\"" + v + "\"")
             case .number(let v):
                 Text(String(v))
             case .bool(let v):
-                Text(v ? "yes" : "no")
+                // Text(v ? "yes" : "no")
+                Text(String(v))
             case .arrayString(let v):
                 Text(String(describing: v))
             case .arrayNumber(let v):
@@ -56,16 +55,28 @@ struct SSCTreeView: View {
     }
 
     var body: some View {
-        List(
-            khAccess.parameters.first!.children ?? [],
-            children: \.children,
-            selection: $selectedNode
-        ) {
-            description($0)
+        if khAccess.parameters.first?.value == nil {
+            Button("Query parameters") {
+                Task {
+                    await buildTree()
+                }
+            }
+        } else {
+            VStack {
+                List(
+                    khAccess.parameters.first?.children ?? [],
+                    children: \.children,
+                    selection: $selectedNode
+                ) {
+                    description($0)
+                }
+                // .task { await buildTree() }
+                /// TODO write a different method that just re-fetches leaf node values?
+                // .refreshable { await buildTree() }
+                
+            }
+            .padding()
         }
-        .task { await buildTree() }
-        /// TODO write a different method that just re-fetches leaf node values?
-        // .refreshable { await buildTree() }
     }
 }
 
