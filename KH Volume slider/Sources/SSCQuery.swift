@@ -77,14 +77,6 @@ class SSCNode: Identifiable, Equatable, Hashable {
         limits = limits_
     }
 
-    func connect() async throws {
-        try await device.connect()
-    }
-
-    func disconnect() {
-        device.disconnect()
-    }
-
     func pathToNode() -> [String] {
         var result: [String] = []
         var curr: SSCNode? = self
