@@ -82,7 +82,7 @@ struct ContentView: View {
                             try await khAccess.fetch()
                         }
                     }
-                    .disabled(khAccess.status.isBusy() || !khAccess.status.isClean())
+                    .disabled(khAccess.status.isBusy())
 
                     Button("Rescan") {
                         Task {
