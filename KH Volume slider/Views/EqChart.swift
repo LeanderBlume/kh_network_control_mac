@@ -78,7 +78,7 @@ struct EqChart: View {
                 ForEach(activeBands[i], id: \.self) { j in
                     PointMark(
                         x: .value("f", eq.frequency[j]),
-                        y: .value("Gain", eq.boost[j])
+                        y: .value("Gain", eq.boost[j] - 6)
                     )
                     .foregroundStyle(colors[i % 2])
                     .symbolSize(200)
