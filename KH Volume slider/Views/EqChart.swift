@@ -94,7 +94,7 @@ struct EqChart: View {
                         y: .value("Gain", eq.boost[j] - 6)
                     )
                     .foregroundStyle(colors[i % 2])
-                    .symbolSize(200)
+                    .symbolSize(300)
                     .annotation(position: .overlay) {
                         Text(String(j + 1))
                             .foregroundStyle(.black)
