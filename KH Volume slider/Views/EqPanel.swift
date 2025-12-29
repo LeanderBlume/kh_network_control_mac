@@ -306,12 +306,6 @@ struct EqPanel: View {
 
     var body: some View {
         ScrollView {
-
-            let enabledBands = khAccess.state.eqs
-                .map({ $0.enabled.count(where: { $0 }) })
-                .reduce(0, +)
-            Text("Bands enabled: \(enabledBands)").padding(.vertical)
-
             EqChart(state: khAccess.state).frame(height: 150)
 
             VStack(spacing: 20) {
