@@ -118,7 +118,7 @@ struct EqBandPanel: View {
                         }
                     }
                     .disabled(khAccess.state.eqs[selectedEq].enabled[selectedEqBand])
-                    
+
                     Spacer()
 
                     Text("Disable to change type")
@@ -261,8 +261,8 @@ struct EqPanel_: View {
         let numBands = khAccess.state.eqs[selectedEq].enabled.count
 
         VStack(spacing: 20) {
-            ScrollView {
-                Grid(horizontalSpacing: 10, verticalSpacing: 20) {
+            #if os(macOS)
+                Grid(horizontalSpacing: 30, verticalSpacing: 20) {
                     ForEach((1...numBands / 10), id: \.self) { row in
                         GridRow {
                             ForEach((10 * (row - 1)...10 * row - 1), id: \.self) { i in
@@ -273,29 +273,57 @@ struct EqPanel_: View {
                                     .foregroundStyle(
                                         selectedEqBand == i ? .green : .accentColor
                                     )
-                                    // .background(selectedEqBand == i ? .green : .clear)
 
                                     Toggle(
                                         "✓",
                                         isOn: $khAccess.state.eqs[selectedEq].enabled[i]
                                     )
                                     .toggleStyle(.button)
-                                    .onChange(of: khAccess.state.eqs[selectedEq].enabled) {
-                                        Task {
-                                            try await khAccess.send()
-                                        }
-                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
+            #elseif os(iOS)
+                ScrollView(.horizontal) {
+                    HStack {
+                        ForEach((0..<numBands), id: \.self) { i in
+                            VStack(alignment: .center) {
+                                Button(String(i + 1)) {
+                                    selectedEqBand = i
+                                }
+                                .foregroundStyle(
+                                    selectedEqBand == i ? .green : .accentColor
+                                )
+                                // .background(selectedEqBand == i ? .green : .clear)
+                                
+                                Toggle(
+                                    "✓",
+                                    isOn: $khAccess.state.eqs[selectedEq]
+                                        .enabled[i]
+                                )
+                                .toggleStyle(.button)
+                            }
+                            // .frame(width: 50)
+                            .padding(.bottom)
+                        }
+                    }
+                }
+                .scrollClipDisabled(true)
+            #endif
             EqBandPanel(
                 khAccess: khAccess,
                 selectedEq: selectedEq,
                 selectedEqBand: selectedEqBand
             )
+        }
+        .onChange(
+            of: khAccess.state.eqs[selectedEq].enabled
+        ) {
+            print("I WAS CHANGED")
+            Task {
+                try await khAccess.send()
+            }
         }
     }
 }
