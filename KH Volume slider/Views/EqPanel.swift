@@ -292,11 +292,13 @@ struct EqPanel_: View {
                                     Button(String(i + 1)) {
                                         selectedEqBand = i
                                     }
-                                    .foregroundStyle(selectedEqBand == i ? .green : .accentColor)
+                                    .foregroundStyle(
+                                        selectedEqBand == i ? .green : .accentColor
+                                    )
                                     // .background(selectedEqBand == i ? .green : .clear)
-                                    
+
                                     Toggle(
-                                        "x",
+                                        "✓",
                                         isOn: $khAccess.state.eqs[selectedEq].enabled[i]
                                     )
                                     .toggleStyle(.button)
