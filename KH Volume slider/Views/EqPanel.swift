@@ -118,25 +118,14 @@ struct EqBandPanel: View {
                         }
                     }
                     .disabled(khAccess.state.eqs[selectedEq].enabled[selectedEqBand])
+                    
+                    Spacer()
 
                     Text("Disable to change type")
                         .opacity(
                             khAccess.state.eqs[selectedEq].enabled[selectedEqBand]
                                 ? 1 : 0
                         )
-
-                    Spacer()
-
-                    Toggle(
-                        "Enable",
-                        isOn: $khAccess.state.eqs[selectedEq].enabled[selectedEqBand]
-                    )
-                    .toggleStyle(.switch)
-                    .onChange(of: khAccess.state.eqs[selectedEq].enabled) {
-                        Task {
-                            try await khAccess.send()
-                        }
-                    }
                 }
 
                 Grid(alignment: .topLeading) {
@@ -188,17 +177,6 @@ struct EqBandPanel: View {
             }
         #elseif os(iOS)
             VStack {
-                Toggle(
-                    "Enable band",
-                    isOn: $khAccess.state.eqs[selectedEq].enabled[selectedEqBand]
-                )
-                .toggleStyle(.switch)
-                .onChange(of: khAccess.state.eqs[selectedEq].enabled) {
-                    Task {
-                        try await khAccess.send()
-                    }
-                }
-
                 HStack {
                     ZStack(alignment: .leading) {
                         Text("Disable to change")
@@ -302,6 +280,11 @@ struct EqPanel_: View {
                                         isOn: $khAccess.state.eqs[selectedEq].enabled[i]
                                     )
                                     .toggleStyle(.button)
+                                    .onChange(of: khAccess.state.eqs[selectedEq].enabled) {
+                                        Task {
+                                            try await khAccess.send()
+                                        }
+                                    }
                                 }
                             }
                         }
