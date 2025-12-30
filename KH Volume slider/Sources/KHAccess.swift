@@ -268,6 +268,11 @@ final class KHAccessNative: KHAccessProtocol {
     }
 
     func send() async throws {
+        // If nothing has changed, we don't even need to connect.
+        if state == deviceState {
+            return
+        }
+
         try await connectAll()
 
         if state.volume != deviceState.volume {

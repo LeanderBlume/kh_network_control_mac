@@ -262,7 +262,7 @@ struct EqPanel_: View {
 
         VStack(spacing: 20) {
             #if os(macOS)
-                Grid(horizontalSpacing: 30, verticalSpacing: 20) {
+                Grid(horizontalSpacing: 10, verticalSpacing: 10) {
                     ForEach((1...numBands / 10), id: \.self) { row in
                         GridRow {
                             ForEach((10 * (row - 1)...10 * row - 1), id: \.self) { i in
@@ -320,7 +320,8 @@ struct EqPanel_: View {
         .onChange(
             of: khAccess.state.eqs[selectedEq].enabled
         ) {
-            print("I WAS CHANGED")
+            // This also fires when I switch tabs and this stuff hasn't actually
+            // changed. Well, selectedEq changes, so maybe it does change? Not sure.
             Task {
                 try await khAccess.send()
             }
@@ -343,12 +344,7 @@ struct EqPanel: View {
                 }
                 .pickerStyle(.segmented)
 
-                ZStack {
-                    EqPanel_(khAccess: khAccess, selectedEq: 0)
-                        .opacity(selectedEq == 0 ? 1 : 0)
-                    EqPanel_(khAccess: khAccess, selectedEq: 1)
-                        .opacity(selectedEq == 1 ? 1 : 0)
-                }
+                EqPanel_(khAccess: khAccess, selectedEq: selectedEq)
             }
             .padding()
         }
