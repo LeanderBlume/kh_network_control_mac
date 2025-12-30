@@ -112,6 +112,9 @@ final class KHAccessNative: KHAccessProtocol {
         status = .scanning
         devices = SSCDevice.scan(seconds: seconds)
         parameters = devices.map { SSCNode(device: $0, name: "root") }
+        if !devices.isEmpty {
+            try await fetch()
+        }
         status = .speakersFound(devices.count)
     }
 
