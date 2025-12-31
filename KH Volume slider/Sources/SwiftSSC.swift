@@ -48,6 +48,7 @@ class SSCDevice {
         case noResponse
         case addressNotFound
         case messageNotUnderstood
+        case wrongType
     }
 
     init?(ip: String, port: Int = 45) {
@@ -68,22 +69,24 @@ class SSCDevice {
         dispatchQueue = DispatchQueue(label: "KH Speaker connection")
     }
 
-    static func scan(scanTime: UInt32 = 1) -> [SSCDevice] {
+    static func scan(seconds: UInt32 = 1) -> [SSCDevice] {
         var retval: [SSCDevice] = []
         let q = DispatchQueue(label: "KH Discovery")
         let browser = NWBrowser(
-            for: .bonjour(type: "_ssc._tcp", domain: nil), using: .tcp)
+            for: .bonjour(type: "_ssc._tcp", domain: nil),
+            using: .tcp
+        )
         browser.browseResultsChangedHandler = { (results, changes) in
             for result in results {
                 retval.append(SSCDevice(endpoint: (result.endpoint)))
             }
         }
         browser.start(queue: q)
-        sleep(scanTime)
+        sleep(seconds)
         return retval
     }
 
-    func connect() {
+    func connect() async throws {
         switch connection.state {
         case .ready, .preparing:
             return
@@ -94,6 +97,20 @@ class SSCDevice {
             connection.start(queue: dispatchQueue)
         default:
             connection.start(queue: dispatchQueue)
+        }
+        let deadline = Date.now.addingTimeInterval(5)
+        var success = false
+        while Date.now < deadline {
+            if connection.state == .ready {
+                success = true
+                break
+            }
+        }
+        if !success {
+            throw SSCDeviceError.noResponse
+            // print("timed out, could not connect")
+            // status = .speakersUnavailable
+            // throw KHAccessError.speakersNotReachable
         }
     }
 
@@ -122,7 +139,7 @@ class SSCDevice {
             transaction.RX = String(data: content, encoding: .utf8) ?? "No Response"
         }
         return transaction
-    }    
+    }
 
     static func pathToJSONString<T>(path: [String], value: T) throws -> String
     where T: Encodable {
@@ -134,7 +151,7 @@ class SSCDevice {
         return jsonPath
     }
 
-    private func sendSSCCommand(command: String) throws -> SSCTransaction {
+    func sendSSCCommand(command: String) throws -> SSCTransaction {
         let transaction = sendMessage(command)
         let deadline = Date.now.addingTimeInterval(5)
         var success = false
@@ -175,7 +192,9 @@ class SSCDevice {
         for p in path.dropLast() {
             result = result[p] as! [String: Any]
         }
-        let retval = result[lastKey] as! T
+        guard let retval = result[lastKey] as? T else {
+            throw SSCDeviceError.wrongType
+        }
         return retval
     }
 }

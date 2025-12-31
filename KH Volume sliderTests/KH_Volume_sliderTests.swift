@@ -7,6 +7,7 @@
 
 import Foundation
 import Testing
+
 @testable import KH_Volume_slider
 
 struct KH_Volume_sliderTests_Online {
@@ -25,13 +26,13 @@ struct KH_Volume_sliderTests_Offline {
 }
 
 struct TestSSC {
-    @Test func testSendMessage() {
+    @Test func testSendMessage() async throws {
         let ip = "fe80::2a36:38ff:fe61:7933"
         guard let sscDevice = SSCDevice(ip: ip) else {
             #expect(Bool(false))
             return
         }
-        sscDevice.connect()
+        try await sscDevice.connect()
         while sscDevice.connection.state != .ready {
             print(sscDevice.connection.state)
             sleep(1)
@@ -43,7 +44,7 @@ struct TestSSC {
         while t1.RX.isEmpty {}
         #expect(t1.TX == TX1)
         #expect(t1.RX.starts(with: TX1))
-        
+
         let TX2 = "{\"audio\":{\"out\":{\"mute\":false}}}"
         let t2 = sscDevice.sendMessage(TX2)
         while t2.RX.isEmpty {}
@@ -52,16 +53,16 @@ struct TestSSC {
         sscDevice.disconnect()
     }
 
-    @Test func testSendMessageWithScan() {
+    @Test func testSendMessageWithScan() async throws {
         let sscDevice = SSCDevice.scan()[0]
-        sscDevice.connect()
-        
+        try await sscDevice.connect()
+
         let TX1 = "{\"audio\":{\"out\":{\"mute\":true}}}"
         let t1 = sscDevice.sendMessage(TX1)
         sleep(1)
         #expect(t1.TX == TX1)
         #expect(t1.RX.starts(with: TX1))
-        
+
         let TX2 = "{\"audio\":{\"out\":{\"mute\":false}}}"
         let t2 = sscDevice.sendMessage(TX2)
         sleep(1)
@@ -95,5 +96,120 @@ struct TestSSC {
             d.disconnect()
         }
          */
+    }
+}
+
+struct TestKHAccessDummy {
+    @Test func testSetup() {
+        let k = KHAccessDummy()
+        // This doesn't make sense but it's the way it is.
+        #expect(k.status == .clean)
+    }
+
+    @Test func testScan() async throws {
+        let k = KHAccessDummy()
+        try await k.scan()
+        #expect(k.status == .speakersFound(2))
+    }
+
+    @Test func testCheckSpeakersAvailable() async throws {
+        let k = KHAccessDummy()
+        try await k.checkSpeakersAvailable()
+        #expect(k.status == .speakersAvailable)
+    }
+
+    @Test func testFetch() async throws {
+        let k = KHAccessDummy()
+        try await k.fetch()
+        #expect(k.status == .success)
+    }
+
+    @Test func testSend() async throws {
+        let k = KHAccessDummy()
+        try await k.send()
+        #expect(k.status == .clean)
+    }
+}
+
+@Suite struct TestSSCNodes {
+    // TODO can't run this as a test suite because tests are run concurrently.
+    let device: SSCDevice
+
+    private enum Errors: Error {
+        case noDevicesFound
+    }
+
+    private init() throws {
+        let scan = SSCDevice.scan()
+        if scan.isEmpty {
+            throw Errors.noDevicesFound
+        }
+        device = scan[0]
+    }
+
+    @Test func testGetSchema() async throws {
+        let node = SSCNode(device: device, name: "root")
+        // try await node.connect()
+        let result = try await node.getSchema(path: ["audio"])
+        #expect(result == ["out": [:], "in2": [:], "in1": [:], "in": [:]])
+        sleep(1)
+        let result2 = try await node.getSchema(path: [])
+        #expect(
+            result2 == [
+                "audio": [:], "device": [:], "m": [:], "osc": [:], "ui": [:],
+                "warnings": nil,
+            ]
+        )
+        sleep(1)
+        let result3 = try await node.getSchema(path: ["ui", "logo", "brightness"])
+        #expect(result3 == nil)
+        // node.disconnect()
+    }
+
+    @Test func testGetLimits() async throws {
+        let node = SSCNode(device: device, name: "root")
+        // try await node.connect()
+        let result = try await node.getLimits(path: ["ui", "logo", "brightness"])
+        print(result)
+        #expect(
+            result
+                == OSCLimits(fromDict: [
+                    "type": "Number",
+                    "units": "%",
+                    "max": 125.0,
+                    "min": 0.0,
+                    "inc": 1.0,
+                    "subscr": true,
+                    // "const": nil,
+                    "desc": nil,
+                    "writeable": nil,
+                ])
+        )
+        // node.disconnect()
+    }
+
+    @Test func testPopulate() async throws {
+        let node = SSCNode(device: device, name: "root")
+        // try await node.connect()
+        #expect(node.pathToNode() == [])
+        try await node.populate()
+        // node.disconnect()
+    }
+}
+
+struct TestGenericType {
+    @Test func main() {
+
+        class BlaType<T> {
+            var value: T
+
+            init(_ v: T) {
+                value = v
+            }
+        }
+
+        _ = BlaType(3)
+        _ = BlaType(BlaType(3))
+        _ = BlaType([BlaType(3)])
     }
 }

@@ -9,7 +9,9 @@ import Foundation
 import SwiftUI
 
 struct ContentView: View {
-    @State var khAccess = KHAccess()
+    @State var khAccess: KHAccess
+
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack {
@@ -53,6 +55,11 @@ struct ContentView: View {
                         .padding(.horizontal).padding(.bottom)
                         .disabled(!khAccess.status.isClean())
                 }
+                #if os(iOS)
+                    Tab("Browser", systemImage: "list.bullet.indent") {
+                        SSCTreeView(khAccess: khAccess)
+                    }
+                #endif
             }
             #if os(macOS)
                 .scenePadding()
@@ -75,7 +82,7 @@ struct ContentView: View {
                             try await khAccess.fetch()
                         }
                     }
-                    .disabled(khAccess.status.isBusy() || !khAccess.status.isClean())
+                    .disabled(khAccess.status.isBusy())
 
                     Button("Rescan") {
                         Task {
@@ -83,6 +90,10 @@ struct ContentView: View {
                         }
                     }
                     .disabled(khAccess.status.isBusy())
+
+                    Button("Browse") {
+                        openWindow(id: "tree-viewer")
+                    }
 
                     Spacer()
 
@@ -99,5 +110,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(khAccess: KHAccess())
 }
