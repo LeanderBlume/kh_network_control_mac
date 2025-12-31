@@ -57,7 +57,7 @@ protocol KHAccessProtocol: Observable, Identifiable {
     init(devices devices_: [SSCDevice]?)
 
     var state: KHAccessState { get }
-    var parameters: [SSCNode] { get }
+    var parameterTrees: [SSCNode] { get }
     var status: KHAccessStatus { get }
 
     func scan(seconds: UInt32) async throws
@@ -65,6 +65,71 @@ protocol KHAccessProtocol: Observable, Identifiable {
     func populateParameters() async throws
     func send() async throws
     func fetch() async throws
+}
+
+// This is supposed to bridge between parameters in KHAccessState and paths on the
+// actual device.
+// I need to think about this more. Should this store the whole state? Probably not.
+// Maybe the send and fetch methods should just take a state and return the new changed
+// state. That seems like a nice functional type architecture.
+// I need to write out what I actually want to do here.
+struct SSCParameter<T> where T: Equatable, T: Codable {
+    var statePath: WritableKeyPath<KHAccessState, T>
+    var devicePath: [String]
+
+    func send(to device: SSCDevice) throws {
+        try device.sendSSCValue(path: devicePath, value: getStateValue())
+    }
+
+    mutating func fetch(from device: SSCDevice) throws -> T {
+        setStateValue(try device.fetchSSCValue(path: devicePath))
+        deviceValue = getStateValue()
+        return deviceValue
+    }
+}
+
+enum AnySSCParameter {
+    case number(SSCParameter<Double>)
+    case bool(SSCParameter<Bool>)
+    case string(SSCParameter<String>)
+    case arrayNumber(SSCParameter<[Double]>)
+    case arrayBool(SSCParameter<[Bool]>)
+    case arrayString(SSCParameter<[String]>)
+    
+    // seems dumb but I don't know what else to do
+    func send(to device: SSCDevice) throws {
+        switch self {
+        case .number(let p):
+            try p.send(to: device)
+        case .bool(let p):
+            try p.send(to: device)
+        case .string(let p):
+            try p.send(to: device)
+        case .arrayNumber(let p):
+            try p.send(to: device)
+        case .arrayBool(let p):
+            try p.send(to: device)
+        case .arrayString(let p):
+            try p.send(to: device)
+        }
+    }
+    
+    mutating func fetch(from device: SSCDevice) throws {
+        switch self {
+        case .number(var p):
+            try p.fetch(from: device)
+        case .bool(var p):
+            try p.fetch(from: device)
+        case .string(var p):
+            try p.fetch(from: device)
+        case .arrayNumber(var p):
+            try p.fetch(from: device)
+        case .arrayBool(var p):
+            try p.fetch(from: device)
+        case .arrayString(var p):
+            try p.fetch(from: device)
+        }
+    }
 }
 
 @Observable
@@ -80,7 +145,8 @@ final class KHAccessNative: KHAccessProtocol {
     // (last known) device state. We compare UI state against this to selectively send
     // changed values to the device.
     private var deviceState = KHAccessState()
-    var parameters: [SSCNode] = []
+    var parameterTrees: [SSCNode] = []
+    var parameterList: [AnySSCParameter]
 
     var status: KHAccessStatus = .clean
 
@@ -93,7 +159,7 @@ final class KHAccessNative: KHAccessProtocol {
         } else {
             devices = SSCDevice.scan()
         }
-        parameters = devices.map { SSCNode(device: $0, name: "root") }
+        parameterTrees = devices.map { SSCNode(device: $0, name: "root") }
     }
 
     private func sendSSCValue<T>(path: [String], value: T) async throws
@@ -111,7 +177,7 @@ final class KHAccessNative: KHAccessProtocol {
         /// Scan for devices, replacing current device list.
         status = .scanning
         devices = SSCDevice.scan(seconds: seconds)
-        parameters = devices.map { SSCNode(device: $0, name: "root") }
+        parameterTrees = devices.map { SSCNode(device: $0, name: "root") }
         if !devices.isEmpty {
             try await fetch()
         }
@@ -151,14 +217,14 @@ final class KHAccessNative: KHAccessProtocol {
         status = .speakersAvailable
         disconnectAll()
     }
-    
+
     func populateParameters() async throws {
-        if parameters.isEmpty {
+        if parameterTrees.isEmpty {
             throw KHAccessError.noSpeakersFoundDuringScan
         }
         try await connectAll()
         status = .queryingParameters
-        try await parameters.first!.populate(recursive: true)
+        try await parameterTrees.first!.populate(recursive: true)
         status = .success
         disconnectAll()
     }
@@ -321,7 +387,7 @@ final class KHAccessDummy: KHAccessProtocol {
     // UI state
     var state = KHAccessState()
     var status: KHAccessStatus = .clean
-    var parameters: [SSCNode] = []
+    var parameterTrees: [SSCNode] = []
 
     required init(devices devices_: [SSCDevice]? = nil) {
 
@@ -342,7 +408,7 @@ final class KHAccessDummy: KHAccessProtocol {
         try await sleepOneSecond()
         status = .speakersAvailable
     }
-    
+
     func populateParameters() async throws {
         status = .queryingParameters
         try await sleepOneSecond()

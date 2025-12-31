@@ -213,3 +213,19 @@ struct TestGenericType {
         _ = BlaType([BlaType(3)])
     }
 }
+
+struct TestSSCParameter {
+    @Test func main() {
+        var p = SSCParameter(
+            state: KHAccessState(),
+            statePath: \.muted,
+            devicePath: ["audio", "out", "mute"]
+        )
+        
+        var p2 = SSCParameter(
+            state: KHAccessState(),
+            statePath: \.eqs[0].enabled,
+            devicePath: ["audio", "out", "mute"]
+        )
+    }
+}

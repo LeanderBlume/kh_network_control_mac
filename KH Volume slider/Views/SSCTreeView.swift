@@ -55,7 +55,7 @@ struct SSCTreeView: View {
     }
 
     var body: some View {
-        if khAccess.parameters.first?.value == nil {
+        if khAccess.parameterTrees.first?.value == nil {
             Button("Query parameters") {
                 Task {
                     await buildTree()
@@ -63,7 +63,7 @@ struct SSCTreeView: View {
             }
         } else {
             List(
-                khAccess.parameters.first?.children ?? [],
+                khAccess.parameterTrees.first?.children ?? [],
                 children: \.children,
                 selection: $selectedNode
             ) {
