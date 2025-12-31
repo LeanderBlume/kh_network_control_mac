@@ -255,7 +255,7 @@ struct EqBandPanel: View {
 struct EqPanel_: View {
     @Bindable var khAccess: KHAccess
     var selectedEq: Int
-    @State var selectedEqBand: Int = 0
+    @Binding var selectedEqBand: Int
 
     var body: some View {
         let numBands = khAccess.state.eqs[selectedEq].enabled.count
@@ -296,7 +296,7 @@ struct EqPanel_: View {
                                     selectedEqBand == i ? .green : .accentColor
                                 )
                                 // .background(selectedEqBand == i ? .green : .clear)
-                                
+
                                 Toggle(
                                     "✓",
                                     isOn: $khAccess.state.eqs[selectedEq]
@@ -332,6 +332,7 @@ struct EqPanel_: View {
 struct EqPanel: View {
     var khAccess: KHAccess
     @State private var selectedEq: Int = 0
+    @State var selectedBands: [Int] = [0, 0]
 
     var body: some View {
         ScrollView {
@@ -344,7 +345,11 @@ struct EqPanel: View {
                 }
                 .pickerStyle(.segmented)
 
-                EqPanel_(khAccess: khAccess, selectedEq: selectedEq)
+                EqPanel_(
+                    khAccess: khAccess,
+                    selectedEq: selectedEq,
+                    selectedEqBand: $selectedBands[selectedEq]
+                )
             }
             .padding()
         }
