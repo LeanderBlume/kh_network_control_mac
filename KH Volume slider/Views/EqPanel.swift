@@ -262,7 +262,7 @@ struct EqPanel_: View {
 
         VStack(spacing: 20) {
             #if os(macOS)
-                Grid(horizontalSpacing: 10, verticalSpacing: 10) {
+                Grid(horizontalSpacing: 5, verticalSpacing: 10) {
                     ForEach((1...numBands / 10), id: \.self) { row in
                         GridRow {
                             ForEach((10 * (row - 1)...10 * row - 1), id: \.self) { i in

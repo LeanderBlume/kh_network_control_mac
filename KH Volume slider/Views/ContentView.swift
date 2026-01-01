@@ -10,7 +10,6 @@ import SwiftUI
 
 struct ContentView: View {
     @State var khAccess: KHAccess
-
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
