@@ -28,7 +28,7 @@ func magnitudeResponseLoshelf(f: Double, boost: Double, q: Double, f0: Double) -
 }
 
 struct EqChart: View {
-    var state: KHAccessState
+    var state: KHState
 
     var body: some View {
         let eqs = state.eqs
@@ -108,5 +108,5 @@ struct EqChart: View {
 }
 
 #Preview {
-    EqChart(state: KHAccessState())
+    EqChart(state: KHState())
 }
