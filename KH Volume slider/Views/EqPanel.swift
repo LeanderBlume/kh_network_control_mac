@@ -351,7 +351,6 @@ struct EqPanel: View {
                     selectedEqBand: $selectedBands[selectedEq]
                 )
             }
-            .padding()
         }
     }
 }
