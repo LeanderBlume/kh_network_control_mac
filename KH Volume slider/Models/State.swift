@@ -7,22 +7,6 @@
 
 import SwiftUI
 
-enum EqType: String, Codable, CaseIterable, Identifiable {
-    case parametric = "PARAMETRIC"
-    case loshelf = "LOSHELF"
-    case hishelf = "HISHELF"
-    case lowpass = "LOWPASS"
-    case highpass = "HIGHPASS"
-    case bandpass = "BANDPASS"
-    case notch = "NOTCH"
-    case allpass = "ALLPASS"
-    case hi6db = "HI6DB"
-    case lo6db = "LO6DB"
-    case inversion = "INVERSION"
-
-    var id: String { self.rawValue }
-}
-
 struct Eq: Codable, Equatable {
     var desc: String = ""
     var boost: [Double]
@@ -30,7 +14,7 @@ struct Eq: Codable, Equatable {
     var frequency: [Double]
     var gain: [Double]
     var q: [Double]
-    var type: [EqType]
+    var type: [String]
 
     init(numBands: Int) {
         boost = Array(repeating: 0.0, count: numBands)
@@ -38,9 +22,24 @@ struct Eq: Codable, Equatable {
         frequency = Array(repeating: 100.0, count: numBands)
         gain = Array(repeating: 0.0, count: numBands)
         q = Array(repeating: 0.7, count: numBands)
-        type = Array(repeating: EqType.parametric, count: numBands)
+        type = Array(repeating: Eq.EqType.parametric.rawValue, count: numBands)
     }
 
+    enum EqType: String, CaseIterable, Identifiable {
+        case parametric = "PARAMETRIC"
+        case loshelf = "LOSHELF"
+        case hishelf = "HISHELF"
+        case lowpass = "LOWPASS"
+        case highpass = "HIGHPASS"
+        case bandpass = "BANDPASS"
+        case notch = "NOTCH"
+        case allpass = "ALLPASS"
+        case hi6db = "HI6DB"
+        case lo6db = "LO6DB"
+        case inversion = "INVERSION"
+
+        var id: String { self.rawValue }
+    }
 }
 
 struct KHState: Equatable {
