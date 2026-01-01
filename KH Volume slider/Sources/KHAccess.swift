@@ -9,13 +9,6 @@ import SwiftUI
 
 typealias KHAccess = KHAccessNative
 
-struct KHAccessState: Equatable {
-    var volume = 54.0
-    var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
-    var muted = false
-    var logoBrightness = 100.0
-}
-
 enum KHAccessStatus: Equatable {
     case clean
     case fetching
@@ -56,7 +49,7 @@ enum KHAccessError: Error {
 protocol KHAccessProtocol: Observable, Identifiable {
     init(devices devices_: [SSCDevice]?)
 
-    var state: KHAccessState { get }
+    var state: KHState { get }
     var parameters: [SSCNode] { get }
     var status: KHAccessStatus { get }
 
@@ -76,10 +69,10 @@ final class KHAccessNative: KHAccessProtocol {
     /// thing seems a bit doubled up. But maybe this is good as an abstraction layer between the json and the GUI.
 
     // UI state
-    var state = KHAccessState()
+    var state = KHState()
     // (last known) device state. We compare UI state against this to selectively send
     // changed values to the device.
-    private var deviceState = KHAccessState()
+    private var deviceState = KHState()
     var parameters: [SSCNode] = []
 
     var status: KHAccessStatus = .clean
@@ -151,7 +144,7 @@ final class KHAccessNative: KHAccessProtocol {
         status = .speakersAvailable
         disconnectAll()
     }
-    
+
     func populateParameters() async throws {
         if parameters.isEmpty {
             throw KHAccessError.noSpeakersFoundDuringScan
@@ -319,7 +312,7 @@ final class KHAccessDummy: KHAccessProtocol {
     /// thing seems a bit doubled up. But maybe this is good as an abstraction layer between the json and the GUI.
 
     // UI state
-    var state = KHAccessState()
+    var state = KHState()
     var status: KHAccessStatus = .clean
     var parameters: [SSCNode] = []
 
@@ -342,7 +335,7 @@ final class KHAccessDummy: KHAccessProtocol {
         try await sleepOneSecond()
         status = .speakersAvailable
     }
-    
+
     func populateParameters() async throws {
         status = .queryingParameters
         try await sleepOneSecond()
