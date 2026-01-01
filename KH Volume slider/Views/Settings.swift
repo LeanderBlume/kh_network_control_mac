@@ -26,7 +26,6 @@ struct SettingsView: View {
                 }
             }
         }
-        .scenePadding()
         .frame(width: 350)
     }
 }

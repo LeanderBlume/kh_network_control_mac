@@ -37,7 +37,6 @@ struct HardwareTab: View {
                 }
             }
         }
-        .scenePadding()
         #elseif os(iOS)
         VStack {
             Text("Logo brightness")
@@ -67,7 +66,6 @@ struct HardwareTab: View {
                 }
             }
         }
-        .scenePadding()
         #endif
     }
 }

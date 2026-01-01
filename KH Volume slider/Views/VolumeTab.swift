@@ -55,6 +55,5 @@ struct VolumeTab: View {
             }
             .disabled(!khAccess.status.isClean())
         }
-        .scenePadding()
     }
 }

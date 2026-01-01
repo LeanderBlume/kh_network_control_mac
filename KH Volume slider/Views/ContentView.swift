@@ -42,17 +42,17 @@ struct ContentView: View {
             TabView {
                 Tab("Volume", systemImage: "speaker.wave.3") {
                     VolumeTab(khAccess: khAccess)
-                        .padding(.horizontal).padding(.bottom)
+                        .scenePadding()
                         .disabled(!khAccess.status.isClean())
                 }
                 Tab("DSP", systemImage: "slider.vertical.3") {
                     EqPanel(khAccess: khAccess)
-                        .padding()
+                        .scenePadding()
                         .disabled(!khAccess.status.isClean())
                 }
                 Tab("Hardware", systemImage: "hifispeaker") {
                     HardwareTab(khAccess: khAccess)
-                        .padding(.horizontal).padding(.bottom)
+                        .scenePadding()
                         .disabled(!khAccess.status.isClean())
                 }
                 #if os(iOS)
