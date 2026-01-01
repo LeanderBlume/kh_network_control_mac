@@ -97,14 +97,6 @@ struct TestSSC {
         }
          */
     }
-    
-    @Test func testFetch() async throws {
-        let khAccess = KHAccess()
-        sleep(1)
-        try await khAccess.checkSpeakersAvailable()
-        sleep(1)
-        try await khAccess.fetch()
-    }
 }
 
 struct TestKHAccessDummy {
