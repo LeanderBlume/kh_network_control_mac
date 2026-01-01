@@ -44,6 +44,7 @@ enum KHAccessStatus: Equatable {
 enum KHAccessError: Error {
     case speakersNotReachable
     case noSpeakersFoundDuringScan
+    case error(String)
 }
 
 protocol KHAccessProtocol: Observable, Identifiable {
@@ -189,9 +190,14 @@ final class KHAccessNative: KHAccessProtocol {
             deviceState.eqs[eqIdx].q = try await fetchSSCValue(path: [
                 "audio", "out", eqName, "q",
             ])
-            deviceState.eqs[eqIdx].type = try await fetchSSCValue(path: [
+            let eqTypeStrings: [String] = try await fetchSSCValue(path: [
                 "audio", "out", eqName, "type",
             ])
+            let eqTypes = eqTypeStrings.map { EqType(rawValue: $0) }
+            if eqTypes.contains(nil) {
+                throw KHAccessError.error("Eq type decoding failed")
+            }
+            deviceState.eqs[eqIdx].type = eqTypes as! [EqType]
         }
 
         state = deviceState
@@ -245,7 +251,7 @@ final class KHAccessNative: KHAccessProtocol {
     private func sendEqType(eqIdx: Int, eqName: String) async throws {
         try await sendSSCValue(
             path: ["audio", "out", eqName, "type"],
-            value: state.eqs[eqIdx].type
+            value: state.eqs[eqIdx].type.map { $0.rawValue }
         )
     }
 

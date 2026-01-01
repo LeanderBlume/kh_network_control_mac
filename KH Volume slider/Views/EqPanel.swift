@@ -107,8 +107,8 @@ struct EqBandPanel: View {
                         "Type:",
                         selection: $khAccess.state.eqs[selectedEq].type[selectedEqBand]
                     ) {
-                        ForEach(Eq.EqType.allCases) { type in
-                            Text(type.rawValue).tag(type.rawValue)
+                        ForEach(EqType.allCases) { type in
+                            Text(type.rawValue).tag(type)
                         }
                     }
                     .pickerStyle(.menu)
