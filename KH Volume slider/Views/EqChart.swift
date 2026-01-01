@@ -44,7 +44,7 @@ struct EqChart: View {
                     let eq = eqs[selectedEq]
                     for band in activeBands[selectedEq] {
                         switch eq.type[band] {
-                        case "PARAMETRIC":
+                        case .parametric:
                             result += magnitudeResponseParametric(
                                 f: f,
                                 boost: eq.boost[band],
@@ -52,7 +52,7 @@ struct EqChart: View {
                                 f0: eq.frequency[band]
                             )
                         // Not implemented ones
-                        case "LOSHELF":
+                        case .loshelf:
                             result += magnitudeResponseLoshelf(
                                 f: f,
                                 boost: eq.boost[band],
@@ -60,24 +60,21 @@ struct EqChart: View {
                                 f0: eq.frequency[band]
                             )
 
-                        case "HISHELF":
+                        case .hishelf:
                             result += magnitudeResponseHishelf(
                                 f: f,
                                 boost: eq.boost[band],
                                 q: eq.q[band],
                                 f0: eq.frequency[band]
                             )
-                        case "LOWPASS": break
-                        case "HIGHPASS": break
-                        case "BANDPASS": break
-                        case "NOTCH": break
-                        case "ALLPASS": break
-                        case "HI6DB": break
-                        case "LO6DB": break
-                        case "INVERSION": break
-                        // Above cases are all of them, but need this for switch to be
-                        // exhaustive
-                        default: break
+                        case .lowpass: break
+                        case .highpass: break
+                        case .bandpass: break
+                        case .notch: break
+                        case .allpass: break
+                        case .hi6db: break
+                        case .lo6db: break
+                        case .inversion: break
                         }
                         result += eq.gain[band]
                     }
