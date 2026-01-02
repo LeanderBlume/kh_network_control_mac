@@ -137,55 +137,53 @@ class SSCNode: Identifiable, Equatable, Hashable {
     }
 
     private func populateLeaf(path: [String]) async throws {
-        // Special cases that we just need to handle manually because the type given by
-        // limits is wrong.
-        switch path {
-        case ["m", "in", "level"], ["m", "in", "clip"]:
-            value = .arrayNumber(try device.fetchSSCValue(path: path))
-            return
-        case ["audio", "out", "mixer", "inputs"]:
-            value = .arrayString(try device.fetchSSCValue(path: path))
-            return
-        default:
-            break
-        }
-
-        // Now do limits to discover the type
         limits = try await getLimits(path: path)
-
-        // Count is given => array type
-        if let count = limits!.count {
-            if count > 1 {
-                switch limits!.type {
-                case "Number":
-                    value = .arrayNumber(try device.fetchSSCValue(path: path))
-                case "String":
-                    value = .arrayString(try device.fetchSSCValue(path: path))
-                case "Boolean":
-                    value = .arrayBool(try device.fetchSSCValue(path: path))
-                default:
-                    throw SSCNodeError.unknownTypeFromLimits(limits!.type)
-                }
-                return
+        let response = try device.fetchSSCValueAny(path: path)
+        // print(response)
+        // In theory: Count is given => array type
+        // But this is often wrong. There are various values with no count given at all
+        // that are actually arrays. So we just try both single values and arrays.
+        switch limits!.type {
+        case "Number":
+            if let v = response as? Double {
+                value = .number(v)
+            } else if let v = response as? [Double] {
+                value = .arrayNumber(v)
             }
-        }
-
-        // standard case, single values
-        do {
-            switch limits!.type {
-            case "Number":
-                value = .number(try device.fetchSSCValue(path: path))
-            case "String":
-                value = .string(try device.fetchSSCValue(path: path))
-            case "Boolean":
-                value = .bool(try device.fetchSSCValue(path: path))
-            case nil:
+        case "String":
+            if let v = response as? String {
+                value = .string(v)
+            } else if let v = response as? [String] {
+                value = .arrayString(v)
+            }
+        case "Boolean":
+            if let v = response as? Bool {
+                value = .bool(v)
+            } else if let v = response as? [Bool] {
+                value = .arrayBool(v)
+            }
+        case .none:
+            // Limits did not return a type, so We just try all types.
+            // This does not work on its own. true/false and 0/1 can be converted into
+            // each other so we will always get wrong results somewhere.
+            // Can we use the "is" keyword?
+            if let v = response as? Bool {
+                value = .bool(v)
+            } else if let v = response as? Double {
+                value = .number(v)
+            } else if let v = response as? String {
+                value = .string(v)
+            } else if let v = response as? [Bool] {
+                value = .arrayBool(v)
+            } else if let v = response as? [Double]  {
+                value = .arrayNumber(v)
+            } else if let v = response as? [String] {
+                value = .arrayString(v)
+            } else {
                 value = .error("Unknown type")
-            default:
-                throw SSCNodeError.unknownTypeFromLimits(limits!.type)
             }
-        } catch SSCDevice.SSCDeviceError.wrongType {
-            value = .error("Wrong type")
+        default:
+            throw SSCNodeError.unknownTypeFromLimits(limits!.type)
         }
     }
 
@@ -229,7 +227,7 @@ class SSCNode: Identifiable, Equatable, Hashable {
     func populate(recursive: Bool = true) async throws {
         // Populates the tree. Does not refresh previously fetched values!
         let path = pathToNode()
-        print("populating", path)
+        // print("populating", path)
         switch value {
         case nil:
             try await populateInternal(path: path)

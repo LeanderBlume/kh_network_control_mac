@@ -156,8 +156,8 @@ class SSCDevice {
         let jsonPath = try SSCDevice.pathToJSONString(path: path, value: value)
         try _ = sendSSCCommand(command: jsonPath)
     }
-
-    func fetchSSCValue<T>(path: [String]) throws -> T where T: Decodable {
+    
+    func fetchSSCValueAny(path: [String]) throws -> Any? {
         let jsonPath = try SSCDevice.pathToJSONString(path: path, value: nil as Float?)
         let transaction = try sendSSCCommand(command: jsonPath)
         let RX = transaction.RX
@@ -167,7 +167,12 @@ class SSCDevice {
         for p in path.dropLast() {
             result = result[p] as! [String: Any]
         }
-        guard let retval = result[lastKey] as? T else {
+        return result[lastKey]
+    }
+
+    func fetchSSCValue<T>(path: [String]) throws -> T where T: Decodable {
+        let result = try fetchSSCValueAny(path: path)
+        guard let retval = result as? T else {
             throw SSCDeviceError.wrongType
         }
         return retval
