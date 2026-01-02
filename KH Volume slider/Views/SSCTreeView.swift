@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct SSCTreeView: View {
-    var khAccess: KHAccess
     @State var selectedNode: SSCNode.ID?
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     private enum Errors: Error {
         case noDevicesFound
@@ -77,5 +77,5 @@ struct SSCTreeView: View {
 }
 
 #Preview {
-    SSCTreeView(khAccess: KHAccess())
+    SSCTreeView()
 }

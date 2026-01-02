@@ -8,9 +8,11 @@
 import SwiftUI
 
 struct VolumeTab: View {
-    @Bindable var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
+        @Bindable var khAccess = khAccess
+
         VStack {
             Text("\(Int(khAccess.state.volume)) dB")
             Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
