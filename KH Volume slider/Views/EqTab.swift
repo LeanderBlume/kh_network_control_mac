@@ -350,6 +350,5 @@ struct EqTab: View {
 }
 
 #Preview {
-    // let khAccess = KHAccess()
-    EqTab()
+    EqTab().environment(KHAccess())
 }
