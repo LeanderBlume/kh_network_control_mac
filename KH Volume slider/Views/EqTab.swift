@@ -233,6 +233,7 @@ struct EqBandPanelmacOS: View {
 }
 
 struct EqBandPanel: View {
+    // Maybe it would be kind of neat if all this stuff was in an EqBand struct...
     @Binding var enabled: Bool
     @Binding var type: String
     @Binding var frequency: Double
