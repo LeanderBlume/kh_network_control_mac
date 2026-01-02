@@ -12,7 +12,7 @@ struct EqSlidermacOS: View {
     @Binding var value: Double
     var range: ClosedRange<Double>
     var logarithmic: Bool
-    var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Text(name)
@@ -48,7 +48,7 @@ struct EqSlideriOS: View {
     @Binding var value: Double
     var range: ClosedRange<Double>
     var logarithmic: Bool
-    var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         VStack {
@@ -133,28 +133,24 @@ struct EqBandPaneliOS: View {
                 value: $frequency,
                 range: 10...24000,
                 logarithmic: true,
-                khAccess: khAccess
             )
             EqSlideriOS(
                 name: "Q",
                 value: $q,
                 range: 0.1...16,
                 logarithmic: true,
-                khAccess: khAccess
             )
             EqSlideriOS(
                 name: "Boost (dB)",
                 value: $boost,
                 range: -99...24,
                 logarithmic: false,
-                khAccess: khAccess
             )
             EqSlideriOS(
                 name: "Makeup (dB)",
                 value: $gain,
                 range: -99...24,
                 logarithmic: false,
-                khAccess: khAccess
             )
         }
     }
@@ -167,7 +163,7 @@ struct EqBandPanelmacOS: View {
     @Binding var q: Double
     @Binding var boost: Double
     @Binding var gain: Double
-    var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         VStack(spacing: 20) {
@@ -203,7 +199,6 @@ struct EqBandPanelmacOS: View {
                         value: $frequency,
                         range: 10...24000,
                         logarithmic: true,
-                        khAccess: khAccess
                     )
                 }
                 GridRow {
@@ -212,7 +207,6 @@ struct EqBandPanelmacOS: View {
                         value: $q,
                         range: 0.1...16,
                         logarithmic: true,
-                        khAccess: khAccess
                     )
                 }
                 GridRow {
@@ -221,7 +215,6 @@ struct EqBandPanelmacOS: View {
                         value: $boost,
                         range: -99...24,
                         logarithmic: false,
-                        khAccess: khAccess
                     )
 
                 }
@@ -231,7 +224,6 @@ struct EqBandPanelmacOS: View {
                         value: $gain,
                         range: -99...24,
                         logarithmic: false,
-                        khAccess: khAccess
                     )
                 }
             }
@@ -247,7 +239,6 @@ struct EqBandPanel: View {
     @Binding var q: Double
     @Binding var boost: Double
     @Binding var gain: Double
-    var khAccess: KHAccess
 
     var body: some View {
         #if os(macOS)
@@ -257,8 +248,7 @@ struct EqBandPanel: View {
                 frequency: $frequency,
                 q: $q,
                 boost: $boost,
-                gain: $gain,
-                khAccess: khAccess
+                gain: $gain
             )
         #elseif os(iOS)
             EqBandPaneliOS(
@@ -267,20 +257,20 @@ struct EqBandPanel: View {
                 frequency: $frequency,
                 q: $q,
                 boost: $boost,
-                gain: $gain,
-                khAccess: khAccess
+                gain: $gain
             )
         #endif
     }
 }
 
 struct EqPanel: View {
-    @Bindable var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
     var selectedEq: Int
     @Binding var selectedEqBand: Int
     // @State var position = ScrollPosition
 
     var body: some View {
+        @Bindable var khAccess = khAccess
         let numBands = khAccess.state.eqs[selectedEq].enabled.count
 
         VStack(alignment: .center, spacing: 20) {
@@ -328,15 +318,14 @@ struct EqPanel: View {
                 frequency: $khAccess.state.eqs[selectedEq].frequency[selectedEqBand],
                 q: $khAccess.state.eqs[selectedEq].q[selectedEqBand],
                 boost: $khAccess.state.eqs[selectedEq].boost[selectedEqBand],
-                gain: $khAccess.state.eqs[selectedEq].gain[selectedEqBand],
-                khAccess: khAccess
+                gain: $khAccess.state.eqs[selectedEq].gain[selectedEqBand]
             )
         }
     }
 }
 
 struct EqTab: View {
-    var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var selectedEq: Int = 0
     @State var selectedBands: [Int] = [0, 0]
 
@@ -352,7 +341,6 @@ struct EqTab: View {
                 .pickerStyle(.segmented)
 
                 EqPanel(
-                    khAccess: khAccess,
                     selectedEq: selectedEq,
                     selectedEqBand: $selectedBands[selectedEq]
                 )
@@ -362,6 +350,6 @@ struct EqTab: View {
 }
 
 #Preview {
-    let khAccess = KHAccess()
-    EqTab(khAccess: khAccess)
+    // let khAccess = KHAccess()
+    EqTab()
 }

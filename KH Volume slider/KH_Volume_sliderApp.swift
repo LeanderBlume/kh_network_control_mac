@@ -14,19 +14,23 @@ struct KH_Volume_sliderApp: App {
     var body: some Scene {
         #if os(macOS)
         MenuBarExtra("KH Volume slider", systemImage: "hifispeaker.2") {
-            ContentView(khAccess: khAccess)
+            ContentView()
         }
         .menuBarExtraStyle(.window)
+        .environment(khAccess)
+        
         Settings {
             SettingsView()
         }
         #elseif os(iOS)
         WindowGroup {
-            ContentView(khAccess: khAccess)
+            ContentView()
         }
+        .environment(khAccess)
         #endif
         WindowGroup("Parameters", id: "tree-viewer") {
-            SSCTreeView(khAccess: khAccess)
+            SSCTreeView()
         }
+        .environment(khAccess)
     }
 }

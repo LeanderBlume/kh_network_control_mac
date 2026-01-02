@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct ContentView: View {
-    @State var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -40,23 +40,23 @@ struct ContentView: View {
 
             TabView {
                 Tab("Volume", systemImage: "speaker.wave.3") {
-                    VolumeTab(khAccess: khAccess)
+                    VolumeTab()
                         .scenePadding()
                         .disabled(!khAccess.status.isClean())
                 }
                 Tab("DSP", systemImage: "slider.vertical.3") {
-                    EqTab(khAccess: khAccess)
+                    EqTab()
                         .scenePadding()
                         .disabled(!khAccess.status.isClean())
                 }
                 Tab("Hardware", systemImage: "hifispeaker") {
-                    HardwareTab(khAccess: khAccess)
+                    HardwareTab()
                         .scenePadding()
                         .disabled(!khAccess.status.isClean())
                 }
                 #if os(iOS)
                     Tab("Browser", systemImage: "list.bullet.indent") {
-                        SSCTreeView(khAccess: khAccess)
+                        SSCTreeView()
                     }
                 #endif
             }
@@ -109,5 +109,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView(khAccess: KHAccess())
+    ContentView()
 }

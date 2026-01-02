@@ -8,9 +8,11 @@
 import SwiftUI
 
 struct HardwareTab: View {
-    @Bindable var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
+        @Bindable var khAccess = khAccess
+
         #if os(macOS)
         HStack {
             Text("Logo brightness")
