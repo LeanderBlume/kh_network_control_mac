@@ -109,5 +109,7 @@ struct ContentView: View {
 }
 
 #Preview {
+    let khAccess = KHAccess()
     ContentView()
+        .environment(khAccess)
 }
