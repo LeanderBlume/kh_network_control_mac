@@ -137,55 +137,40 @@ class SSCNode: Identifiable, Equatable, Hashable {
     }
 
     private func populateLeaf(path: [String]) async throws {
-        // Special cases that we just need to handle manually because the type given by
-        // limits is wrong.
-        switch path {
-        case ["m", "in", "level"], ["m", "in", "clip"]:
+        // This does not work on its own. true/false and 0/1 can be converted into each
+        // other so we will always get wrong results somewhere. But this will still be
+        // helpful in combination with the logic we had before.
+        // Also maybe try using the "is" keyword instead of catching errors.
+        do {
+            value = .bool(try device.fetchSSCValue(path: path))
+            return
+        } catch SSCDevice.SSCDeviceError.wrongType { }
+
+        do {
+            value = .number(try device.fetchSSCValue(path: path))
+            return
+        } catch SSCDevice.SSCDeviceError.wrongType { }
+
+        do {
+            value = .string(try device.fetchSSCValue(path: path))
+            return
+        } catch SSCDevice.SSCDeviceError.wrongType { }
+
+        do {
+            value = .arrayBool(try device.fetchSSCValue(path: path))
+            return
+        } catch SSCDevice.SSCDeviceError.wrongType { }
+
+        do {
             value = .arrayNumber(try device.fetchSSCValue(path: path))
             return
-        case ["audio", "out", "mixer", "inputs"]:
+        } catch SSCDevice.SSCDeviceError.wrongType { }
+                
+        do {
             value = .arrayString(try device.fetchSSCValue(path: path))
             return
-        default:
-            break
-        }
-
-        // Now do limits to discover the type
-        limits = try await getLimits(path: path)
-
-        // Count is given => array type
-        if let count = limits!.count {
-            if count > 1 {
-                switch limits!.type {
-                case "Number":
-                    value = .arrayNumber(try device.fetchSSCValue(path: path))
-                case "String":
-                    value = .arrayString(try device.fetchSSCValue(path: path))
-                case "Boolean":
-                    value = .arrayBool(try device.fetchSSCValue(path: path))
-                default:
-                    throw SSCNodeError.unknownTypeFromLimits(limits!.type)
-                }
-                return
-            }
-        }
-
-        // standard case, single values
-        do {
-            switch limits!.type {
-            case "Number":
-                value = .number(try device.fetchSSCValue(path: path))
-            case "String":
-                value = .string(try device.fetchSSCValue(path: path))
-            case "Boolean":
-                value = .bool(try device.fetchSSCValue(path: path))
-            case nil:
-                value = .error("Unknown type")
-            default:
-                throw SSCNodeError.unknownTypeFromLimits(limits!.type)
-            }
         } catch SSCDevice.SSCDeviceError.wrongType {
-            value = .error("Wrong type")
+            value = .error("Unknown type")
         }
     }
 
