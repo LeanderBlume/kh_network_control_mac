@@ -45,7 +45,7 @@ struct ContentView: View {
                         .disabled(!khAccess.status.isClean())
                 }
                 Tab("DSP", systemImage: "slider.vertical.3") {
-                    EqPanel(khAccess: khAccess)
+                    EqTab(khAccess: khAccess)
                         .scenePadding()
                         .disabled(!khAccess.status.isClean())
                 }
