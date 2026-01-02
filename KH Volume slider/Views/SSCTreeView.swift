@@ -27,9 +27,14 @@ struct SSCTreeView: View {
     private func description(_ node: SSCNode) -> some View {
         /// Ideas:
         /// - Colors for different types (at least expandable / not expandable
+
         HStack {
-            Text(node.name)
+            let unitString =
+                node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
+            Text(node.name + unitString)
+
             Spacer()
+
             switch node.value {
             case .none, .null:
                 ProgressView()
@@ -40,14 +45,22 @@ struct SSCTreeView: View {
             case .string(let v):
                 Text("\"" + v + "\"")
             case .number(let v):
-                Text(String(v))
+                if node.limits!.inc == 1 {
+                    Text(String(Int(v)))
+                } else {
+                    Text(String(v))
+                }
             case .bool(let v):
                 // Text(v ? "yes" : "no")
                 Text(String(v))
             case .arrayString(let v):
                 Text(String(describing: v))
             case .arrayNumber(let v):
-                Text(String(describing: v))
+                if node.limits?.inc == 1 {
+                    Text(String(describing: v.map({ Int($0) })))
+                } else {
+                    Text(String(describing: v))
+                }
             case .arrayBool(let v):
                 Text(String(describing: v))
             }
