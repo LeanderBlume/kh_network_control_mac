@@ -92,13 +92,13 @@ struct EqSlideriOS: View {
 }
 
 struct EqBandPaneliOS: View {
-    var khAccess: KHAccess
     @Binding var enabled: Bool
     @Binding var type: String
     @Binding var frequency: Double
     @Binding var q: Double
     @Binding var boost: Double
     @Binding var gain: Double
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         VStack {
