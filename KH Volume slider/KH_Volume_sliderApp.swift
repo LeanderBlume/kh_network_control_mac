@@ -15,9 +15,9 @@ struct KH_Volume_sliderApp: App {
         #if os(macOS)
         MenuBarExtra("KH Volume slider", systemImage: "hifispeaker.2") {
             ContentView()
+                .environment(khAccess)
         }
         .menuBarExtraStyle(.window)
-        .environment(khAccess)
         
         Settings {
             SettingsView()
@@ -25,12 +25,12 @@ struct KH_Volume_sliderApp: App {
         #elseif os(iOS)
         WindowGroup {
             ContentView()
+                .environment(khAccess)
         }
-        .environment(khAccess)
         #endif
         WindowGroup("Parameters", id: "tree-viewer") {
             SSCTreeView()
+                .environment(khAccess)
         }
-        .environment(khAccess)
     }
 }
