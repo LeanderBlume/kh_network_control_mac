@@ -265,16 +265,15 @@ struct EqBandPanel: View {
 }
 
 struct EqPanel: View {
-    @Environment(KHAccess.self) private var khAccess: KHAccess
-    var selectedEq: Int
+    @Binding var eq: Eq
     @Binding var selectedEqBand: Int
     // @State var position = ScrollPosition
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        @Bindable var khAccess = khAccess
-        let numBands = khAccess.state.eqs[selectedEq].enabled.count
+        let numBands = eq.enabled.count
 
-        VStack(alignment: .center, spacing: 20) {
+        VStack(alignment: .center, spacing: 15) {
             GeometryReader { geo in
                 ScrollView(.horizontal) {
                     HStack(alignment: .center) {
@@ -289,7 +288,7 @@ struct EqPanel: View {
 
                                 Toggle(
                                     "✓",
-                                    isOn: $khAccess.state.eqs[selectedEq].enabled[i]
+                                    isOn: $eq.enabled[i]
                                 )
                                 .toggleStyle(.button)
                             }
@@ -298,7 +297,7 @@ struct EqPanel: View {
                     }
                     .frame(minWidth: geo.size.width)
                     .onChange(
-                        of: khAccess.state.eqs[selectedEq].enabled
+                        of: eq.enabled
                     ) {
                         // This also fires when I switch tabs and this stuff hasn't actually
                         // changed. Well, selectedEq changes, so maybe it does change? Not sure.
@@ -311,41 +310,41 @@ struct EqPanel: View {
             }
             // This is not ideal but the GeometryReader somehow messes things up so
             // this overlaps with stuff below it.
-            .frame(minHeight: 70)
+            .frame(height: 70)
 
             EqBandPanel(
-                enabled: $khAccess.state.eqs[selectedEq].enabled[selectedEqBand],
-                type: $khAccess.state.eqs[selectedEq].type[selectedEqBand],
-                frequency: $khAccess.state.eqs[selectedEq].frequency[selectedEqBand],
-                q: $khAccess.state.eqs[selectedEq].q[selectedEqBand],
-                boost: $khAccess.state.eqs[selectedEq].boost[selectedEqBand],
-                gain: $khAccess.state.eqs[selectedEq].gain[selectedEqBand]
+                enabled: $eq.enabled[selectedEqBand],
+                type: $eq.type[selectedEqBand],
+                frequency: $eq.frequency[selectedEqBand],
+                q: $eq.q[selectedEqBand],
+                boost: $eq.boost[selectedEqBand],
+                gain: $eq.gain[selectedEqBand]
             )
         }
     }
 }
 
 struct EqTab: View {
-    @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var selectedEq: Int = 0
     @State var selectedBands: [Int] = [0, 0]
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        ScrollView {
+        @Bindable var khAccess = khAccess
+
+        VStack(spacing: 15) {
             EqChart(state: khAccess.state).frame(height: 150)
 
-            VStack(spacing: 20) {
-                Picker("", selection: $selectedEq) {
-                    Text("post EQ").tag(0)
-                    Text("calibration EQ").tag(1)
-                }
-                .pickerStyle(.segmented)
-
-                EqPanel(
-                    selectedEq: selectedEq,
-                    selectedEqBand: $selectedBands[selectedEq]
-                )
+            Picker("", selection: $selectedEq) {
+                Text("post EQ").tag(0)
+                Text("calibration EQ").tag(1)
             }
+            .pickerStyle(.segmented)
+
+            EqPanel(
+                eq: $khAccess.state.eqs[selectedEq],
+                selectedEqBand: $selectedBands[selectedEq]
+            )
         }
     }
 }

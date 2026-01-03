@@ -104,7 +104,9 @@ final class KHAccessNative: KHAccessProtocol {
         /// Scan for devices, replacing current device list.
         status = .scanning
         devices = SSCDevice.scan(seconds: seconds)
-        parameters = devices.map { SSCNode(device: $0, name: "root") }
+        for (i, d) in devices.enumerated() {
+            parameters.append(SSCNode(device: d, name: "root \(i)"))
+        }
         if !devices.isEmpty {
             try await fetch()
         }
@@ -112,6 +114,7 @@ final class KHAccessNative: KHAccessProtocol {
     }
 
     private func connectAll() async throws {
+        // TODO concurrency like in populateParameters
         for d in devices {
             if d.connection.state != .ready {
                 do {
@@ -151,7 +154,11 @@ final class KHAccessNative: KHAccessProtocol {
         }
         try await connectAll()
         status = .queryingParameters
-        try await parameters.first!.populate(recursive: true)
+        await withThrowingTaskGroup { group in
+            for rootNode in parameters {
+                group.addTask { try await rootNode.populate(recursive: true) }
+            }
+        }
         status = .success
         disconnectAll()
     }

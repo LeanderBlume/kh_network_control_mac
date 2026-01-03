@@ -56,7 +56,7 @@ struct ContentView: View {
                 }
                 #if os(iOS)
                     Tab("Browser", systemImage: "list.bullet.indent") {
-                        SSCTreeView()
+                        ParameterTab()
                     }
                 #endif
             }

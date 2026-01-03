@@ -209,7 +209,7 @@ struct TestGenericType {
         }
 
         _ = BlaType(3)
-        _ = BlaType(BlaType(3))
-        _ = BlaType([BlaType(3)])
+        let _: BlaType<BlaType<Int>> = BlaType(BlaType(3))
+        let _: BlaType<[BlaType<Int>]> = BlaType([BlaType(3)])
     }
 }
