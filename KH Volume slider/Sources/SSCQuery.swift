@@ -56,12 +56,14 @@ enum SSCNodeError: Error {
 }
 
 @Observable
-class SSCNode: Identifiable, Equatable, Hashable {
+class SSCNode: Identifiable, Equatable {
     var device: SSCDevice
     var name: String
     var value: JSONData?
     var parent: SSCNode?
     var limits: OSCLimits?
+    // Maybe this is better than the default ObjectIdentifier. But I don't think so.
+    // let id = UUID()
 
     init(
         device device_: SSCDevice,
@@ -75,6 +77,14 @@ class SSCNode: Identifiable, Equatable, Hashable {
         value = value_
         parent = parent_
         limits = limits_
+    }
+
+    func rootNode() -> SSCNode {
+        var curr: SSCNode = self
+        while curr.parent != nil {
+            curr = parent!
+        }
+        return curr
     }
 
     func pathToNode() -> [String] {
@@ -175,7 +185,7 @@ class SSCNode: Identifiable, Equatable, Hashable {
                 value = .string(v)
             } else if let v = response as? [Bool] {
                 value = .arrayBool(v)
-            } else if let v = response as? [Double]  {
+            } else if let v = response as? [Double] {
                 value = .arrayNumber(v)
             } else if let v = response as? [String] {
                 value = .arrayString(v)
@@ -234,8 +244,6 @@ class SSCNode: Identifiable, Equatable, Hashable {
             if case .object(let subNodeArray) = value {
                 for n in subNodeArray {
                     if recursive && (n.value == .null || n.value == nil) {
-                        // WOW with the better connection handling (WIP), we don't even
-                        // need a delay here anymore.
                         try await n.populate()
                     }
                 }
@@ -265,12 +273,8 @@ class SSCNode: Identifiable, Equatable, Hashable {
         }
         return nil
     }
-
+    
     static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
-        return lhs.pathToNode() == rhs.pathToNode()
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(pathToNode())
+        return (lhs.id == rhs.id)
     }
 }

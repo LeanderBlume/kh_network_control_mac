@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct SSCTreeView: View {
+    var rootNode: SSCNode
     @State var selectedNode: SSCNode.ID?
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
@@ -68,7 +69,7 @@ struct SSCTreeView: View {
     }
 
     var body: some View {
-        if khAccess.parameters.first?.value == nil {
+        if rootNode.value == nil {
             Button("Query parameters") {
                 Task {
                     await buildTree()
@@ -76,7 +77,7 @@ struct SSCTreeView: View {
             }
         } else {
             List(
-                khAccess.parameters.first?.children ?? [],
+                rootNode.children ?? [],
                 children: \.children,
                 selection: $selectedNode
             ) {
@@ -89,6 +90,26 @@ struct SSCTreeView: View {
     }
 }
 
+struct ParameterTab: View {
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+    @State private var selectedDevice: Int = 0
+
+    var body: some View {
+        VStack {
+            Picker("", selection: $selectedDevice) {
+                Text("1").tag(0)
+                Text("2").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+
+            Spacer()
+            SSCTreeView(rootNode: khAccess.parameters[selectedDevice])
+            Spacer(minLength: 0)
+        }
+    }
+}
+
 #Preview {
-    SSCTreeView()
+    ParameterTab().environment(KHAccess())
 }

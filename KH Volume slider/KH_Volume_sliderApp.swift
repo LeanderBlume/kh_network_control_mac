@@ -29,7 +29,7 @@ struct KH_Volume_sliderApp: App {
         }
         #endif
         WindowGroup("Parameters", id: "tree-viewer") {
-            SSCTreeView()
+            ParameterTab()
                 .environment(khAccess)
         }
     }
