@@ -42,7 +42,7 @@ struct Eq: Codable, Equatable {
     }
 }
 
-struct KHState: Equatable {
+struct KHState: Codable, Equatable {
     var volume = 54.0
     var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
     var muted = false

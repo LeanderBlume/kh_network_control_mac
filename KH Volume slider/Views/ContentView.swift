@@ -59,6 +59,9 @@ struct ContentView: View {
                         ParameterTab()
                     }
                 #endif
+                Tab("Backup", systemImage: "heart") {
+                    Backupper()
+                }
             }
             #if os(macOS)
                 .scenePadding()
