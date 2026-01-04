@@ -46,6 +46,7 @@ enum KHAccessError: Error {
     case noSpeakersFoundDuringScan
 }
 
+@MainActor
 protocol KHAccessProtocol: Observable, Identifiable {
     init(devices devices_: [SSCDevice]?)
 
