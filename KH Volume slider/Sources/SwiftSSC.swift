@@ -45,20 +45,14 @@ class SSCDevice {
     }
 
     static func scan(seconds: UInt32 = 1) -> [SSCDevice] {
-        var retval: [SSCDevice] = []
         let q = DispatchQueue(label: "KH Discovery")
         let browser = NWBrowser(
             for: .bonjour(type: "_ssc._tcp", domain: nil),
             using: .tcp
         )
-        browser.browseResultsChangedHandler = { (results, changes) in
-            for result in results {
-                retval.append(SSCDevice(endpoint: (result.endpoint)))
-            }
-        }
         browser.start(queue: q)
         sleep(seconds)
-        return retval
+        return browser.browseResults.map { SSCDevice(endpoint: $0.endpoint) }
     }
 
     func connect() async throws {
