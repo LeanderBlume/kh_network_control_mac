@@ -80,12 +80,12 @@ final class KHAccessNative: KHAccessProtocol {
     private func sendSSCValue<T>(path: [String], value: T) async throws
     where T: Encodable {
         for d in devices {
-            try d.sendSSCValue(path: path, value: value)
+            try await d.sendSSCValue(path: path, value: value)
         }
     }
 
     private func fetchSSCValue<T>(path: [String]) async throws -> T where T: Decodable {
-        return try devices[0].fetchSSCValue(path: path)
+        try await devices[0].fetchSSCValue(path: path)
     }
 
     func scan(seconds: UInt32 = 1) async throws {
@@ -104,13 +104,11 @@ final class KHAccessNative: KHAccessProtocol {
     private func connectAll() async throws {
         // TODO concurrency like in populateParameters
         for d in devices {
-            if d.connection.state != .ready {
-                do {
-                    try await d.connect()
-                } catch SSCDevice.SSCDeviceError.noResponse {
-                    status = .speakersUnavailable
-                    throw KHAccessError.speakersNotReachable
-                }
+            do {
+                try await d.connect()
+            } catch SSCDevice.SSCDeviceError.noResponse {
+                status = .speakersUnavailable
+                throw KHAccessError.speakersNotReachable
             }
         }
     }

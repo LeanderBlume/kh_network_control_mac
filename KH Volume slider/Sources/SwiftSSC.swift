@@ -7,15 +7,10 @@
 import Foundation
 import Network
 
-class SSCTransaction {
-    var TX: String = ""
-    var RX: String = ""
-    var error: String = ""
-}
-
 class SSCDevice {
     var connection: NWConnection
     private let dispatchQueue: DispatchQueue
+    var status: String = ""
 
     enum SSCDeviceError: Error {
         case ipError
@@ -24,6 +19,7 @@ class SSCDevice {
         case addressNotFound
         case messageNotUnderstood
         case wrongType
+        case error(String)
     }
 
     init?(ip: String, port: Int = 45) {
@@ -77,9 +73,6 @@ class SSCDevice {
         }
         if !success {
             throw SSCDeviceError.noResponse
-            // print("timed out, could not connect")
-            // status = .speakersUnavailable
-            // throw KHAccessError.speakersNotReachable
         }
     }
 
@@ -87,27 +80,29 @@ class SSCDevice {
         connection.cancel()
     }
 
-    func sendMessage(_ TXString: String) -> SSCTransaction {
-        let transaction = SSCTransaction()
+    private func sendMessage(_ TXString: String) async {
         let sendCompHandler = NWConnection.SendCompletion.contentProcessed {
             error in
-            if let error = error {
-                transaction.error = String(describing: error)
-                return
+            if error != nil {
+                print("Error in send: \(error!)")
             }
-            transaction.TX = TXString
         }
         let TXraw = TXString.appending("\r\n").data(using: .ascii)!
         connection.send(content: TXraw, completion: sendCompHandler)
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 512) {
-            (content, context, isComplete, error) in
-            guard let content = content else {
-                transaction.error = String(describing: error)
-                return
+    }
+    
+    private func receiveMessage() async throws -> String {
+        return try await withCheckedThrowingContinuation { continuation in
+            connection.receive(minimumIncompleteLength: 1, maximumLength: 512) {
+                (data, context, isComplete, error) in
+                if data == nil {
+                    continuation.resume(throwing: SSCDeviceError.error("No response"))
+                    return
+                }
+                let response = String(data: data!, encoding: .utf8) ?? ""
+                continuation.resume(returning: response)
             }
-            transaction.RX = String(data: content, encoding: .utf8) ?? "No Response"
         }
-        return transaction
     }
 
     static func pathToJSONString<T>(path: [String], value: T) throws -> String
@@ -120,12 +115,13 @@ class SSCDevice {
         return jsonPath
     }
 
-    func sendSSCCommand(command: String) throws -> SSCTransaction {
-        let transaction = sendMessage(command)
+    func sendSSCCommand(command: String) async throws -> String {
+        await sendMessage(command)
+        let RX = try await receiveMessage()
         let deadline = Date.now.addingTimeInterval(5)
         var success = false
         while Date.now < deadline {
-            if !transaction.RX.isEmpty {
+            if !RX.isEmpty {
                 success = true
                 break
             }
@@ -133,7 +129,6 @@ class SSCDevice {
         if !success {
             throw SSCDeviceError.noResponse
         }
-        let RX = transaction.RX
         if RX.starts(with: "{\"osc\":{\"error\"") {
             if RX.contains("404") {
                 throw SSCDeviceError.addressNotFound
@@ -142,19 +137,18 @@ class SSCDevice {
                 throw SSCDeviceError.messageNotUnderstood
             }
         }
-        return transaction
+        return RX
     }
 
-    func sendSSCValue<T>(path: [String], value: T) throws where T: Encodable {
+    func sendSSCValue<T>(path: [String], value: T) async throws where T: Encodable {
         /// sends the command `{"p1":{"p2":value}}` to the device, if `path=["p1", "p2"]`.
         let jsonPath = try SSCDevice.pathToJSONString(path: path, value: value)
-        try _ = sendSSCCommand(command: jsonPath)
+        try await _ = sendSSCCommand(command: jsonPath)
     }
-    
-    func fetchSSCValueAny(path: [String]) throws -> Any? {
+
+    func fetchSSCValueAny(path: [String]) async throws -> Any? {
         let jsonPath = try SSCDevice.pathToJSONString(path: path, value: nil as Float?)
-        let transaction = try sendSSCCommand(command: jsonPath)
-        let RX = transaction.RX
+        let RX = try await sendSSCCommand(command: jsonPath)
         let asObj = try JSONSerialization.jsonObject(with: RX.data(using: .utf8)!)
         let lastKey = path.last!
         var result: [String: Any] = asObj as! [String: Any]
@@ -164,8 +158,8 @@ class SSCDevice {
         return result[lastKey]
     }
 
-    func fetchSSCValue<T>(path: [String]) throws -> T where T: Decodable {
-        let result = try fetchSSCValueAny(path: path)
+    func fetchSSCValue<T>(path: [String]) async throws -> T where T: Decodable {
+        let result = try await fetchSSCValueAny(path: path)
         guard let retval = result as? T else {
             throw SSCDeviceError.wrongType
         }

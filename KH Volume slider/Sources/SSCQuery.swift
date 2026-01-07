@@ -115,7 +115,7 @@ class SSCNode: Identifiable, Equatable {
         for p in query.reversed() {
             queryCommand = "{\"\(p)\":\(queryCommand)}"
         }
-        let response: String = try device.sendSSCCommand(command: queryCommand).RX
+        let response: String = try await device.sendSSCCommand(command: queryCommand)
         guard let data = response.data(using: .utf8) else {
             throw SSCNodeError.badData
         }
@@ -148,7 +148,7 @@ class SSCNode: Identifiable, Equatable {
 
     private func populateLeaf(path: [String]) async throws {
         limits = try await getLimits(path: path)
-        let response = try device.fetchSSCValueAny(path: path)
+        let response = try await device.fetchSSCValueAny(path: path)
         // print(response)
         // In theory: Count is given => array type
         // But this is often wrong. There are various values with no count given at all

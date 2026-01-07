@@ -70,6 +70,8 @@ struct ContentView: View {
                         try await khAccess.scan()
                     }
                     try await khAccess.checkSpeakersAvailable()
+                    // why
+                    try await Task.sleep(nanoseconds: 1_000_000)
                     if khAccess.status.isClean() {
                         try await khAccess.fetch()
                     }
