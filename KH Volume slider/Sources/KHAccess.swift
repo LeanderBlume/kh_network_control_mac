@@ -46,7 +46,6 @@ enum KHAccessError: Error {
     case noSpeakersFoundDuringScan
 }
 
-@MainActor
 protocol KHAccessProtocol: Observable, Identifiable {
     init(devices devices_: [SSCDevice]?)
 
@@ -153,10 +152,15 @@ final class KHAccessNative: KHAccessProtocol {
         }
         try await connectAll()
         status = .queryingParameters
+        /*
         await withThrowingTaskGroup { group in
             for rootNode in parameters {
                 group.addTask { try await rootNode.populate(recursive: true) }
             }
+        }
+         */
+        for rootNode in parameters {
+            try await rootNode.populate(recursive: true)
         }
         status = .success
         disconnectAll()

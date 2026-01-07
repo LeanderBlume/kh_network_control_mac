@@ -13,7 +13,6 @@ class SSCTransaction {
     var error: String = ""
 }
 
-@MainActor
 class SSCDevice {
     var connection: NWConnection
     private let dispatchQueue: DispatchQueue
