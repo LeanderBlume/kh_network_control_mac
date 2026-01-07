@@ -332,19 +332,21 @@ struct EqTab: View {
     var body: some View {
         @Bindable var khAccess = khAccess
 
-        VStack(spacing: 15) {
-            EqChart(state: khAccess.state).frame(height: 150)
-
-            Picker("", selection: $selectedEq) {
-                Text("post EQ").tag(0)
-                Text("calibration EQ").tag(1)
+        ScrollView {
+            VStack(spacing: 15) {
+                EqChart(state: khAccess.state).frame(height: 150)
+                
+                Picker("", selection: $selectedEq) {
+                    Text("post EQ").tag(0)
+                    Text("calibration EQ").tag(1)
+                }
+                .pickerStyle(.segmented)
+                
+                EqPanel(
+                    eq: $khAccess.state.eqs[selectedEq],
+                    selectedEqBand: $selectedBands[selectedEq]
+                )
             }
-            .pickerStyle(.segmented)
-
-            EqPanel(
-                eq: $khAccess.state.eqs[selectedEq],
-                selectedEqBand: $selectedBands[selectedEq]
-            )
         }
     }
 }
