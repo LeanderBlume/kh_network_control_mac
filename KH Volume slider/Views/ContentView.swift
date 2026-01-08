@@ -66,6 +66,9 @@ struct ContentView: View {
             #endif
             .onAppear {
                 Task {
+                    if khAccess.devices.isEmpty {
+                        try await khAccess.scan()
+                    }
                     try await khAccess.checkSpeakersAvailable()
                     // why
                     try await Task.sleep(nanoseconds: 1_000_000)

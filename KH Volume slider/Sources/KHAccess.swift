@@ -48,8 +48,6 @@ enum KHAccessError: Error {
 
 @MainActor
 protocol KHAccessProtocol: Observable, Identifiable {
-    init(devices devices_: [SSCDevice]?)
-
     var state: KHState { get }
     var parameters: [SSCNode] { get }
     var status: KHAccessStatus { get }
@@ -74,21 +72,11 @@ final class KHAccessNative: KHAccessProtocol {
     // (last known) device state. We compare UI state against this to selectively send
     // changed values to the device.
     private var deviceState = KHState()
+
+    var status: KHAccessStatus = .speakersFound(0)
+
+    var devices: [SSCDevice] = []
     var parameters: [SSCNode] = []
-
-    var status: KHAccessStatus = .clean
-
-    private var devices: [SSCDevice]
-
-    required init(devices devices_: [SSCDevice]? = nil) {
-        if let devices_ = devices_ {
-            devices = devices_
-            return
-        } else {
-            devices = SSCDevice.scan()
-        }
-        parameters = devices.map { SSCNode(device: $0, name: "root") }
-    }
 
     private func sendSSCValue<T>(path: [String], value: T) async throws
     where T: Encodable {
@@ -104,7 +92,7 @@ final class KHAccessNative: KHAccessProtocol {
     func scan(seconds: UInt32 = 1) async throws {
         /// Scan for devices, replacing current device list.
         status = .scanning
-        devices = SSCDevice.scan(seconds: seconds)
+        devices = await SSCDevice.scan(seconds: seconds)
         for (i, d) in devices.enumerated() {
             parameters.append(SSCNode(device: d, name: "root \(i)"))
         }
@@ -322,7 +310,7 @@ final class KHAccessDummy: KHAccessProtocol {
     var status: KHAccessStatus = .clean
     var parameters: [SSCNode] = []
 
-    required init(devices devices_: [SSCDevice]? = nil) {
+    required init(devices devices_: [SSCDevice]? = nil) async {
 
     }
 
