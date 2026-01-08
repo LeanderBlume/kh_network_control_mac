@@ -44,7 +44,7 @@ class SSCDevice {
         dispatchQueue = DispatchQueue(label: "KH Speaker connection")
     }
 
-    static func scan(seconds: UInt32 = 1) -> [SSCDevice] {
+    static func scan(seconds: UInt32 = 1) async -> [SSCDevice] {
         let q = DispatchQueue(label: "KH Discovery")
         let browser = NWBrowser(
             for: .bonjour(type: "_ssc._tcp", domain: nil),

@@ -66,6 +66,9 @@ struct ContentView: View {
             #endif
             .onAppear {
                 Task {
+                    if khAccess.devices.isEmpty {
+                        try await khAccess.scan()
+                    }
                     try await khAccess.checkSpeakersAvailable()
                     if khAccess.status.isClean() {
                         try await khAccess.fetch()
