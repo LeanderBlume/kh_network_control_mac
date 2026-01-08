@@ -95,17 +95,21 @@ struct ParameterTab: View {
     @State private var selectedDevice: Int = 0
 
     var body: some View {
-        VStack {
-            Picker("", selection: $selectedDevice) {
-                Text("1").tag(0)
-                Text("2").tag(1)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
+        if khAccess.parameters.isEmpty {
+            Text("No devices")
+        } else {
+            VStack {
+                Picker("", selection: $selectedDevice) {
+                    Text("1").tag(0)
+                    Text("2").tag(1)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
 
-            Spacer()
-            SSCTreeView(rootNode: khAccess.parameters[selectedDevice])
-            Spacer(minLength: 0)
+                Spacer()
+                SSCTreeView(rootNode: khAccess.parameters[selectedDevice])
+                Spacer(minLength: 0)
+            }
         }
     }
 }
