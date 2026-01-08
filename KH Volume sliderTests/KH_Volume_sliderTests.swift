@@ -10,7 +10,6 @@ import Testing
 
 @testable import KH_Volume_slider
 
-@MainActor
 struct KH_Volume_sliderTests_Online {
     @Test func testSendToDevice() async throws {
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.
@@ -26,7 +25,6 @@ struct KH_Volume_sliderTests_Offline {
     }
 }
 
-@MainActor
 struct TestSSC {
     /*
     // Private
@@ -47,14 +45,14 @@ struct TestSSC {
     }
      */
 
-    @Test func testScan() {
-        let s = SSCDevice.scan()
+    @Test func testScan() async {
+        let s = await SSCDevice.scan()
         #expect(!s.isEmpty)
     }
 
     // This should be a SwiftSSC test.
     @Test func testFetchSSCValue() async throws {
-        let sscDevice = SSCDevice.scan()[0]
+        let sscDevice = await SSCDevice.scan()[0]
         try await sscDevice.connect()
         let response: Bool = try await sscDevice.fetchSSCValue(path: [
             "audio", "out", "mute",
@@ -64,7 +62,7 @@ struct TestSSC {
     }
     
     @Test func testSendSSCValue() async throws {
-        let sscDevice = SSCDevice.scan()[0]
+        let sscDevice = await SSCDevice.scan()[0]
         try await sscDevice.connect()
         try await sscDevice.sendSSCValue(path: [
             "audio", "out", "mute",
@@ -77,7 +75,6 @@ struct TestSSC {
     }
 }
 
-@MainActor
 struct TestKHAccessDummy {
     @Test func testSetup() {
         let k = KHAccessDummy()
@@ -119,8 +116,8 @@ struct TestKHAccessDummy {
         case noDevicesFound
     }
 
-    private init() throws {
-        let scan = SSCDevice.scan()
+    private init() async throws {
+        let scan = await SSCDevice.scan()
         if scan.isEmpty {
             throw Errors.noDevicesFound
         }
