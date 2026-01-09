@@ -19,6 +19,7 @@ enum KHAccessStatus: Equatable {
     case queryingParameters
     case speakersFound(Int)
     case success
+    case otherError(String)
 
     func isClean() -> Bool {
         switch self {
@@ -51,11 +52,11 @@ protocol KHAccessProtocol: Observable, Identifiable {
     var parameters: [SSCNode] { get }
     var status: KHAccessStatus { get }
 
-    func scan(seconds: UInt32) async throws
-    func checkSpeakersAvailable() async throws
-    func populateParameters() async throws
-    func send() async throws
-    func fetch() async throws
+    func scan(seconds: UInt32) async
+    func setup() async
+    func populateParameters() async
+    func send() async
+    func fetch() async
 }
 
 @Observable
@@ -85,32 +86,22 @@ final class KHAccessNative: KHAccessProtocol {
     }
 
     private func fetchSSCValue<T>(path: [String]) async throws -> T where T: Decodable {
-        try await devices[0].fetchSSCValue(path: path)
+        return try await devices[0].fetchSSCValue(path: path)
     }
 
-    func scan(seconds: UInt32 = 1) async throws {
-        /// Scan for devices, replacing current device list.
-        status = .scanning
-        devices = await SSCDevice.scan(seconds: seconds)
-        for (i, d) in devices.enumerated() {
-            parameters.append(SSCNode(device: d, name: "root \(i)"))
-        }
-        if !devices.isEmpty {
-            try await fetch()
-        }
-        status = .speakersFound(devices.count)
-    }
-
-    private func connectAll() async throws {
+    private func connectAll() async {
         // TODO concurrency like in populateParameters
         for d in devices {
             do {
                 try await d.connect()
             } catch SSCDevice.SSCDeviceError.noResponse {
                 status = .speakersUnavailable
-                throw KHAccessError.speakersNotReachable
+                return
+            } catch {
+                status = .otherError(String(describing: error))
             }
         }
+        status = .success
     }
 
     private func disconnectAll() {
@@ -119,26 +110,33 @@ final class KHAccessNative: KHAccessProtocol {
         }
     }
 
-    func checkSpeakersAvailable() async throws {
-        status = .checkingSpeakerAvailability
-        if devices.isEmpty {
-            try await scan()
+    func scan(seconds: UInt32 = 1) async {
+        /// Scan for devices, replacing current device list.
+        status = .scanning
+        devices = await SSCDevice.scan(seconds: seconds)
+        for (i, d) in devices.enumerated() {
+            parameters.append(SSCNode(device: d, name: "root \(i)"))
         }
-        if case .speakersFound(let n) = status {
-            if n == 0 {
-                return
-            }
-        }
-        try await connectAll()
-        status = .speakersAvailable
-        disconnectAll()
+        status = .speakersFound(devices.count)
     }
 
-    func populateParameters() async throws {
-        if parameters.isEmpty {
-            throw KHAccessError.noSpeakersFoundDuringScan
+    func setup() async {
+        status = .checkingSpeakerAvailability
+        if devices.isEmpty {
+            await scan()
         }
-        try await connectAll()
+        if status == .speakersFound(0) {
+            return
+        }
+        await fetch()
+    }
+
+    func populateParameters() async {
+        if parameters.isEmpty {
+            status = .speakersFound(0)
+            return
+        }
+        await connectAll()
         status = .queryingParameters
         await withThrowingTaskGroup { group in
             for rootNode in parameters {
@@ -146,6 +144,47 @@ final class KHAccessNative: KHAccessProtocol {
             }
         }
         status = .success
+        disconnectAll()
+    }
+    
+    func fetch() async {
+        status = .fetching
+        await connectAll()
+        if status != .success {
+            return
+        }
+        do {
+            try await fetchAux()
+        } catch {
+            // TODO
+            status = .otherError("error fetching")
+            disconnectAll()
+            return
+        }
+        state = deviceState
+        status = .success
+        disconnectAll()
+    }
+    
+    func send() async {
+        // If nothing has changed, we don't even need to connect. Avoids excessive
+        // connections DOSing the device.
+        if state == deviceState {
+            return
+        }
+        await connectAll()
+        if status != .success {
+            return
+        }
+        do {
+            try await sendAux()
+        } catch {
+            // TODO
+            status = .otherError("error sending")
+            disconnectAll()
+            return
+        }
+        deviceState = state
         disconnectAll()
     }
 
@@ -156,11 +195,8 @@ final class KHAccessNative: KHAccessProtocol {
      associate a path to each one somehow. The values should know how to fetch
      themselves or something so we can add them more easily and modularly.
      */
-
-    func fetch() async throws {
-        status = .fetching
-        try await connectAll()
-
+    
+    private func fetchAux() async throws {
         deviceState.volume = try await fetchSSCValue(path: ["audio", "out", "level"])
         deviceState.muted = try await fetchSSCValue(path: ["audio", "out", "mute"])
         deviceState.logoBrightness = try await fetchSSCValue(path: [
@@ -186,11 +222,6 @@ final class KHAccessNative: KHAccessProtocol {
                 "audio", "out", eqName, "type",
             ])
         }
-
-        state = deviceState
-
-        status = .success
-        disconnectAll()
     }
 
     private func sendVolumeToDevice() async throws {
@@ -252,15 +283,8 @@ final class KHAccessNative: KHAccessProtocol {
             value: state.logoBrightness
         )
     }
-
-    func send() async throws {
-        // If nothing has changed, we don't even need to connect.
-        if state == deviceState {
-            return
-        }
-
-        try await connectAll()
-
+    
+    private func sendAux() async throws {
         if state.volume != deviceState.volume {
             try await sendVolumeToDevice()
         }
@@ -290,9 +314,6 @@ final class KHAccessNative: KHAccessProtocol {
                 try await sendEqType(eqIdx: eqIdx, eqName: eqName)
             }
         }
-
-        deviceState = state
-        disconnectAll()
     }
 }
 
@@ -309,35 +330,39 @@ final class KHAccessDummy: KHAccessProtocol {
     var status: KHAccessStatus = .clean
     var parameters: [SSCNode] = []
 
-    private func sleepOneSecond() async throws {
-        try await Task.sleep(nanoseconds: 1000_000_000)
+    private func sleepOneSecond() async {
+        do {
+            try await Task.sleep(nanoseconds: 1000_000_000)
+        } catch {
+            status = .otherError("Sleeping failed")
+        }
     }
 
-    func scan(seconds: UInt32 = 1) async throws {
+    func scan(seconds: UInt32 = 1) async {
         status = .scanning
-        try await sleepOneSecond()
+        await sleepOneSecond()
         status = .speakersFound(2)
     }
 
-    func checkSpeakersAvailable() async throws {
+    func setup() async {
         status = .checkingSpeakerAvailability
-        try await sleepOneSecond()
+        await sleepOneSecond()
         status = .speakersAvailable
     }
 
-    func populateParameters() async throws {
+    func populateParameters() async {
         status = .queryingParameters
-        try await sleepOneSecond()
+        await sleepOneSecond()
         status = .clean
     }
 
-    func fetch() async throws {
+    func fetch() async {
         status = .fetching
-        try await sleepOneSecond()
+        await sleepOneSecond()
         status = .success
     }
 
-    func send() async throws {
+    func send() async {
         status = .clean
     }
 }

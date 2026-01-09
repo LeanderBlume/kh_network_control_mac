@@ -24,7 +24,7 @@ struct VolumeTab: View {
             } onEditingChanged: { editing in
                 if !editing {
                     Task {
-                        try await khAccess.send()
+                        await khAccess.send()
                     }
                 }
             }
@@ -39,7 +39,7 @@ struct VolumeTab: View {
                     return
                 }
                 Task {
-                    try await khAccess.send()
+                    await khAccess.send()
                 }
             }
             #endif
@@ -52,7 +52,7 @@ struct VolumeTab: View {
             .toggleStyle(.button)
             .onChange(of: khAccess.state.muted) {
                 Task {
-                    try await khAccess.send()
+                    await khAccess.send()
                 }
             }
             .disabled(!khAccess.status.isClean())

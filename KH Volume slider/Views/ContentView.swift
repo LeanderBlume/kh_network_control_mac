@@ -21,7 +21,7 @@ struct ContentView: View {
                     HStack {
                         Button("Fetch") {
                             Task {
-                                try await khAccess.fetch()
+                                await khAccess.fetch()
                             }
                         }
 
@@ -29,7 +29,7 @@ struct ContentView: View {
 
                         Button("Rescan") {
                             Task {
-                                try await khAccess.scan()
+                                await khAccess.scan()
                             }
                         }
                     }
@@ -66,15 +66,7 @@ struct ContentView: View {
             #endif
             .onAppear {
                 Task {
-                    if khAccess.devices.isEmpty {
-                        try await khAccess.scan()
-                    }
-                    try await khAccess.checkSpeakersAvailable()
-                    // why
-                    try await Task.sleep(nanoseconds: 1_000_000)
-                    if khAccess.status.isClean() {
-                        try await khAccess.fetch()
-                    }
+                    await khAccess.setup()
                 }
             }
             .textFieldStyle(.roundedBorder)
@@ -83,14 +75,15 @@ struct ContentView: View {
                 HStack {
                     Button("Fetch") {
                         Task {
-                            try await khAccess.fetch()
+                            await khAccess.fetch()
                         }
                     }
                     .disabled(khAccess.status.isBusy())
 
                     Button("Rescan") {
                         Task {
-                            try await khAccess.scan()
+                            await khAccess.scan()
+                            await khAccess.setup()
                         }
                     }
                     .disabled(khAccess.status.isBusy())

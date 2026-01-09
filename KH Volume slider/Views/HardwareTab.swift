@@ -21,7 +21,7 @@ struct HardwareTab: View {
             } onEditingChanged: { editing in
                 if !editing {
                     Task {
-                        try await khAccess.send()
+                        await khAccess.send()
                     }
                 }
             }
@@ -35,7 +35,7 @@ struct HardwareTab: View {
             .frame(width: 80)
             .onSubmit {
                 Task {
-                    try await khAccess.send()
+                    await khAccess.send()
                 }
             }
         }
@@ -49,7 +49,7 @@ struct HardwareTab: View {
                 } onEditingChanged: { editing in
                     if !editing {
                         Task {
-                            try await khAccess.send()
+                            await khAccess.send()
                         }
                     }
                 }
@@ -63,7 +63,7 @@ struct HardwareTab: View {
                 .frame(width: 80)
                 .onSubmit {
                     Task {
-                        try await khAccess.send()
+                        await khAccess.send()
                     }
                 }
             }

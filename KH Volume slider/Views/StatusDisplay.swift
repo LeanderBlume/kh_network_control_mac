@@ -60,6 +60,8 @@ struct StatusDisplay: View {
             case .success:
                 // Text("Parameters fetched")
                 Image(systemName: "checkmark").foregroundColor(.green)
+            case .otherError(let s):
+                Text(s)
             }
         }
         .frame(height: 20)

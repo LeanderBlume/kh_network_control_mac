@@ -17,11 +17,7 @@ struct SSCTreeView: View {
     }
 
     private func buildTree() async {
-        do {
-            try await khAccess.populateParameters()
-        } catch {
-            khAccess.status = .speakersUnavailable
-        }
+        await khAccess.populateParameters()
     }
 
     @ViewBuilder

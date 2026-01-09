@@ -19,6 +19,7 @@ class SSCDevice {
         case addressNotFound
         case messageNotUnderstood
         case wrongType
+        case sendError(String)
         case error(String)
     }
 
@@ -80,23 +81,28 @@ class SSCDevice {
         connection.cancel()
     }
 
-    private func sendMessage(_ TXString: String) async {
-        let sendCompHandler = NWConnection.SendCompletion.contentProcessed {
-            error in
-            if error != nil {
-                print("Error in send: \(error!)")
+    private func sendMessage(_ TXString: String) async throws {
+        return try await withCheckedThrowingContinuation { continuation in
+            let sendCompHandler = NWConnection.SendCompletion.contentProcessed {
+                error in
+                if error != nil {
+                    continuation.resume(
+                        throwing: SSCDeviceError.sendError(String(describing: error))
+                    )
+                }
             }
+            let TXraw = TXString.appending("\r\n").data(using: .ascii)!
+            connection.send(content: TXraw, completion: sendCompHandler)
+            continuation.resume(returning: ())
         }
-        let TXraw = TXString.appending("\r\n").data(using: .ascii)!
-        connection.send(content: TXraw, completion: sendCompHandler)
     }
-    
+
     private func receiveMessage() async throws -> String {
         return try await withCheckedThrowingContinuation { continuation in
             connection.receive(minimumIncompleteLength: 1, maximumLength: 512) {
                 (data, context, isComplete, error) in
                 if data == nil {
-                    continuation.resume(throwing: SSCDeviceError.error("No response"))
+                    continuation.resume(throwing: SSCDeviceError.noResponse)
                     return
                 }
                 let response = String(data: data!, encoding: .utf8) ?? ""
@@ -116,7 +122,7 @@ class SSCDevice {
     }
 
     func sendSSCCommand(command: String) async throws -> String {
-        await sendMessage(command)
+        try await sendMessage(command)
         let RX = try await receiveMessage()
         let deadline = Date.now.addingTimeInterval(5)
         var success = false
