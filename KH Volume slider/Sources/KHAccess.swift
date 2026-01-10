@@ -11,11 +11,10 @@ typealias KHAccess = KHAccessNative
 
 enum KHAccessStatus: Equatable {
     case clean
-    case busy
-    case scanning
-    case queryingParameters
     case success
     case speakersFound(Int)
+    case busy(String?)
+    case queryingParameters
     case couldNotConnect
     case otherError(String)
 
@@ -32,7 +31,7 @@ enum KHAccessStatus: Equatable {
 
     func isBusy() -> Bool {
         switch self {
-        case .busy, .scanning, .queryingParameters:
+        case .busy, .queryingParameters:
             return true
         default:
             return false
@@ -47,7 +46,7 @@ enum KHAccessError: Error {
 
 protocol KHAccessProtocol: Observable, Identifiable {
     var state: KHState { get }
-    var parameters: [SSCNode] { get }
+    var devices: [KHDevice] { get }
     var status: KHAccessStatus { get }
 
     func scan(seconds: UInt32) async
@@ -62,64 +61,20 @@ final class KHAccessNative: KHAccessProtocol {
     /*
      Fetches, sends and stores data from speakers.
      */
-    /// I was wondering whether we should just store a KHJSON instance instead of these values because the whole
-    /// thing seems a bit doubled up. But maybe this is good as an abstraction layer between the json and the GUI.
-
     // UI state
     var state = KHState()
-    // (last known) device state. We compare UI state against this to selectively send
-    // changed values to the device.
-    private var deviceState = KHState()
-
+    var devices: [KHDevice] = []
     var status: KHAccessStatus = .speakersFound(0)
-
-    var devices: [SSCDevice] = []
-    var parameters: [SSCNode] = []
-
-    private func sendSSCValue<T>(path: [String], value: T) async throws
-    where T: Encodable {
-        for d in devices {
-            try await d.sendSSCValue(path: path, value: value)
-        }
-    }
-
-    private func fetchSSCValue<T>(path: [String]) async throws -> T where T: Decodable {
-        return try await devices[0].fetchSSCValue(path: path)
-    }
-
-    private func connectAll() async {
-        // TODO concurrency like in populateParameters
-        for d in devices {
-            do {
-                try await d.connect()
-            } catch SSCDevice.ConnectionError.couldNotConnect {
-                status = .couldNotConnect
-                return
-            } catch {
-                status = .otherError(String(describing: error))
-            }
-        }
-        status = .success
-    }
-
-    private func disconnectAll() {
-        for d in devices {
-            d.disconnect()
-        }
-    }
 
     func scan(seconds: UInt32 = 1) async {
         /// Scan for devices, replacing current device list.
-        status = .scanning
-        devices = await SSCDevice.scan(seconds: seconds)
-        for (i, d) in devices.enumerated() {
-            parameters.append(SSCNode(device: d, name: "root \(i)"))
-        }
+        status = .busy("Scanning...")
+        let connections = await SSCConnection.scan(seconds: seconds)
+        devices = connections.map { KHDevice(connection: $0) }
         status = .speakersFound(devices.count)
     }
 
     func setup() async {
-        status = .scanning
         await scan()
         if status == .speakersFound(0) {
             return
@@ -128,186 +83,48 @@ final class KHAccessNative: KHAccessProtocol {
     }
 
     func populateParameters() async {
-        if parameters.isEmpty {
-            status = .speakersFound(0)
-            return
-        }
-        await connectAll()
         status = .queryingParameters
         await withThrowingTaskGroup { group in
-            for rootNode in parameters {
-                group.addTask { try await rootNode.populate(recursive: true) }
+            for device in devices {
+                group.addTask { try await device.populateParameters() }
+            }
+            do {
+                try await group.waitForAll()
+            } catch {
+                status = .otherError(String(describing: error))
+                return
             }
         }
         status = .success
-        disconnectAll()
     }
 
     func fetch() async {
-        // No concurrency because we only fetch from devices[0] (so far)
-        status = .busy
-        await connectAll()
-        if status != .success {
-            return
+        status = .busy("Fetching...")
+        await withThrowingTaskGroup { group in
+            for i in devices.indices {
+                group.addTask { try await self.devices[i].fetch() }
+            }
+            do {
+                try await group.waitForAll()
+            } catch {
+                status = .otherError(String(describing: error))
+                return
+            }
         }
-        do {
-            try await fetchAux()
-        } catch {
-            status = .otherError(String(describing: error))
-            disconnectAll()
-            return
-        }
-        state = deviceState
+        state = devices[0].state
         status = .success
-        disconnectAll()
     }
 
     func send() async {
-        // TODO concurrency
-        // If nothing has changed, we don't even need to connect. Avoids excessive
-        // connections DOSing the device.
-        if state == deviceState {
-            return
-        }
-        await connectAll()
-        if status != .success {
-            return
-        }
-        do {
-            try await sendAux()
-        } catch {
-            status = .otherError(String(describing: error))
-            disconnectAll()
-            return
-        }
-        deviceState = state
-        disconnectAll()
-    }
-
-    /*
-     DUMB AND BORING STUFF BELOW THIS COMMENT
-    
-     There must be a better way to do this. Create a struct with the UI values and
-     associate a path to each one somehow. The values should know how to fetch
-     themselves or something so we can add them more easily and modularly.
-     */
-    
-    private func fetchAux() async throws {
-        deviceState.volume = try await fetchSSCValue(path: ["audio", "out", "level"])
-        deviceState.muted = try await fetchSSCValue(path: ["audio", "out", "mute"])
-        deviceState.logoBrightness = try await fetchSSCValue(path: [
-            "ui", "logo", "brightness",
-        ])
-        for (eqIdx, eqName) in ["eq2", "eq3"].enumerated() {
-            deviceState.eqs[eqIdx].boost = try await fetchSSCValue(path: [
-                "audio", "out", eqName, "boost",
-            ])
-            deviceState.eqs[eqIdx].enabled = try await fetchSSCValue(path: [
-                "audio", "out", eqName, "enabled",
-            ])
-            deviceState.eqs[eqIdx].frequency = try await fetchSSCValue(path: [
-                "audio", "out", eqName, "frequency",
-            ])
-            deviceState.eqs[eqIdx].gain = try await fetchSSCValue(path: [
-                "audio", "out", eqName, "gain",
-            ])
-            deviceState.eqs[eqIdx].q = try await fetchSSCValue(path: [
-                "audio", "out", eqName, "q",
-            ])
-            deviceState.eqs[eqIdx].type = try await fetchSSCValue(path: [
-                "audio", "out", eqName, "type",
-            ])
-        }
-    }
-
-    private func sendVolumeToDevice() async throws {
-        try await sendSSCValue(
-            path: ["audio", "out", "level"],
-            value: Int(state.volume)
-        )
-    }
-
-    private func sendEqBoost(eqIdx: Int, eqName: String) async throws {
-        try await sendSSCValue(
-            path: ["audio", "out", eqName, "boost"],
-            value: state.eqs[eqIdx].boost
-        )
-    }
-
-    private func sendEqEnabled(eqIdx: Int, eqName: String) async throws {
-        try await sendSSCValue(
-            path: ["audio", "out", eqName, "enabled"],
-            value: state.eqs[eqIdx].enabled
-        )
-    }
-
-    private func sendEqFrequency(eqIdx: Int, eqName: String) async throws {
-        try await sendSSCValue(
-            path: ["audio", "out", eqName, "frequency"],
-            value: state.eqs[eqIdx].frequency
-        )
-    }
-
-    private func sendEqGain(eqIdx: Int, eqName: String) async throws {
-        try await sendSSCValue(
-            path: ["audio", "out", eqName, "gain"],
-            value: state.eqs[eqIdx].gain
-        )
-    }
-
-    private func sendEqQ(eqIdx: Int, eqName: String) async throws {
-        try await sendSSCValue(
-            path: ["audio", "out", eqName, "q"],
-            value: state.eqs[eqIdx].q
-        )
-    }
-
-    private func sendEqType(eqIdx: Int, eqName: String) async throws {
-        try await sendSSCValue(
-            path: ["audio", "out", eqName, "type"],
-            value: state.eqs[eqIdx].type
-        )
-    }
-
-    private func sendMuteOrUnmute() async throws {
-        try await sendSSCValue(path: ["audio", "out", "mute"], value: state.muted)
-    }
-
-    private func sendLogoBrightness() async throws {
-        try await sendSSCValue(
-            path: ["ui", "logo", "brightness"],
-            value: state.logoBrightness
-        )
-    }
-    
-    private func sendAux() async throws {
-        if state.volume != deviceState.volume {
-            try await sendVolumeToDevice()
-        }
-        if state.muted != deviceState.muted {
-            try await sendMuteOrUnmute()
-        }
-        if state.logoBrightness != deviceState.logoBrightness {
-            try await sendLogoBrightness()
-        }
-        for (eqIdx, eqName) in ["eq2", "eq3"].enumerated() {
-            if state.eqs[eqIdx].boost != deviceState.eqs[eqIdx].boost {
-                try await sendEqBoost(eqIdx: eqIdx, eqName: eqName)
+        await withThrowingTaskGroup { group in
+            for i in devices.indices {
+                group.addTask { try await self.devices[i].send(self.state) }
             }
-            if state.eqs[eqIdx].enabled != deviceState.eqs[eqIdx].enabled {
-                try await sendEqEnabled(eqIdx: eqIdx, eqName: eqName)
-            }
-            if state.eqs[eqIdx].frequency != deviceState.eqs[eqIdx].frequency {
-                try await sendEqFrequency(eqIdx: eqIdx, eqName: eqName)
-            }
-            if state.eqs[eqIdx].gain != deviceState.eqs[eqIdx].gain {
-                try await sendEqGain(eqIdx: eqIdx, eqName: eqName)
-            }
-            if state.eqs[eqIdx].q != deviceState.eqs[eqIdx].q {
-                try await sendEqQ(eqIdx: eqIdx, eqName: eqName)
-            }
-            if state.eqs[eqIdx].type != deviceState.eqs[eqIdx].type {
-                try await sendEqType(eqIdx: eqIdx, eqName: eqName)
+            do {
+                try await group.waitForAll()
+            } catch {
+                status = .otherError(String(describing: error))
+                return
             }
         }
     }
@@ -323,8 +140,8 @@ final class KHAccessDummy: KHAccessProtocol {
 
     // UI state
     var state = KHState()
+    var devices: [KHDevice] = []
     var status: KHAccessStatus = .clean
-    var parameters: [SSCNode] = []
 
     private func sleepOneSecond() async {
         do {
@@ -335,13 +152,13 @@ final class KHAccessDummy: KHAccessProtocol {
     }
 
     func scan(seconds: UInt32 = 1) async {
-        status = .scanning
+        status = .busy("Scanning...")
         await sleepOneSecond()
         status = .speakersFound(2)
     }
 
     func setup() async {
-        status = .busy
+        status = .busy("Setting up...")
         await sleepOneSecond()
         status = .success
     }
@@ -353,7 +170,7 @@ final class KHAccessDummy: KHAccessProtocol {
     }
 
     func fetch() async {
-        status = .busy
+        status = .busy("Fetching...")
         await sleepOneSecond()
         status = .success
     }

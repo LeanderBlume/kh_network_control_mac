@@ -91,7 +91,7 @@ struct ParameterTab: View {
     @State private var selectedDevice: Int = 0
 
     var body: some View {
-        if khAccess.parameters.isEmpty {
+        if khAccess.devices.isEmpty {
             Text("No devices")
         } else {
             VStack {
@@ -103,7 +103,7 @@ struct ParameterTab: View {
                 .padding(.horizontal)
 
                 Spacer()
-                SSCTreeView(rootNode: khAccess.parameters[selectedDevice])
+                SSCTreeView(rootNode: khAccess.devices[selectedDevice].parameters)
                 Spacer(minLength: 0)
             }
         }

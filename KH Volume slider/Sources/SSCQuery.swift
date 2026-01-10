@@ -55,7 +55,7 @@ enum SSCNodeError: Error {
 
 @Observable
 class SSCNode: Identifiable, Equatable {
-    var device: SSCDevice
+    private var connection: SSCConnection
     var name: String
     var value: JSONData?
     var parent: SSCNode?
@@ -64,13 +64,13 @@ class SSCNode: Identifiable, Equatable {
     // let id = UUID()
 
     init(
-        device device_: SSCDevice,
+        connection connection_: SSCConnection,
         name name_: String,
         value value_: JSONData? = nil,
         parent parent_: SSCNode? = nil,
         limits limits_: OSCLimits? = nil,
     ) {
-        device = device_
+        connection = connection_
         name = name_
         value = value_
         parent = parent_
@@ -102,7 +102,7 @@ class SSCNode: Identifiable, Equatable {
         // {query[0]: { ... { query[-1]: [ pathToNode() ] } ... }
         // and returns unwrapped result.
         // In reality, query will be either ["osc", "schema"] or ["osc", "limits"].
-        var pathString = try SSCDevice.pathToJSONString(
+        var pathString = try SSCConnection.pathToJSONString(
             path: path,
             value: nil as String?
         )
@@ -113,7 +113,7 @@ class SSCNode: Identifiable, Equatable {
         for p in query.reversed() {
             queryCommand = "{\"\(p)\":\(queryCommand)}"
         }
-        let response: String = try await device.sendSSCCommand(command: queryCommand)
+        let response: String = try await connection.sendSSCCommand(command: queryCommand)
         guard let data = response.data(using: .utf8) else {
             throw SSCNodeError.error("No data from response")
         }
@@ -147,7 +147,7 @@ class SSCNode: Identifiable, Equatable {
     private func populateLeaf() async throws {
         let path = pathToNode()
         limits = try await getLimits(path: path)
-        let response = try await device.fetchSSCValueAny(path: path)
+        let response = try await connection.fetchSSCValueAny(path: path)
         // print(response)
         // In theory: Count is given => array type
         // But this is often wrong. There are various values with no count given at all
@@ -219,7 +219,7 @@ class SSCNode: Identifiable, Equatable {
                 )
             }
             subNodeArray.append(
-                SSCNode(device: self.device, name: k, value: subNodeValue, parent: self)
+                SSCNode(connection: self.connection, name: k, value: subNodeValue, parent: self)
             )
         }
         subNodeArray.sort { a, b in

@@ -20,13 +20,11 @@ struct StatusDisplay: View {
             switch status {
             case .clean:
                 circ.foregroundColor(.green)
-            case .busy:
+            case .busy(let s):
                 HStack {
-                    pv
-                }
-            case .scanning:
-                HStack {
-                    Text("Scanning...")
+                    if let s {
+                        Text(s)
+                    }
                     pv
                 }
             case .queryingParameters:

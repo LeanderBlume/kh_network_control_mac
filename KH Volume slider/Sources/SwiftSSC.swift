@@ -7,7 +7,7 @@
 import Foundation
 import Network
 
-class SSCDevice {
+class SSCConnection {
     private var connection: NWConnection
     private let dispatchQueue: DispatchQueue
 
@@ -43,7 +43,7 @@ class SSCDevice {
         dispatchQueue = DispatchQueue(label: "KH Speaker connection")
     }
 
-    static func scan(seconds: UInt32 = 1) async -> [SSCDevice] {
+    static func scan(seconds: UInt32 = 1) async -> [SSCConnection] {
         let q = DispatchQueue(label: "KH Discovery")
         let browser = NWBrowser(
             for: .bonjour(type: "_ssc._tcp", domain: nil),
@@ -51,10 +51,10 @@ class SSCDevice {
         )
         browser.start(queue: q)
         sleep(seconds)
-        return browser.browseResults.map { SSCDevice(endpoint: $0.endpoint) }
+        return browser.browseResults.map { SSCConnection(endpoint: $0.endpoint) }
     }
 
-    func connect() async throws {
+    func open() async throws {
         switch connection.state {
         case .ready:
             return
@@ -81,7 +81,7 @@ class SSCDevice {
         }
     }
 
-    func disconnect() {
+    func close() {
         connection.cancel()
     }
 
@@ -156,12 +156,12 @@ class SSCDevice {
 
     func sendSSCValue<T>(path: [String], value: T) async throws where T: Encodable {
         /// sends the command `{"p1":{"p2":value}}` to the device, if `path=["p1", "p2"]`.
-        let jsonPath = try SSCDevice.pathToJSONString(path: path, value: value)
+        let jsonPath = try SSCConnection.pathToJSONString(path: path, value: value)
         try await _ = sendSSCCommand(command: jsonPath)
     }
 
     func fetchSSCValueAny(path: [String]) async throws -> Any? {
-        let jsonPath = try SSCDevice.pathToJSONString(path: path, value: nil as Float?)
+        let jsonPath = try SSCConnection.pathToJSONString(path: path, value: nil as Float?)
         let RX = try await sendSSCCommand(command: jsonPath)
         let asObj = try JSONSerialization.jsonObject(with: RX.data(using: .utf8)!)
         let lastKey = path.last!
