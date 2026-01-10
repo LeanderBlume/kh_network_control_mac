@@ -16,10 +16,6 @@ struct SSCTreeView: View {
         case noDevicesFound
     }
 
-    private func buildTree() async {
-        await khAccess.populateParameters()
-    }
-
     @ViewBuilder
     private func description(_ node: SSCNode) -> some View {
         /// Ideas:
@@ -68,7 +64,7 @@ struct SSCTreeView: View {
         if rootNode.value == nil {
             Button("Query parameters") {
                 Task {
-                    await buildTree()
+                    await khAccess.populateParameters()
                 }
             }
         } else {
