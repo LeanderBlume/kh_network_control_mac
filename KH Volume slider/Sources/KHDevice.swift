@@ -10,8 +10,8 @@ struct KHDevice {
     let parameters: SSCNode
     private let connection: SSCConnection
 
-    init(connection c_: SSCConnection) {
-        connection = c_
+    init(connection connection_: SSCConnection) {
+        connection = connection_
         parameters = SSCNode(connection: connection, name: "root")
     }
 

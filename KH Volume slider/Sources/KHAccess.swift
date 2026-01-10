@@ -75,9 +75,11 @@ final class KHAccessNative: KHAccessProtocol {
     }
 
     func setup() async {
-        await scan()
-        if status == .speakersFound(0) {
-            return
+        if devices.isEmpty {
+            await scan()
+            if status == .speakersFound(0) {
+                return
+            }
         }
         await fetch()
     }
