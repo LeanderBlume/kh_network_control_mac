@@ -5,9 +5,9 @@
 //  Created by Leander Blume on 10.01.26.
 //
 
-struct KHDevice {
+actor KHDevice {
     var state: KHState = KHState()
-    let parameters: SSCNode
+    nonisolated let parameters: SSCNode
     private let connection: SSCConnection
 
     init(connection connection_: SSCConnection) {
@@ -29,7 +29,7 @@ struct KHDevice {
         disconnect()
     }
 
-    mutating func fetch() async throws {
+    func fetch() async throws {
         try await connect()
         state.volume = try await connection.fetchSSCValue(path: [
             "audio", "out", "level",
@@ -61,7 +61,7 @@ struct KHDevice {
         disconnect()
     }
 
-    mutating func send(_ newState: KHState) async throws {
+    func send(_ newState: KHState) async throws {
         if newState == state {
             return
         }
