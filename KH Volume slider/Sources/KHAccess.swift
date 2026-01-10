@@ -11,19 +11,17 @@ typealias KHAccess = KHAccessNative
 
 enum KHAccessStatus: Equatable {
     case clean
-    case fetching
-    case checkingSpeakerAvailability
-    case speakersAvailable
-    case speakersUnavailable
+    case busy
     case scanning
     case queryingParameters
-    case speakersFound(Int)
     case success
+    case speakersFound(Int)
+    case couldNotConnect
     case otherError(String)
 
     func isClean() -> Bool {
         switch self {
-        case .clean, .success, .speakersAvailable:
+        case .clean, .success:
             return true
         case .speakersFound(let n):
             return n > 0
@@ -34,7 +32,7 @@ enum KHAccessStatus: Equatable {
 
     func isBusy() -> Bool {
         switch self {
-        case .fetching, .checkingSpeakerAvailability, .scanning, .queryingParameters:
+        case .busy, .scanning, .queryingParameters:
             return true
         default:
             return false
@@ -94,8 +92,8 @@ final class KHAccessNative: KHAccessProtocol {
         for d in devices {
             do {
                 try await d.connect()
-            } catch SSCDevice.SSCDeviceError.noResponse {
-                status = .speakersUnavailable
+            } catch SSCDevice.ConnectionError.couldNotConnect {
+                status = .couldNotConnect
                 return
             } catch {
                 status = .otherError(String(describing: error))
@@ -121,10 +119,8 @@ final class KHAccessNative: KHAccessProtocol {
     }
 
     func setup() async {
-        status = .checkingSpeakerAvailability
-        if devices.isEmpty {
-            await scan()
-        }
+        status = .scanning
+        await scan()
         if status == .speakersFound(0) {
             return
         }
@@ -146,9 +142,10 @@ final class KHAccessNative: KHAccessProtocol {
         status = .success
         disconnectAll()
     }
-    
+
     func fetch() async {
-        status = .fetching
+        // No concurrency because we only fetch from devices[0] (so far)
+        status = .busy
         await connectAll()
         if status != .success {
             return
@@ -156,8 +153,7 @@ final class KHAccessNative: KHAccessProtocol {
         do {
             try await fetchAux()
         } catch {
-            // TODO
-            status = .otherError("error fetching")
+            status = .otherError(String(describing: error))
             disconnectAll()
             return
         }
@@ -165,8 +161,9 @@ final class KHAccessNative: KHAccessProtocol {
         status = .success
         disconnectAll()
     }
-    
+
     func send() async {
+        // TODO concurrency
         // If nothing has changed, we don't even need to connect. Avoids excessive
         // connections DOSing the device.
         if state == deviceState {
@@ -179,8 +176,7 @@ final class KHAccessNative: KHAccessProtocol {
         do {
             try await sendAux()
         } catch {
-            // TODO
-            status = .otherError("error sending")
+            status = .otherError(String(describing: error))
             disconnectAll()
             return
         }
@@ -345,9 +341,9 @@ final class KHAccessDummy: KHAccessProtocol {
     }
 
     func setup() async {
-        status = .checkingSpeakerAvailability
+        status = .busy
         await sleepOneSecond()
-        status = .speakersAvailable
+        status = .success
     }
 
     func populateParameters() async {
@@ -357,7 +353,7 @@ final class KHAccessDummy: KHAccessProtocol {
     }
 
     func fetch() async {
-        status = .fetching
+        status = .busy
         await sleepOneSecond()
         status = .success
     }

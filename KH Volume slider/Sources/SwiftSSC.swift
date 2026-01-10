@@ -8,19 +8,21 @@ import Foundation
 import Network
 
 class SSCDevice {
-    var connection: NWConnection
+    private var connection: NWConnection
     private let dispatchQueue: DispatchQueue
-    var status: String = ""
 
-    enum SSCDeviceError: Error {
-        case ipError
-        case portError
-        case noResponse
-        case addressNotFound
-        case messageNotUnderstood
-        case wrongType
-        case sendError(String)
+    // Something goes wrong with the connection itself
+    enum ConnectionError: Error {
+        case couldNotConnect
+        case emptyResponse
+        case typeError
         case error(String)
+    }
+
+    // Connection succeeds, but device returns an error
+    enum DeviceError: Int, Error {
+        case addressNotFound = 404
+        case messageNotUnderstood = 400
     }
 
     init?(ip: String, port: Int = 45) {
@@ -54,13 +56,15 @@ class SSCDevice {
 
     func connect() async throws {
         switch connection.state {
-        case .ready, .preparing:
+        case .ready:
             return
+        case .preparing:
+            break
         case .waiting:
             connection.restart()
         case .cancelled, .failed:
             connection = NWConnection(to: connection.endpoint, using: .tcp)
-            connection.start(queue: dispatchQueue)
+            fallthrough
         default:
             connection.start(queue: dispatchQueue)
         }
@@ -73,7 +77,7 @@ class SSCDevice {
             }
         }
         if !success {
-            throw SSCDeviceError.noResponse
+            throw ConnectionError.couldNotConnect
         }
     }
 
@@ -85,10 +89,11 @@ class SSCDevice {
         return try await withCheckedThrowingContinuation { continuation in
             let sendCompHandler = NWConnection.SendCompletion.contentProcessed {
                 error in
-                if error != nil {
+                if let error {
                     continuation.resume(
-                        throwing: SSCDeviceError.sendError(String(describing: error))
+                        throwing: ConnectionError.error(String(describing: error))
                     )
+                    return
                 }
             }
             let TXraw = TXString.appending("\r\n").data(using: .ascii)!
@@ -101,12 +106,26 @@ class SSCDevice {
         return try await withCheckedThrowingContinuation { continuation in
             connection.receive(minimumIncompleteLength: 1, maximumLength: 512) {
                 (data, context, isComplete, error) in
-                if data == nil {
-                    continuation.resume(throwing: SSCDeviceError.noResponse)
+                if let error {
+                    continuation.resume(throwing: error)
                     return
                 }
-                let response = String(data: data!, encoding: .utf8) ?? ""
-                continuation.resume(returning: response)
+                if isComplete && data == nil {
+                    continuation.resume(throwing: ConnectionError.emptyResponse)
+                    return
+                }
+                if let data {
+                    if let response = String(data: data, encoding: .utf8) {
+                        continuation.resume(returning: response)
+                        return
+                    } else {
+                        continuation.resume(
+                            throwing: ConnectionError.error("Decoding error")
+                        )
+                        return
+                    }
+                }
+                continuation.resume(throwing: ConnectionError.error("Receive fallback"))
             }
         }
     }
@@ -124,23 +143,12 @@ class SSCDevice {
     func sendSSCCommand(command: String) async throws -> String {
         try await sendMessage(command)
         let RX = try await receiveMessage()
-        let deadline = Date.now.addingTimeInterval(5)
-        var success = false
-        while Date.now < deadline {
-            if !RX.isEmpty {
-                success = true
-                break
-            }
-        }
-        if !success {
-            throw SSCDeviceError.noResponse
-        }
         if RX.starts(with: "{\"osc\":{\"error\"") {
             if RX.contains("404") {
-                throw SSCDeviceError.addressNotFound
+                throw DeviceError.addressNotFound
             }
             if RX.contains("400") {
-                throw SSCDeviceError.messageNotUnderstood
+                throw DeviceError.messageNotUnderstood
             }
         }
         return RX
@@ -167,7 +175,7 @@ class SSCDevice {
     func fetchSSCValue<T>(path: [String]) async throws -> T where T: Decodable {
         let result = try await fetchSSCValueAny(path: path)
         guard let retval = result as? T else {
-            throw SSCDeviceError.wrongType
+            throw ConnectionError.typeError
         }
         return retval
     }

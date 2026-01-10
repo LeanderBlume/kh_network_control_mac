@@ -36,7 +36,7 @@ struct SSCTreeView: View {
             case .none, .null:
                 ProgressView()
             case .error(let s):
-                Text("⚠️ " + s)
+                Label(s, systemImage: "exclamationmark.circle")
             case .object:
                 EmptyView()
             case .string(let v):

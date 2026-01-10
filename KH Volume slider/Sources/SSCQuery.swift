@@ -48,11 +48,9 @@ struct OSCLimits: Equatable {
 }
 
 enum SSCNodeError: Error {
-    case speakersNotReachable
-    case badData
+    case malformedResponse(String)
     case unknownTypeFromLimits(String?)
-    case unexpectedResponse(String)
-    case caseDistinctionFailed
+    case error(String)
 }
 
 @Observable
@@ -117,7 +115,7 @@ class SSCNode: Identifiable, Equatable {
         }
         let response: String = try await device.sendSSCCommand(command: queryCommand)
         guard let data = response.data(using: .utf8) else {
-            throw SSCNodeError.badData
+            throw SSCNodeError.error("No data from response")
         }
         let result =
             try JSONSerialization.jsonObject(with: data, options: [])
@@ -146,7 +144,8 @@ class SSCNode: Identifiable, Equatable {
         return OSCLimits(fromDict: result__)
     }
 
-    private func populateLeaf(path: [String]) async throws {
+    private func populateLeaf() async throws {
+        let path = pathToNode()
         limits = try await getLimits(path: path)
         let response = try await device.fetchSSCValueAny(path: path)
         // print(response)
@@ -197,10 +196,12 @@ class SSCNode: Identifiable, Equatable {
         }
     }
 
-    private func populateInternal(path: [String]) async throws {
+    private func populateInternal() async throws {
         // We are not at a leaf node and need to discover subcommands.
-        guard let resultStripped = try await getSchema(path: path) else {
-            throw SSCNodeError.caseDistinctionFailed
+        guard let resultStripped = try await getSchema(path: pathToNode()) else {
+            throw SSCNodeError.error(
+                "Populating internal node did not result in a sub-dictionary."
+            )
         }
         var subNodeArray: [SSCNode] = []
         for (k, v) in resultStripped {
@@ -213,7 +214,7 @@ class SSCNode: Identifiable, Equatable {
                 // There are subnodes to be discovered.
                 subNodeValue = nil
             } else {
-                throw SSCNodeError.unexpectedResponse(
+                throw SSCNodeError.malformedResponse(
                     String(describing: v) + " is neither null nor {}."
                 )
             }
@@ -236,11 +237,10 @@ class SSCNode: Identifiable, Equatable {
 
     func populate(recursive: Bool = true) async throws {
         // Populates the tree. Does not refresh previously fetched values!
-        let path = pathToNode()
         // print("populating", path)
         switch value {
         case nil:
-            try await populateInternal(path: path)
+            try await populateInternal()
             if case .object(let subNodeArray) = value {
                 for n in subNodeArray {
                     if recursive && (n.value == .null || n.value == nil) {
@@ -248,10 +248,12 @@ class SSCNode: Identifiable, Equatable {
                     }
                 }
             } else {
-                throw SSCNodeError.caseDistinctionFailed
+                throw SSCNodeError.error(
+                    "value was nil but populating did not result in an .object"
+                )
             }
         case .null:
-            try await populateLeaf(path: path)
+            try await populateLeaf()
         default:  // An actual type
             break
         }
@@ -273,7 +275,7 @@ class SSCNode: Identifiable, Equatable {
         }
         return nil
     }
-    
+
     static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
         return (lhs.id == rhs.id)
     }
