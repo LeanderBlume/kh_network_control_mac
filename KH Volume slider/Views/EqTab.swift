@@ -20,7 +20,7 @@ struct EqSlidermacOS: View {
             Slider.withLog2Scale(value: $value, in: range) { editing in
                 if !editing {
                     Task {
-                        try await khAccess.send()
+                        await khAccess.send()
                     }
                 }
             }
@@ -28,7 +28,7 @@ struct EqSlidermacOS: View {
             Slider(value: $value, in: range) { editing in
                 if !editing {
                     Task {
-                        try await khAccess.send()
+                        await khAccess.send()
                     }
                 }
             }
@@ -37,7 +37,7 @@ struct EqSlidermacOS: View {
             .frame(width: 80)
             .onSubmit {
                 Task {
-                    try await khAccess.send()
+                    await khAccess.send()
                 }
             }
     }
@@ -59,7 +59,7 @@ struct EqSlideriOS: View {
                     Slider.withLog2Scale(value: $value, in: range) { editing in
                         if !editing {
                             Task {
-                                try await khAccess.send()
+                                await khAccess.send()
                             }
                         }
                     }
@@ -67,7 +67,7 @@ struct EqSlideriOS: View {
                     Slider(value: $value, in: range) { editing in
                         if !editing {
                             Task {
-                                try await khAccess.send()
+                                await khAccess.send()
                             }
                         }
                     }
@@ -80,7 +80,7 @@ struct EqSlideriOS: View {
                 )
                 .onSubmit {
                     Task {
-                        try await khAccess.send()
+                        await khAccess.send()
                     }
                 }
                 /// This doesn't have a return button...
@@ -122,7 +122,7 @@ struct EqBandPaneliOS: View {
                 .pickerStyle(.menu)
                 .onChange(of: type) {
                     Task {
-                        try await khAccess.send()
+                        await khAccess.send()
                     }
                 }
                 .disabled(enabled)
@@ -180,7 +180,7 @@ struct EqBandPanelmacOS: View {
                 .pickerStyle(.menu)
                 .onChange(of: type) {
                     Task {
-                        try await khAccess.send()
+                        await khAccess.send()
                     }
                 }
                 .disabled(enabled)
@@ -302,7 +302,7 @@ struct EqPanel: View {
                         // This also fires when I switch tabs and this stuff hasn't actually
                         // changed. Well, selectedEq changes, so maybe it does change? Not sure.
                         Task {
-                            try await khAccess.send()
+                            await khAccess.send()
                         }
                     }
                 }
@@ -332,19 +332,21 @@ struct EqTab: View {
     var body: some View {
         @Bindable var khAccess = khAccess
 
-        VStack(spacing: 15) {
-            EqChart(state: khAccess.state).frame(height: 150)
-
-            Picker("", selection: $selectedEq) {
-                Text("post EQ").tag(0)
-                Text("calibration EQ").tag(1)
+        ScrollView {
+            VStack(spacing: 15) {
+                EqChart(state: khAccess.state).frame(height: 150)
+                
+                Picker("", selection: $selectedEq) {
+                    Text("post EQ").tag(0)
+                    Text("calibration EQ").tag(1)
+                }
+                .pickerStyle(.segmented)
+                
+                EqPanel(
+                    eq: $khAccess.state.eqs[selectedEq],
+                    selectedEqBand: $selectedBands[selectedEq]
+                )
             }
-            .pickerStyle(.segmented)
-
-            EqPanel(
-                eq: $khAccess.state.eqs[selectedEq],
-                selectedEqBand: $selectedBands[selectedEq]
-            )
         }
     }
 }

@@ -16,14 +16,6 @@ struct SSCTreeView: View {
         case noDevicesFound
     }
 
-    private func buildTree() async {
-        do {
-            try await khAccess.populateParameters()
-        } catch {
-            khAccess.status = .speakersUnavailable
-        }
-    }
-
     @ViewBuilder
     private func description(_ node: SSCNode) -> some View {
         /// Ideas:
@@ -40,7 +32,7 @@ struct SSCTreeView: View {
             case .none, .null:
                 ProgressView()
             case .error(let s):
-                Text("⚠️ " + s)
+                Label(s, systemImage: "exclamationmark.circle")
             case .object:
                 EmptyView()
             case .string(let v):
@@ -72,7 +64,7 @@ struct SSCTreeView: View {
         if rootNode.value == nil {
             Button("Query parameters") {
                 Task {
-                    await buildTree()
+                    await khAccess.populateParameters()
                 }
             }
         } else {
@@ -95,17 +87,21 @@ struct ParameterTab: View {
     @State private var selectedDevice: Int = 0
 
     var body: some View {
-        VStack {
-            Picker("", selection: $selectedDevice) {
-                Text("1").tag(0)
-                Text("2").tag(1)
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
+        if khAccess.devices.isEmpty {
+            Text("No devices")
+        } else {
+            VStack {
+                Picker("", selection: $selectedDevice) {
+                    Text("1").tag(0)
+                    Text("2").tag(1)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
 
-            Spacer()
-            SSCTreeView(rootNode: khAccess.parameters[selectedDevice])
-            Spacer(minLength: 0)
+                Spacer()
+                SSCTreeView(rootNode: khAccess.devices[selectedDevice].parameters)
+                Spacer(minLength: 0)
+            }
         }
     }
 }

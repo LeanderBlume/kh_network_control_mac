@@ -48,16 +48,14 @@ struct OSCLimits: Equatable {
 }
 
 enum SSCNodeError: Error {
-    case speakersNotReachable
-    case badData
+    case malformedResponse(String)
     case unknownTypeFromLimits(String?)
-    case unexpectedResponse(String)
-    case caseDistinctionFailed
+    case error(String)
 }
 
 @Observable
 class SSCNode: Identifiable, Equatable {
-    var device: SSCDevice
+    private var connection: SSCConnection
     var name: String
     var value: JSONData?
     var parent: SSCNode?
@@ -66,13 +64,13 @@ class SSCNode: Identifiable, Equatable {
     // let id = UUID()
 
     init(
-        device device_: SSCDevice,
+        connection connection_: SSCConnection,
         name name_: String,
         value value_: JSONData? = nil,
         parent parent_: SSCNode? = nil,
         limits limits_: OSCLimits? = nil,
     ) {
-        device = device_
+        connection = connection_
         name = name_
         value = value_
         parent = parent_
@@ -104,7 +102,7 @@ class SSCNode: Identifiable, Equatable {
         // {query[0]: { ... { query[-1]: [ pathToNode() ] } ... }
         // and returns unwrapped result.
         // In reality, query will be either ["osc", "schema"] or ["osc", "limits"].
-        var pathString = try SSCDevice.pathToJSONString(
+        var pathString = try SSCConnection.pathToJSONString(
             path: path,
             value: nil as String?
         )
@@ -115,9 +113,9 @@ class SSCNode: Identifiable, Equatable {
         for p in query.reversed() {
             queryCommand = "{\"\(p)\":\(queryCommand)}"
         }
-        let response: String = try device.sendSSCCommand(command: queryCommand).RX
+        let response: String = try await connection.sendSSCCommand(command: queryCommand)
         guard let data = response.data(using: .utf8) else {
-            throw SSCNodeError.badData
+            throw SSCNodeError.error("No data from response")
         }
         let result =
             try JSONSerialization.jsonObject(with: data, options: [])
@@ -146,9 +144,10 @@ class SSCNode: Identifiable, Equatable {
         return OSCLimits(fromDict: result__)
     }
 
-    private func populateLeaf(path: [String]) async throws {
+    private func populateLeaf() async throws {
+        let path = pathToNode()
         limits = try await getLimits(path: path)
-        let response = try device.fetchSSCValueAny(path: path)
+        let response = try await connection.fetchSSCValueAny(path: path)
         // print(response)
         // In theory: Count is given => array type
         // But this is often wrong. There are various values with no count given at all
@@ -197,10 +196,12 @@ class SSCNode: Identifiable, Equatable {
         }
     }
 
-    private func populateInternal(path: [String]) async throws {
+    private func populateInternal() async throws {
         // We are not at a leaf node and need to discover subcommands.
-        guard let resultStripped = try await getSchema(path: path) else {
-            throw SSCNodeError.caseDistinctionFailed
+        guard let resultStripped = try await getSchema(path: pathToNode()) else {
+            throw SSCNodeError.error(
+                "Populating internal node did not result in a sub-dictionary."
+            )
         }
         var subNodeArray: [SSCNode] = []
         for (k, v) in resultStripped {
@@ -213,12 +214,12 @@ class SSCNode: Identifiable, Equatable {
                 // There are subnodes to be discovered.
                 subNodeValue = nil
             } else {
-                throw SSCNodeError.unexpectedResponse(
+                throw SSCNodeError.malformedResponse(
                     String(describing: v) + " is neither null nor {}."
                 )
             }
             subNodeArray.append(
-                SSCNode(device: self.device, name: k, value: subNodeValue, parent: self)
+                SSCNode(connection: self.connection, name: k, value: subNodeValue, parent: self)
             )
         }
         subNodeArray.sort { a, b in
@@ -236,11 +237,10 @@ class SSCNode: Identifiable, Equatable {
 
     func populate(recursive: Bool = true) async throws {
         // Populates the tree. Does not refresh previously fetched values!
-        let path = pathToNode()
         // print("populating", path)
         switch value {
         case nil:
-            try await populateInternal(path: path)
+            try await populateInternal()
             if case .object(let subNodeArray) = value {
                 for n in subNodeArray {
                     if recursive && (n.value == .null || n.value == nil) {
@@ -248,10 +248,12 @@ class SSCNode: Identifiable, Equatable {
                     }
                 }
             } else {
-                throw SSCNodeError.caseDistinctionFailed
+                throw SSCNodeError.error(
+                    "value was nil but populating did not result in an .object"
+                )
             }
         case .null:
-            try await populateLeaf(path: path)
+            try await populateLeaf()
         default:  // An actual type
             break
         }
@@ -273,7 +275,7 @@ class SSCNode: Identifiable, Equatable {
         }
         return nil
     }
-    
+
     static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
         return (lhs.id == rhs.id)
     }

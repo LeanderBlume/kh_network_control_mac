@@ -18,21 +18,13 @@ struct StatusDisplay: View {
         let circ = Image(systemName: "circle.fill")
         Group {
             switch status {
-            case .clean, .speakersAvailable:
+            case .clean:
                 circ.foregroundColor(.green)
-            case .fetching:
+            case .busy(let s):
                 HStack {
-                    Text("Fetching...")
-                    pv
-                }
-            case .checkingSpeakerAvailability:
-                HStack {
-                    Text("Connecting...")
-                    pv
-                }
-            case .scanning:
-                HStack {
-                    Text("Scanning...")
+                    if let s {
+                        Text(s)
+                    }
                     pv
                 }
             case .queryingParameters:
@@ -40,9 +32,9 @@ struct StatusDisplay: View {
                     Text("Querying...")
                     pv
                 }
-            case .speakersUnavailable:
+            case .couldNotConnect:
                 HStack {
-                    Text("Speakers unavailable")
+                    Text("Could not connect")
                     circ.foregroundColor(.red)
                 }
             case .speakersFound(let n):
@@ -60,6 +52,11 @@ struct StatusDisplay: View {
             case .success:
                 // Text("Parameters fetched")
                 Image(systemName: "checkmark").foregroundColor(.green)
+            case .otherError(let s):
+                HStack {
+                    Text(s)
+                    Image(systemName: "exclamationmark.circle").foregroundColor(.red)
+                }
             }
         }
         .frame(height: 20)
