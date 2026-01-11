@@ -44,6 +44,7 @@ enum KHAccessError: Error {
     case noSpeakersFoundDuringScan
 }
 
+@MainActor
 protocol KHAccessProtocol: Observable, Identifiable {
     var state: KHState { get }
     var devices: [KHDevice] { get }
