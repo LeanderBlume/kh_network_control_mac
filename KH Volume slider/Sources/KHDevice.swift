@@ -5,9 +5,6 @@
 //  Created by Leander Blume on 10.01.26.
 //
 
-// TODO maybe this should not be the actor. Maybe this should have another actor
-// nested inside of it that handles all the connections, getting, setting etc.
-// Access to properties of this thing is going to get annoying otherwise.
 class KHDevice {
     var state: KHState = KHState()
     let parameters: SSCNode
