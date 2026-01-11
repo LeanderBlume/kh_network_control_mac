@@ -111,7 +111,6 @@ final class KHAccessNative: KHAccessProtocol {
                 try await group.waitForAll()
             } catch {
                 status = .otherError(String(describing: error))
-                return
             }
         }
         state = devices[0].state
@@ -127,7 +126,6 @@ final class KHAccessNative: KHAccessProtocol {
                 try await group.waitForAll()
             } catch {
                 status = .otherError(String(describing: error))
-                return
             }
         }
     }
