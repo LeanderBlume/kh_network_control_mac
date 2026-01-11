@@ -10,7 +10,7 @@ import SwiftUI
 struct Backupper: View {
     @AppStorage("backups") private var backups = "{}"
     @Environment(KHAccess.self) private var khAccess
-    
+
     enum BackuperErrors: Error {
         case error(String)
     }
@@ -28,7 +28,7 @@ struct Backupper: View {
         }
         backups = newBackupString
     }
-    
+
     func loadBackup(name: String) throws {
         let backupString = backups
         let backupDict = try JSONDecoder().decode(
@@ -51,7 +51,7 @@ struct Backupper: View {
             Button("Load backup") {
                 Task {
                     try loadBackup(name: "test")
-                    try await khAccess.send()
+                    await khAccess.send()
                 }
             }
             Button("Print backup") {
