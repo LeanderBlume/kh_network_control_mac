@@ -44,7 +44,6 @@ enum KHAccessError: Error {
     case noSpeakersFoundDuringScan
 }
 
-@MainActor
 protocol KHAccessProtocol: Observable, Identifiable {
     var state: KHState { get }
     var devices: [KHDevice] { get }
@@ -104,16 +103,17 @@ final class KHAccessNative: KHAccessProtocol {
     func fetch() async {
         status = .busy("Fetching...")
         await withThrowingTaskGroup { group in
-            for i in devices.indices{
+            for i in devices.indices {
                 group.addTask { try await self.devices[i].fetch() }
             }
             do {
                 try await group.waitForAll()
             } catch {
                 status = .otherError(String(describing: error))
+                return
             }
         }
-        state = await devices[0].state
+        state = devices[0].state
         status = .success
     }
 
@@ -126,6 +126,7 @@ final class KHAccessNative: KHAccessProtocol {
                 try await group.waitForAll()
             } catch {
                 status = .otherError(String(describing: error))
+                return
             }
         }
     }

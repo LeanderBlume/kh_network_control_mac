@@ -8,9 +8,9 @@
 // TODO maybe this should not be the actor. Maybe this should have another actor
 // nested inside of it that handles all the connections, getting, setting etc.
 // Access to properties of this thing is going to get annoying otherwise.
-actor KHDevice {
+struct KHDevice {
     var state: KHState = KHState()
-    nonisolated let parameters: SSCNode
+    let parameters: SSCNode
     private let connection: SSCConnection
 
     init(connection connection_: SSCConnection) {
@@ -32,7 +32,7 @@ actor KHDevice {
         disconnect()
     }
 
-    func fetch() async throws {
+    mutating func fetch() async throws {
         try await connect()
         state.volume = try await connection.fetchSSCValue(path: [
             "audio", "out", "level",
@@ -64,7 +64,7 @@ actor KHDevice {
         disconnect()
     }
 
-    func send(_ newState: KHState) async throws {
+    mutating func send(_ newState: KHState) async throws {
         if newState == state {
             return
         }
