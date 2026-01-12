@@ -264,6 +264,51 @@ class SSCNode: Identifiable, Equatable {
         }
     }
 
+    private func fetchLeaf() async throws {
+        // this once again seems dumb. I don't know if there's a better way.
+        let path = pathToNode()
+        switch value {
+        case .error:
+            return
+        case .value(let T):
+            switch T {
+            case .number:
+                let newV: Double = try await connection.fetchSSCValue(path: path)
+                value = NodeData(value: newV)
+            case .string:
+                let newV: String = try await connection.fetchSSCValue(path: path)
+                value = NodeData(value: newV)
+            case .bool:
+                let newV: Bool = try await connection.fetchSSCValue(path: path)
+                value = NodeData(value: newV)
+            case .array(let vs):
+                switch vs.first {
+                case .number:
+                    let newV: [Double] = try await connection.fetchSSCValue(path: path)
+                    value = NodeData(value: newV)
+                case .string:
+                    let newV: [String] = try await connection.fetchSSCValue(path: path)
+                    value = NodeData(value: newV)
+                case .bool:
+                    let newV: [Bool] = try await connection.fetchSSCValue(path: path)
+                    value = NodeData(value: newV)
+                case nil:
+                    throw SSCNodeError.error("Empty Array")
+                case .array, .object:
+                    throw SSCNodeError.error("Nested types are unsupported")
+                case .null:
+                    throw SSCNodeError.error("Null array")
+                }
+            case .object:
+                throw SSCNodeError.error("Not a leaf")
+            case .null:
+                throw SSCNodeError.error("Unknown value")
+            }
+        case .children, .unknown, .unknownChildren, .unknownValue:
+            throw SSCNodeError.error("Not a populated leaf")
+        }
+    }
+
     private func populateInternal() async throws {
         // We are not at a leaf node and need to discover subcommands.
         guard let resultStripped = try await getSchema(path: pathToNode()) else {
@@ -326,8 +371,14 @@ class SSCNode: Identifiable, Equatable {
             }
         case .unknownValue:
             try await populateLeaf()
+        case .children(let subNodeArray):
+            if recursive {
+                for n in subNodeArray {
+                    try await n.populate()
+                }
+            }
         default:  // An actual type
-            break
+            try await fetchLeaf()
         }
     }
 

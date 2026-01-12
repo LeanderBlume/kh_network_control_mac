@@ -59,9 +59,7 @@ struct SSCTreeView: View {
             ) {
                 description($0)
             }
-            // .task { await buildTree() }
-            /// TODO write a different method that just re-fetches leaf node values?
-            // .refreshable { await buildTree() }
+            .refreshable { await khAccess.populateParameters() }
         }
     }
 }
