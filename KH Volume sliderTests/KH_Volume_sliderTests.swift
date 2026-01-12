@@ -10,6 +10,7 @@ import Testing
 
 @testable import KH_Volume_slider
 
+@MainActor
 struct KH_Volume_sliderTests_Online {
     @Test func testSendToDevice() async throws {
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.
@@ -75,6 +76,7 @@ struct TestSSC {
     }
 }
 
+@MainActor
 struct TestKHAccessDummy {
     @Test func testSetup() {
         let k = KHAccessDummy()
