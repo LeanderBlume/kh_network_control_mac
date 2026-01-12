@@ -81,7 +81,7 @@ struct ParameterTab: View {
                 .padding(.horizontal)
 
                 Spacer()
-                SSCTreeView(rootNode: khAccess.devices[selectedDevice].parameters)
+                SSCTreeView(rootNode: khAccess.devices[selectedDevice].parameterTree)
                 Spacer(minLength: 0)
             }
         }

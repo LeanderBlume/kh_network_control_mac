@@ -223,6 +223,18 @@ class SSCNode: Identifiable, Equatable {
             throw SSCNodeError.error("Not a populated leaf")
         }
     }
+    
+    private func sendLeaf() async throws {
+        let path = pathToNode()
+        switch value {
+        case .error:
+            return
+        case .value(let T):
+            try await connection.sendSSCValue(path: path, value: T)
+        case .children, .unknown, .unknownChildren, .unknownValue:
+            throw SSCNodeError.error("Not a populated leaf")
+        }
+    }
 
     private func populateInternal() async throws {
         // We are not at a leaf node and need to discover subcommands.
@@ -273,27 +285,19 @@ class SSCNode: Identifiable, Equatable {
         // children, even for the root node.
         case .unknown, .unknownChildren:
             try await populateInternal()
-            if case .children(let subNodeArray) = value {
-                for n in subNodeArray {
-                    if recursive && n.value.isUnknown() {
-                        try await n.populate()
-                    }
-                }
-            } else {
-                throw SSCNodeError.error(
-                    "value was nil but populating did not result in an .object"
-                )
-            }
-        case .unknownValue:
-            try await populateLeaf()
+            try await populate(recursive: recursive)
         case .children(let subNodeArray):
             if recursive {
                 for n in subNodeArray {
                     try await n.populate()
                 }
             }
-        default:  // An actual type
+        case .unknownValue:
+            try await populateLeaf()
+        case .value:
             try await fetchLeaf()
+        case .error:
+            return
         }
     }
 

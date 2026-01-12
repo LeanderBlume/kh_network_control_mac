@@ -13,6 +13,10 @@ enum JSONData: Equatable, Encodable {
     case array([JSONData])
     case object([String: JSONData])
 
+    enum JSONDataError: Error {
+        case error(String)
+    }
+
     func asArrayAny() -> [Any?]? {
         var result: [Any?] = []
         switch self {
@@ -114,54 +118,12 @@ enum JSONData: Equatable, Encodable {
                 let newV: [Bool] = try await connection.fetchSSCValue(path: path)
                 return .array(newV.map({ JSONData.bool($0) }))
             case nil:
-                throw SSCNodeError.error("Could not determine type of empty array")
+                throw JSONDataError.error("Could not determine type of empty array")
             case .array, .object:
-                throw SSCNodeError.error("Nested container types are not supported")
+                throw JSONDataError.error("Nested container types are not supported")
             }
         case .object:
-            throw SSCNodeError.error("Path does not lead to a value")
-        }
-    }
-
-    func send(connection: SSCConnection, path: [String]) async throws {
-        switch self {
-        case .null:
-            try await connection.sendSSCValue(path: path, value: nil as Double?)
-        case .number(let v):
-            try await connection.sendSSCValue(path: path, value: v)
-        case .string(let v):
-            try await connection.sendSSCValue(path: path, value: v)
-        case .bool(let v):
-            try await connection.sendSSCValue(path: path, value: v)
-        case .array(let vs):
-            switch vs.first {
-            case .null:
-                try await connection.sendSSCValue(
-                    path: path,
-                    value: vs.map({ _ in nil }) as [Double?]
-                )
-            case .number:
-                guard let arr = self.asArrayNumber() else {
-                    throw SSCNodeError.error("Heterogeneous array")
-                }
-                try await connection.sendSSCValue(path: path, value: arr)
-            case .string:
-                guard let arr = self.asArrayString() else {
-                    throw SSCNodeError.error("Heterogeneous array")
-                }
-                try await connection.sendSSCValue(path: path, value: arr)
-            case .bool:
-                guard let arr = self.asArrayBool() else {
-                    throw SSCNodeError.error("Heterogeneous array")
-                }
-                try await connection.sendSSCValue(path: path, value: arr)
-            case nil:
-                try await connection.sendSSCValue(path: path, value: [] as [Double])
-            case .array, .object:
-                throw SSCNodeError.error("Nested container types are not supported")
-            }
-        case .object:
-            throw SSCNodeError.error("Path does not lead to a value")
+            throw JSONDataError.error("Path does not lead to a value")
         }
     }
 }
