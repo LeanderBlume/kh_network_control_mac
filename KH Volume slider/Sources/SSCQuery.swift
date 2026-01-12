@@ -7,16 +7,94 @@
 
 import Foundation
 
-enum JSONData: Equatable {
-    case object([SSCNode])
+enum JSONData: Equatable, Encodable {
     case string(String)
     case number(Double)
     case bool(Bool)
-    case arrayString([String])
-    case arrayNumber([Double])
-    case arrayBool([Bool])
     case null
+    case array([JSONData])
+    case object([String: JSONData])
+
+    func asArrayAny() -> [Any?]? {
+        var result: [Any?] = []
+        switch self {
+        case .array(let vs):
+            if vs.isEmpty {
+                return []
+            }
+            for v in vs {
+                switch v {
+                case .number(let w):
+                    result.append(w)
+                case .string(let w):
+                    result.append(w)
+                case .bool(let w):
+                    result.append(w)
+                case .null:
+                    result.append(nil)
+                case .array:
+                    result.append([])
+                case .object:
+                    result.append([:])
+                }
+            }
+        default:
+            return nil
+        }
+        return result
+    }
+
+    func asArrayNumber() -> [Double]? { return asArrayAny() as? [Double] }
+    func asArrayString() -> [String]? { return asArrayAny() as? [String] }
+    func asArrayBool() -> [Bool]? { return asArrayAny() as? [Bool] }
+    
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case .string(let v):
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+        case .number(let v):
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+        case .bool(let v):
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+        case .null:
+            var container = encoder.singleValueContainer()
+            try container.encodeNil()
+        case .array(let v):
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+        case .object(let v):
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+        }
+    }
+}
+
+enum NodeData: Equatable {
+    case unknown
+    case unknownChildren
+    case unknownValue
+    case children([SSCNode])
+    case value(JSONData)
     case error(String)
+
+    init(value: String) { self = .value(.string(value)) }
+    init(value: Double) { self = .value(.number(value)) }
+    init(value: Bool) { self = .value(.bool(value)) }
+    init(value: [String]) { self = .value(.array(value.map({ .string($0) }))) }
+    init(value: [Double]) { self = .value(.array(value.map({ .number($0) }))) }
+    init(value: [Bool]) { self = .value(.array(value.map({ .bool($0) }))) }
+
+    func isUnknown() -> Bool {
+        switch self {
+        case .unknown, .unknownChildren, .unknownValue:
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 struct OSCLimits: Equatable {
@@ -57,7 +135,7 @@ enum SSCNodeError: Error {
 class SSCNode: Identifiable, Equatable {
     private var connection: SSCConnection
     var name: String
-    var value: JSONData?
+    var value: NodeData
     var parent: SSCNode?
     var limits: OSCLimits?
     // Maybe this is better than the default ObjectIdentifier. But I don't think so.
@@ -66,7 +144,7 @@ class SSCNode: Identifiable, Equatable {
     init(
         connection connection_: SSCConnection,
         name name_: String,
-        value value_: JSONData? = nil,
+        value value_: NodeData = .unknown,
         parent parent_: SSCNode? = nil,
         limits limits_: OSCLimits? = nil,
     ) {
@@ -113,7 +191,9 @@ class SSCNode: Identifiable, Equatable {
         for p in query.reversed() {
             queryCommand = "{\"\(p)\":\(queryCommand)}"
         }
-        let response: String = try await connection.sendSSCCommand(command: queryCommand)
+        let response: String = try await connection.sendSSCCommand(
+            command: queryCommand
+        )
         guard let data = response.data(using: .utf8) else {
             throw SSCNodeError.error("No data from response")
         }
@@ -155,39 +235,39 @@ class SSCNode: Identifiable, Equatable {
         switch limits!.type {
         case "Number":
             if let v = response as? Double {
-                value = .number(v)
+                value = NodeData(value: v)
             } else if let v = response as? [Double] {
-                value = .arrayNumber(v)
+                value = NodeData(value: v)
             }
         case "String":
             if let v = response as? String {
-                value = .string(v)
+                value = NodeData(value: v)
             } else if let v = response as? [String] {
-                value = .arrayString(v)
+                value = NodeData(value: v)
             }
         case "Boolean":
             if let v = response as? Bool {
-                value = .bool(v)
+                value = NodeData(value: v)
             } else if let v = response as? [Bool] {
-                value = .arrayBool(v)
+                value = NodeData(value: v)
             }
-        case .none:
+        case nil:
             // Limits did not return a type, so We just try all types.
             // This does not work on its own. true/false and 0/1 can be converted into
             // each other so we will always get wrong results somewhere.
             // Can we use the "is" keyword?
             if let v = response as? Bool {
-                value = .bool(v)
+                value = NodeData(value: v)
             } else if let v = response as? Double {
-                value = .number(v)
+                value = NodeData(value: v)
             } else if let v = response as? String {
-                value = .string(v)
+                value = NodeData(value: v)
             } else if let v = response as? [Bool] {
-                value = .arrayBool(v)
+                value = NodeData(value: v)
             } else if let v = response as? [Double] {
-                value = .arrayNumber(v)
+                value = NodeData(value: v)
             } else if let v = response as? [String] {
-                value = .arrayString(v)
+                value = NodeData(value: v)
             } else {
                 value = .error("Unknown type")
             }
@@ -205,45 +285,49 @@ class SSCNode: Identifiable, Equatable {
         }
         var subNodeArray: [SSCNode] = []
         for (k, v) in resultStripped {
-            let subNodeValue: JSONData?
-            // TODO .null and nil are pretty confusing. Maybe use a different value?
+            let subNodeValue: NodeData
             if v == nil {
-                // There's a parameter!
-                subNodeValue = .null
+                subNodeValue = .unknownValue
             } else if v == [:] {
-                // There are subnodes to be discovered.
-                subNodeValue = nil
+                subNodeValue = .unknownChildren
             } else {
                 throw SSCNodeError.malformedResponse(
                     String(describing: v) + " is neither null nor {}."
                 )
             }
             subNodeArray.append(
-                SSCNode(connection: self.connection, name: k, value: subNodeValue, parent: self)
+                SSCNode(
+                    connection: self.connection,
+                    name: k,
+                    value: subNodeValue,
+                    parent: self
+                )
             )
         }
         subNodeArray.sort { a, b in
             // We want to put non-objects first.
-            if a.value == .null && b.value == nil {
+            if a.value == .unknownValue && b.value == .unknownChildren {
                 return true
             }
-            if a.value == nil && b.value == .null {
+            if a.value == .unknownChildren && b.value == .unknownValue {
                 return false
             }
             return a.name < b.name
         }
-        value = .object(subNodeArray)
+        value = .children(subNodeArray)
     }
 
     func populate(recursive: Bool = true) async throws {
         // Populates the tree. Does not refresh previously fetched values!
-        // print("populating", path)
+        // print("populating", pathToNode())
         switch value {
-        case nil:
+        // Technically bad. We should try to find out if there is a subvalue or
+        // children, even for the root node.
+        case .unknown, .unknownChildren:
             try await populateInternal()
-            if case .object(let subNodeArray) = value {
+            if case .children(let subNodeArray) = value {
                 for n in subNodeArray {
-                    if recursive && (n.value == .null || n.value == nil) {
+                    if recursive && n.value.isUnknown() {
                         try await n.populate()
                     }
                 }
@@ -252,7 +336,7 @@ class SSCNode: Identifiable, Equatable {
                     "value was nil but populating did not result in an .object"
                 )
             }
-        case .null:
+        case .unknownValue:
             try await populateLeaf()
         default:  // An actual type
             break
@@ -270,7 +354,7 @@ class SSCNode: Identifiable, Equatable {
             }
         }
          */
-        if case .object(let c) = value {
+        if case .children(let c) = value {
             return c
         }
         return nil
