@@ -67,6 +67,7 @@ enum SSCNodeError: Error {
 }
 
 @Observable
+@MainActor
 class SSCNode: Identifiable, Equatable {
     private var connection: SSCConnection
     var name: String
@@ -318,7 +319,7 @@ class SSCNode: Identifiable, Equatable {
         return nil
     }
 
-    static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
+    nonisolated static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
         return (lhs.id == rhs.id)
     }
 }

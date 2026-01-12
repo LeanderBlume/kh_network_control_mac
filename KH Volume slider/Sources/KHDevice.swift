@@ -157,6 +157,7 @@ struct SSCParameter {
     }
 }
 
+@MainActor
 class KHDevice {
     var state: KHState = KHState()
     let parameterTree: SSCNode
