@@ -7,92 +7,6 @@
 
 import Foundation
 
-enum JSONData: Equatable, Encodable {
-    case string(String)
-    case number(Double)
-    case bool(Bool)
-    case null
-    case array([JSONData])
-    case object([String: JSONData])
-
-    func asArrayAny() -> [Any?]? {
-        var result: [Any?] = []
-        switch self {
-        case .array(let vs):
-            if vs.isEmpty {
-                return []
-            }
-            for v in vs {
-                switch v {
-                case .number(let w):
-                    result.append(w)
-                case .string(let w):
-                    result.append(w)
-                case .bool(let w):
-                    result.append(w)
-                case .null:
-                    result.append(nil)
-                case .array:
-                    result.append([])
-                case .object:
-                    result.append([:])
-                }
-            }
-        default:
-            return nil
-        }
-        return result
-    }
-
-    func asArrayNumber() -> [Double]? { return asArrayAny() as? [Double] }
-    func asArrayString() -> [String]? { return asArrayAny() as? [String] }
-    func asArrayBool() -> [Bool]? { return asArrayAny() as? [Bool] }
-    
-    func encode(to encoder: Encoder) throws {
-        switch self {
-        case .string(let v):
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-        case .number(let v):
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-        case .bool(let v):
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-        case .null:
-            var container = encoder.singleValueContainer()
-            try container.encodeNil()
-        case .array(let v):
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-        case .object(let v):
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-        }
-    }
-
-    func stringify() -> String {
-        switch self {
-        case .string(let v):
-            return "\"" + v + "\""
-        case .number(let v):
-            return String(v)
-        case .bool(let v):
-            return String(v)
-        case .null:
-            return "null"
-        case .array(let vs):
-            return "[" + vs.map({ $0.stringify() }).joined(separator: ", ") + "]"
-        case .object(let vs):
-            var result: [String: String] = [:]
-            for (k, v) in vs {
-                result[k] = v.stringify()
-            }
-            return String(describing: result)
-        }
-    }
-}
-
 enum NodeData: Equatable {
     case unknown
     case unknownChildren
@@ -304,39 +218,7 @@ class SSCNode: Identifiable, Equatable {
         case .error:
             return
         case .value(let T):
-            switch T {
-            case .number:
-                let newV: Double = try await connection.fetchSSCValue(path: path)
-                value = NodeData(value: newV)
-            case .string:
-                let newV: String = try await connection.fetchSSCValue(path: path)
-                value = NodeData(value: newV)
-            case .bool:
-                let newV: Bool = try await connection.fetchSSCValue(path: path)
-                value = NodeData(value: newV)
-            case .array(let vs):
-                switch vs.first {
-                case .number:
-                    let newV: [Double] = try await connection.fetchSSCValue(path: path)
-                    value = NodeData(value: newV)
-                case .string:
-                    let newV: [String] = try await connection.fetchSSCValue(path: path)
-                    value = NodeData(value: newV)
-                case .bool:
-                    let newV: [Bool] = try await connection.fetchSSCValue(path: path)
-                    value = NodeData(value: newV)
-                case nil:
-                    throw SSCNodeError.error("Empty Array")
-                case .array, .object:
-                    throw SSCNodeError.error("Nested types are unsupported")
-                case .null:
-                    throw SSCNodeError.error("Null array")
-                }
-            case .object:
-                throw SSCNodeError.error("Not a leaf")
-            case .null:
-                throw SSCNodeError.error("Unknown value")
-            }
+            value = .value(try await T.fetch(connection: connection, path: path))
         case .children, .unknown, .unknownChildren, .unknownValue:
             throw SSCNodeError.error("Not a populated leaf")
         }
