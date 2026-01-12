@@ -39,63 +39,7 @@ struct SSCTreeView: View {
             case .children:
                 EmptyView()
             case .value(let v):
-                /*
-                if let jsonData = try? JSONEncoder().encode(v) {
-                    if let jsonString = String(data: jsonData, encoding: .utf8) {
-                        // let s = jsonString
-                        Text(jsonString)
-                    } else {
-                        Text("String conversion failed")
-                    }
-                } else {
-                    Text("JSON Encoding failed")
-                }
-                 */
-                // It works and it's stupid.
-                let jsonData = try! JSONEncoder().encode(v)
-                let jsonString = String(data: jsonData, encoding: .utf8)!
-                switch v {
-                case .string(let v):
-                    Text("\"" + v + "\"")
-                case .number(let v):
-                    if node.limits!.inc == 1 {
-                        Text(String(Int(v)))
-                    } else {
-                        Text(String(v))
-                    }
-                case .bool(let v):
-                    // Text(v ? "yes" : "no")
-                    Text(String(v))
-                case .array(let vs):
-                    switch vs.first {
-                    case .string:
-                        if let A = v.asArrayString() {
-                            Text(String(describing: A))
-                        } else {
-                            Text(String(describing: vs))
-                        }
-                    case .number:
-                        if let A = v.asArrayNumber() {
-                            if node.limits?.inc == 1 {
-                                Text(String(describing: A.map({ Int($0) })))
-                            } else {
-                                Text(String(describing: A))
-                            }
-                        } else {
-                            Text(String(describing: vs))
-                        }
-                    case .bool:
-                        if let A = v.asArrayBool() {
-                            Text(String(describing: A))
-                        } else {
-                            Text(String(describing: vs))
-                        }
-                    default:
-                        Text("Weird array")
-                    }
-                default:
-                    Text("Weird value")
-                }
+                Text(v.stringify())
             }
         }
     }

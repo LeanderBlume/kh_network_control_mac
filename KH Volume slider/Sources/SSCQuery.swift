@@ -70,6 +70,27 @@ enum JSONData: Equatable, Encodable {
             try container.encode(v)
         }
     }
+    
+    func stringify() -> String {
+        switch self {
+        case .string(let v):
+            return "\"" + v + "\""
+        case .number(let v):
+            return String(v)
+        case .bool(let v):
+            return String(v)
+        case .null:
+            return "null"
+        case .array(let vs):
+            return String(describing: vs.map({$0.stringify()}))
+        case .object(let vs):
+            var result: [String: String] = [:]
+            for (k, v) in vs {
+                result[k] = v.stringify()
+            }
+            return String(describing: result)
+        }
+    }
 }
 
 enum NodeData: Equatable {
