@@ -37,7 +37,7 @@ enum JSONData: Equatable, Encodable {
             try container.encode(v)
         }
     }
-    
+
     func stringify() -> String {
         switch self {
         case .string(let v):
@@ -49,7 +49,7 @@ enum JSONData: Equatable, Encodable {
         case .null:
             return "null"
         case .array(let vs):
-            return String(describing: vs.map({$0.stringify()}))
+            return "[" + vs.map({ $0.stringify() }).joined(separator: ", ") + "]"
         case .object(let vs):
             var result: [String: String] = [:]
             for (k, v) in vs {
