@@ -181,7 +181,7 @@ class KHDevice {
         }
         try await connect()
         for (kp, dp) in paths {
-            if kp.get(from: state) == kp.get(from: newState) {
+            if kp.get(from: state) != kp.get(from: newState) {
                 let newValue = kp.get(from: newState)
                 try await newValue.send(connection: connection, path: dp)
             }
