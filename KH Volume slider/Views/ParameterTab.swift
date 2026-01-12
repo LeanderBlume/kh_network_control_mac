@@ -29,39 +29,23 @@ struct SSCTreeView: View {
             Spacer()
 
             switch node.value {
-            case .none, .null:
+            case .unknown, .unknownValue, .unknownChildren:
                 ProgressView()
+                    #if os(macOS)
+                        .scaleEffect(0.5)
+                    #endif
             case .error(let s):
                 Label(s, systemImage: "exclamationmark.circle")
-            case .object:
+            case .children:
                 EmptyView()
-            case .string(let v):
-                Text("\"" + v + "\"")
-            case .number(let v):
-                if node.limits!.inc == 1 {
-                    Text(String(Int(v)))
-                } else {
-                    Text(String(v))
-                }
-            case .bool(let v):
-                // Text(v ? "yes" : "no")
-                Text(String(v))
-            case .arrayString(let v):
-                Text(String(describing: v))
-            case .arrayNumber(let v):
-                if node.limits?.inc == 1 {
-                    Text(String(describing: v.map({ Int($0) })))
-                } else {
-                    Text(String(describing: v))
-                }
-            case .arrayBool(let v):
-                Text(String(describing: v))
+            case .value(let v):
+                Text(v.stringify())
             }
         }
     }
 
     var body: some View {
-        if rootNode.value == nil {
+        if rootNode.value == .unknown {
             Button("Query parameters") {
                 Task {
                     await khAccess.populateParameters()
@@ -75,9 +59,7 @@ struct SSCTreeView: View {
             ) {
                 description($0)
             }
-            // .task { await buildTree() }
-            /// TODO write a different method that just re-fetches leaf node values?
-            // .refreshable { await buildTree() }
+            .refreshable { await khAccess.populateParameters() }
         }
     }
 }
@@ -99,7 +81,7 @@ struct ParameterTab: View {
                 .padding(.horizontal)
 
                 Spacer()
-                SSCTreeView(rootNode: khAccess.devices[selectedDevice].parameters)
+                SSCTreeView(rootNode: khAccess.devices[selectedDevice].parameterTree)
                 Spacer(minLength: 0)
             }
         }

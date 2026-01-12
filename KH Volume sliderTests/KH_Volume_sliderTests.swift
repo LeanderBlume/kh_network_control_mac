@@ -10,6 +10,7 @@ import Testing
 
 @testable import KH_Volume_slider
 
+@MainActor
 struct KH_Volume_sliderTests_Online {
     @Test func testSendToDevice() async throws {
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.
@@ -75,6 +76,7 @@ struct TestSSC {
     }
 }
 
+@MainActor
 struct TestKHAccessDummy {
     @Test func testSetup() {
         let k = KHAccessDummy()
@@ -174,19 +176,27 @@ struct TestKHAccessDummy {
     }
 }
 
-struct TestGenericType {
-    @Test func main() {
+struct TestJSONEncoding {
+    func encode<T>(_ value: T) throws -> String where T: Encodable{
+        let jsonData = try! JSONEncoder().encode(value)
+        return String(data: jsonData, encoding: .utf8)!
+    }
 
-        class BlaType<T> {
-            var value: T
+    @Test func main() throws {
+        let s = JSONData.string("asdf / jkl")
+        print(try encode(s))
+        
+        let s2 = "asdf / jkl"
+        let s2d = try encode(s2).data(using: .utf8)!
+        print(try! encode(s2))
+        let x = try JSONDecoder().decode(String.self, from: s2d)
+        print(x)
 
-            init(_ v: T) {
-                value = v
-            }
-        }
-
-        _ = BlaType(3)
-        let _: BlaType<BlaType<Int>> = BlaType(BlaType(3))
-        let _: BlaType<[BlaType<Int>]> = BlaType([BlaType(3)])
+        let s3 = JSONData.array([.string("A/C"), .string("B")])
+        print(try! encode(s3))
+        let s3d = try encode(s3).data(using: .utf8)!
+        print(try! encode(s2))
+        let x2 = try JSONDecoder().decode([String].self, from: s3d)
+        print(x2)
     }
 }
