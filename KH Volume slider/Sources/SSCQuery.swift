@@ -15,6 +15,39 @@ enum JSONData: Equatable, Encodable {
     case array([JSONData])
     case object([String: JSONData])
 
+    func asArrayAny() -> [Any?]? {
+        var result: [Any?] = []
+        switch self {
+        case .array(let vs):
+            if vs.isEmpty {
+                return []
+            }
+            for v in vs {
+                switch v {
+                case .number(let w):
+                    result.append(w)
+                case .string(let w):
+                    result.append(w)
+                case .bool(let w):
+                    result.append(w)
+                case .null:
+                    result.append(nil)
+                case .array:
+                    result.append([])
+                case .object:
+                    result.append([:])
+                }
+            }
+        default:
+            return nil
+        }
+        return result
+    }
+
+    func asArrayNumber() -> [Double]? { return asArrayAny() as? [Double] }
+    func asArrayString() -> [String]? { return asArrayAny() as? [String] }
+    func asArrayBool() -> [Bool]? { return asArrayAny() as? [Bool] }
+    
     func encode(to encoder: Encoder) throws {
         switch self {
         case .string(let v):
