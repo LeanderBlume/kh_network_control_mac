@@ -6,7 +6,7 @@
 //
 
 @MainActor
-class KHDevice {
+class KHDevice: Identifiable {
     var state: KHState = KHState()
     let parameterTree: SSCNode
     let connection: SSCConnection

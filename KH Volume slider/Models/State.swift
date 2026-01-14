@@ -43,6 +43,7 @@ struct Eq: Codable, Equatable {
 }
 
 struct KHState: Equatable {
+    var name = "Unknown name"
     var volume = 54.0
     var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
     var muted = false
@@ -203,6 +204,7 @@ struct SSCParameter {
 }
 
 enum KHParameters: String, CaseIterable, Identifiable {
+    case name = "Name"
     case volume = "Volume"
     case muted = "Mute"
     case logoBrightness = "Logo brightness"
@@ -222,9 +224,11 @@ enum KHParameters: String, CaseIterable, Identifiable {
     case eq1type = "EQ 2 Type"
 
     var id: String { self.rawValue }
-    
+
     func getKeyPath() -> KeyPathType<KHState> {
         switch self {
+        case .name:
+            .string(\.name)
         case .volume:
             .number(\.volume)
         case .muted:
@@ -257,7 +261,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
             .arrayString(\.eqs[1].type)
         }
     }
-    
+
     private static func getPathDict() -> [String: [String]]? {
         let decoder = JSONDecoder()
         guard let data: Data = AppStorage("paths").wrappedValue else {
@@ -276,6 +280,8 @@ enum KHParameters: String, CaseIterable, Identifiable {
 
     private func getDevicePathFallback() -> [String] {
         switch self {
+        case .name:
+            ["device", "name"]
         case .volume:
             ["audio", "out", "level"]
         case .muted:
@@ -308,7 +314,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
             ["audio", "out", "eq3", "type"]
         }
     }
-    
+
     static func devicePathDictDefault() -> [String: [String]] {
         var result: [String: [String]] = [:]
         for p in KHParameters.allCases {
@@ -316,7 +322,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
         }
         return result
     }
-    
+
     func setDevicePath(to path: [String]) {
         guard var dict = KHParameters.getPathDict() else {
             return
@@ -327,9 +333,9 @@ enum KHParameters: String, CaseIterable, Identifiable {
             AppStorage("paths").wrappedValue = data
         }
     }
-    
+
     func resetDevicePath() { setDevicePath(to: getDevicePathFallback()) }
-    
+
     static func resetAllDevicePaths() {
         KHParameters.allCases.forEach { $0.resetDevicePath() }
     }
