@@ -48,3 +48,289 @@ struct KHState: Equatable {
     var muted = false
     var logoBrightness = 100.0
 }
+
+enum KeyPathType<T> {
+    case number(WritableKeyPath<T, Double>)
+    case string(WritableKeyPath<T, String>)
+    case bool(WritableKeyPath<T, Bool>)
+    case arrayNumber(WritableKeyPath<T, [Double]>)
+    case arrayString(WritableKeyPath<T, [String]>)
+    case arrayBool(WritableKeyPath<T, [Bool]>)
+}
+
+struct SSCParameter {
+    let parameter: KHParameters
+
+    private enum ValueType: Equatable {
+        case string(String)
+        case number(Double)
+        case bool(Bool)
+        case arrayString([String])
+        case arrayNumber([Double])
+        case arrayBool([Bool])
+    }
+
+    private func get(from state: KHState) -> ValueType {
+        switch parameter.getKeyPath() {
+        case .number(let keyPath):
+            return .number(state[keyPath: keyPath])
+        case .bool(let keyPath):
+            return .bool(state[keyPath: keyPath])
+        case .string(let keyPath):
+            return .string(state[keyPath: keyPath])
+        case .arrayBool(let keyPath):
+            return .arrayBool(state[keyPath: keyPath])
+        case .arrayNumber(let keyPath):
+            return .arrayNumber(state[keyPath: keyPath])
+        case .arrayString(let keyPath):
+            return .arrayString(state[keyPath: keyPath])
+        }
+    }
+
+    private func set(
+        value: ValueType,
+        into state: KHState,
+    ) -> KHState {
+        var newState = state
+        let keyPath = parameter.getKeyPath()
+        switch value {
+        case .number(let value):
+            switch keyPath {
+            case .number(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .string(let value):
+            switch keyPath {
+            case .string(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .bool(let value):
+            switch keyPath {
+            case .bool(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .arrayNumber(let value):
+            switch keyPath {
+            case .arrayNumber(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .arrayBool(let value):
+            switch keyPath {
+            case .arrayBool(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .arrayString(let value):
+            switch keyPath {
+            case .arrayString(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        }
+        return newState
+    }
+
+    func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {
+        var v: ValueType
+        let devicePath = parameter.getDevicePath()
+        switch parameter.getKeyPath() {
+        case .number:
+            v = .number(try await connection.fetchSSCValue(path: devicePath))
+        case .bool:
+            v = .bool(try await connection.fetchSSCValue(path: devicePath))
+        case .string:
+            v = .string(try await connection.fetchSSCValue(path: devicePath))
+        case .arrayBool:
+            v = .arrayBool(try await connection.fetchSSCValue(path: devicePath))
+        case .arrayNumber:
+            v = .arrayNumber(try await connection.fetchSSCValue(path: devicePath))
+        case .arrayString:
+            v = .arrayString(try await connection.fetchSSCValue(path: devicePath))
+        }
+        return set(value: v, into: state)
+    }
+
+    func send(oldState: KHState, newState: KHState, connection: SSCConnection)
+        async throws
+    {
+        if get(from: oldState) == get(from: newState) {
+            return
+        }
+        let devicePath = parameter.getDevicePath()
+        switch parameter.getKeyPath() {
+        case .number(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        case .string(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        case .bool(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        case .arrayNumber(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        case .arrayBool(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        case .arrayString(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        }
+    }
+}
+
+enum KHParameters: String, CaseIterable, Identifiable {
+    case volume = "Volume"
+    case muted = "Mute"
+    case logoBrightness = "Logo brightness"
+
+    case eq0boost = "EQ 1 Boost"
+    case eq0enabled = "EQ 1 Enabled"
+    case eq0frequency = "EQ 1 Frequency"
+    case eq0gain = "EQ 1 Gain"
+    case eq0q = "EQ 1 Q"
+    case eq0type = "EQ 1 Type"
+
+    case eq1boost = "EQ 2 Boost"
+    case eq1enabled = "EQ 2 Enabled"
+    case eq1frequency = "EQ 2 Frequency"
+    case eq1gain = "EQ 2 Gain"
+    case eq1q = "EQ 2 Q"
+    case eq1type = "EQ 2 Type"
+
+    var id: String { self.rawValue }
+    
+    func getKeyPath() -> KeyPathType<KHState> {
+        switch self {
+        case .volume:
+            .number(\.volume)
+        case .muted:
+            .bool(\.muted)
+        case .logoBrightness:
+            .number(\.logoBrightness)
+        case .eq0boost:
+            .arrayNumber(\.eqs[0].boost)
+        case .eq0enabled:
+            .arrayBool(\.eqs[0].enabled)
+        case .eq0frequency:
+            .arrayNumber(\.eqs[0].frequency)
+        case .eq0gain:
+            .arrayNumber(\.eqs[0].gain)
+        case .eq0q:
+            .arrayNumber(\.eqs[0].q)
+        case .eq0type:
+            .arrayString(\.eqs[0].type)
+        case .eq1boost:
+            .arrayNumber(\.eqs[1].boost)
+        case .eq1enabled:
+            .arrayBool(\.eqs[1].enabled)
+        case .eq1frequency:
+            .arrayNumber(\.eqs[1].frequency)
+        case .eq1gain:
+            .arrayNumber(\.eqs[1].gain)
+        case .eq1q:
+            .arrayNumber(\.eqs[1].q)
+        case .eq1type:
+            .arrayString(\.eqs[1].type)
+        }
+    }
+    
+    private static func getPathDict() -> [String: [String]]? {
+        let decoder = JSONDecoder()
+        guard let data: Data = AppStorage("paths").wrappedValue else {
+            return nil
+        }
+        return try? decoder.decode([String: [String]].self, from: data)
+    }
+
+    func getDevicePath() -> [String] {
+        let fallback = getDevicePathFallback()
+        guard let pathDict = KHParameters.getPathDict() else {
+            return fallback
+        }
+        return pathDict[rawValue] ?? fallback
+    }
+
+    private func getDevicePathFallback() -> [String] {
+        switch self {
+        case .volume:
+            ["audio", "out", "level"]
+        case .muted:
+            ["audio", "out", "mute"]
+        case .logoBrightness:
+            ["ui", "logo", "brightness"]
+        case .eq0boost:
+            ["audio", "out", "eq2", "boost"]
+        case .eq0enabled:
+            ["audio", "out", "eq2", "enabled"]
+        case .eq0frequency:
+            ["audio", "out", "eq2", "frequency"]
+        case .eq0gain:
+            ["audio", "out", "eq2", "gain"]
+        case .eq0q:
+            ["audio", "out", "eq2", "q"]
+        case .eq0type:
+            ["audio", "out", "eq2", "type"]
+        case .eq1boost:
+            ["audio", "out", "eq3", "boost"]
+        case .eq1enabled:
+            ["audio", "out", "eq3", "enabled"]
+        case .eq1frequency:
+            ["audio", "out", "eq3", "frequency"]
+        case .eq1gain:
+            ["audio", "out", "eq3", "gain"]
+        case .eq1q:
+            ["audio", "out", "eq3", "q"]
+        case .eq1type:
+            ["audio", "out", "eq3", "type"]
+        }
+    }
+    
+    static func devicePathDictDefault() -> [String: [String]] {
+        var result: [String: [String]] = [:]
+        for p in KHParameters.allCases {
+            result[p.rawValue] = p.getDevicePathFallback()
+        }
+        return result
+    }
+    
+    func setDevicePath(to path: [String]) {
+        guard var dict = KHParameters.getPathDict() else {
+            return
+        }
+        dict[rawValue] = path
+        let encoder = JSONEncoder()
+        if let data = try? encoder.encode(dict) {
+            AppStorage("paths").wrappedValue = data
+        }
+    }
+    
+    func resetDevicePath() { setDevicePath(to: getDevicePathFallback()) }
+    
+    static func resetAllDevicePaths() {
+        KHParameters.allCases.forEach { $0.resetDevicePath() }
+    }
+}

@@ -125,7 +125,7 @@ struct TestKHAccessDummy {
         }
         connection = scan[0]
     }
-
+    
     @Test func testGetSchema() async throws {
         let node = SSCNode(connection: connection, name: "root")
         // try await node.connect()
@@ -174,6 +174,21 @@ struct TestKHAccessDummy {
         try await node.populate()
         // node.disconnect()
     }
+    
+    @Test func testIteration() async throws {
+        let node = SSCNode(connection: connection, name: "root")
+        try await connection.open()
+        #expect(node.pathToNode() == [])
+        try await node.populate()
+        connection.close()
+        let names = node.map(\.name)
+        // Not the root node!
+        #expect(!names.contains("root"))
+        // Internal node
+        #expect(names.contains("ui"))
+        // Leaf node
+        #expect(names.contains("brightness"))
+    }
 }
 
 struct TestJSONEncoding {
@@ -198,5 +213,15 @@ struct TestJSONEncoding {
         print(try! encode(s2))
         let x2 = try JSONDecoder().decode([String].self, from: s3d)
         print(x2)
+    }
+}
+
+struct TestKHParameter {
+    @Test func main() {
+        let vol = KHParameters.volume
+        #expect(vol.getDevicePath() == ["audio", "out", "level"])
+        vol.setDevicePath(to: ["bla", "blub"])
+        #expect(vol.getDevicePath() == ["bla", "blub"])
+        vol.resetDevicePath()
     }
 }

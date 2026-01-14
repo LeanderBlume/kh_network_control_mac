@@ -52,14 +52,158 @@ struct SSCTreeView: View {
                 }
             }
         } else {
-            List(
-                rootNode.children ?? [],
-                children: \.children,
-                selection: $selectedNode
-            ) {
-                description($0)
+            VStack {
+                List(
+                    rootNode.children ?? [],
+                    children: \.children,
+                    selection: $selectedNode
+                ) {
+                    description($0)
+                }
+                .refreshable { await khAccess.populateParameters() }
+
+                Spacer()
+
+                if let selectedNode {
+                    if let node = rootNode.first(where: { $0.id == selectedNode }) {
+                        NodeView(node: node)
+                    } else {
+                        Text("Selected node not found???")
+                    }
+                } else {
+                    Text("No node selected")
+                }
             }
-            .refreshable { await khAccess.populateParameters() }
+        }
+    }
+}
+
+struct LimitsView: View {
+    var limits: OSCLimits
+
+    var body: some View {
+        if let desc = limits.desc {
+            LabeledContent {
+                Text(desc)
+            } label: {
+                Text("Description")
+            }
+        }
+        if let type = limits.type {
+            LabeledContent {
+                Text(type)
+            } label: {
+                Text("Type")
+            }
+        }
+        if let option = limits.option {
+            LabeledContent {
+                Text(option.map({ "\"" + $0 + "\"" }).joined(separator: ", "))
+            } label: {
+                Text("Options")
+            }
+        }
+        if let units = limits.units {
+            LabeledContent {
+                Text(units)
+            } label: {
+                Text("Units")
+            }
+        }
+        if let min = limits.min {
+            LabeledContent {
+                Text(String(min))
+            } label: {
+                Text("Min")
+            }
+        }
+        if let max = limits.max {
+            LabeledContent {
+                Text(String(max))
+            } label: {
+                Text("Max")
+            }
+        }
+        if let inc = limits.inc {
+            LabeledContent {
+                Text(String(inc))
+            } label: {
+                Text("Increment")
+            }
+        }
+        if let subscr = limits.subscr {
+            LabeledContent {
+                Text(String(subscr))
+            } label: {
+                Text("Subscribeable")
+            }
+        }
+        if let const = limits.const {
+            LabeledContent {
+                Text(String(const))
+            } label: {
+                Text("Constant")
+            }
+        }
+        if let writeable = limits.writeable {
+            LabeledContent {
+                Text(String(writeable))
+            } label: {
+                Text("Writeable")
+            }
+        }
+        if let count = limits.count {
+            LabeledContent {
+                Text(String(count))
+            } label: {
+                Text("Count")
+            }
+        }
+    }
+}
+
+struct NodeView: View {
+    var node: SSCNode
+    @State var mappedParameter: KHParameters?
+
+    var body: some View {
+        Form {
+            Section("Parameter info (/osc/limits)") {
+                if let limits = node.limits {
+                    LimitsView(limits: limits)
+                } else {
+                    LabeledContent {
+                        Text("Container")
+                    } label: {
+                        Text("Type")
+                    }
+                }
+            }
+            Section("Mapping") {
+                Picker("UI Element", selection: $mappedParameter) {
+                    Text("None").tag(nil as KHParameters?)
+                    ForEach(KHParameters.allCases) { parameter in
+                        Text(parameter.rawValue).tag(parameter)
+                    }
+                }
+                .onAppear {
+                    KHParameters.allCases.forEach { parameter in
+                        if parameter.getDevicePath() == node.pathToNode() {
+                            mappedParameter = parameter
+                            return
+                        }
+                    }
+                }
+                .onChange(of: mappedParameter) {
+                    // TODO check type and stuff
+                    if let mappedParameter {
+                        mappedParameter.setDevicePath(to: node.pathToNode())
+                    }
+                }
+                Button("Reset All") {
+                    KHParameters.resetAllDevicePaths()
+                }
+            }
         }
     }
 }
@@ -89,5 +233,9 @@ struct ParameterTab: View {
 }
 
 #Preview {
-    ParameterTab().environment(KHAccess())
+    let khAccess = KHAccess()
+    ParameterTab().environment(khAccess)
+        .task {
+            await khAccess.setup()
+        }
 }

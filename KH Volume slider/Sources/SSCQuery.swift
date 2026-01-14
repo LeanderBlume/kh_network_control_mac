@@ -68,7 +68,7 @@ enum SSCNodeError: Error {
 
 @Observable
 @MainActor
-class SSCNode: Identifiable, Equatable {
+class SSCNode: Identifiable, Equatable, @MainActor Sequence {
     private var connection: SSCConnection
     var name: String
     var value: NodeData
@@ -321,5 +321,12 @@ class SSCNode: Identifiable, Equatable {
 
     nonisolated static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
         return (lhs.id == rhs.id)
+    }
+
+    func makeIterator() -> [SSCNode].Iterator {
+        if case .children(let v) = value {
+            return v.flatMap({$0.makeIterator() + [$0]}).makeIterator()
+        }
+        return [].makeIterator()
     }
 }

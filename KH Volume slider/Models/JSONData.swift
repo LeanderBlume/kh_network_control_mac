@@ -52,6 +52,9 @@ enum JSONData: Equatable, Encodable {
 
     func encode(to encoder: Encoder) throws {
         switch self {
+        case .null:
+            var container = encoder.singleValueContainer()
+            try container.encodeNil()
         case .string(let v):
             var container = encoder.singleValueContainer()
             try container.encode(v)
@@ -61,9 +64,6 @@ enum JSONData: Equatable, Encodable {
         case .bool(let v):
             var container = encoder.singleValueContainer()
             try container.encode(v)
-        case .null:
-            var container = encoder.singleValueContainer()
-            try container.encodeNil()
         case .array(let v):
             var container = encoder.singleValueContainer()
             try container.encode(v)
