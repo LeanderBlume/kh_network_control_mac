@@ -5,13 +5,22 @@
 //  Created by Leander Blume on 10.01.26.
 //
 
+import SwiftUI
+
+@Observable
 @MainActor
 class KHDevice: Identifiable {
     var state: KHState = KHState()
     let parameterTree: SSCNode
     let connection: SSCConnection
 
-    private let parameters: [SSCParameter] = KHParameters.allCases.map({
+    private let fetchParameters = KHParameterCategories.fetchParameters.map({
+        SSCParameter(parameter: $0)
+    })
+    private let sendParameters = KHParameterCategories.sendParameters.map({
+        SSCParameter(parameter: $0)
+    })
+    private let setupParameters = KHParameterCategories.setupParameters.map({
         SSCParameter(parameter: $0)
     })
 
@@ -34,9 +43,18 @@ class KHDevice: Identifiable {
         disconnect()
     }
 
+    func setup() async throws {
+        try await connect()
+        for p in setupParameters {
+            state = try await p.fetch(into: state, connection: connection)
+        }
+        try await fetch()
+        disconnect()
+    }
+
     func fetch() async throws {
         try await connect()
-        for p in parameters {
+        for p in fetchParameters {
             state = try await p.fetch(into: state, connection: connection)
         }
         disconnect()
@@ -48,7 +66,7 @@ class KHDevice: Identifiable {
             return
         }
         try await connect()
-        for p in parameters {
+        for p in sendParameters {
             try await p.send(
                 oldState: state,
                 newState: newState,

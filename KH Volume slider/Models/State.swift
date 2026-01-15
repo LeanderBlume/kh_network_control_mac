@@ -262,22 +262,6 @@ enum KHParameters: String, CaseIterable, Identifiable {
         }
     }
 
-    private static func getPathDict() -> [String: [String]]? {
-        let decoder = JSONDecoder()
-        guard let data: Data = AppStorage("paths").wrappedValue else {
-            return nil
-        }
-        return try? decoder.decode([String: [String]].self, from: data)
-    }
-
-    func getDevicePath() -> [String] {
-        let fallback = getDevicePathFallback()
-        guard let pathDict = KHParameters.getPathDict() else {
-            return fallback
-        }
-        return pathDict[rawValue] ?? fallback
-    }
-
     private func getDevicePathFallback() -> [String] {
         switch self {
         case .name:
@@ -315,6 +299,26 @@ enum KHParameters: String, CaseIterable, Identifiable {
         }
     }
 
+    private static func getPathDict() -> [String: [String]]? {
+        let decoder = JSONDecoder()
+        guard let data: Data = AppStorage("paths").wrappedValue else {
+            return nil
+        }
+        return try? decoder.decode([String: [String]].self, from: data)
+    }
+
+    func getDevicePath() -> [String] {
+        let fallback = getDevicePathFallback()
+        guard let pathDict = KHParameters.getPathDict() else {
+            return fallback
+        }
+        return pathDict[rawValue] ?? fallback
+    }
+    
+    func getPathString() -> String {
+        return "/" + getDevicePath().joined(separator: "/")
+    }
+
     static func devicePathDictDefault() -> [String: [String]] {
         var result: [String: [String]] = [:]
         for p in KHParameters.allCases {
@@ -339,4 +343,43 @@ enum KHParameters: String, CaseIterable, Identifiable {
     static func resetAllDevicePaths() {
         KHParameters.allCases.forEach { $0.resetDevicePath() }
     }
+}
+
+struct KHParameterCategories {
+    static let fetchParameters: [KHParameters] = [
+        .volume,
+        .muted,
+        .logoBrightness,
+        .eq0boost,
+        .eq0enabled,
+        .eq0frequency,
+        .eq0gain,
+        .eq0q,
+        .eq0type,
+        .eq1boost,
+        .eq1enabled,
+        .eq1frequency,
+        .eq1gain,
+        .eq1q,
+        .eq1type,
+        // .name,
+    ]
+    static let sendParameters: [KHParameters] = [
+        .volume,
+        .muted,
+        .logoBrightness,
+        .eq0boost,
+        .eq0enabled,
+        .eq0frequency,
+        .eq0gain,
+        .eq0q,
+        .eq0type,
+        .eq1boost,
+        .eq1enabled,
+        .eq1frequency,
+        .eq1gain,
+        .eq1q,
+        .eq1type,
+    ]
+    static let setupParameters: [KHParameters] = [.name]
 }

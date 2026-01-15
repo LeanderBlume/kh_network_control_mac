@@ -189,6 +189,17 @@ struct TestKHAccessDummy {
         // Leaf node
         #expect(names.contains("brightness"))
     }
+    
+    @Test func testSend() async throws {
+        let node1 = SSCNode(connection: connection, name: "root")
+        let node2 = SSCNode(connection: connection, name: "device", parent: node1)
+        let leaf = SSCNode(connection: connection, name: "name", parent: node2)
+        #expect(leaf.pathToNode() == ["device", "name"])
+        leaf.value = NodeData(value: "New name!")
+        try await connection.open()
+        try await leaf.sendLeaf()
+        connection.close()
+    }
 }
 
 struct TestJSONEncoding {

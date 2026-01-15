@@ -91,12 +91,108 @@ struct LimitsView: View {
     }
 }
 
+struct NodeValueEditor: View {
+    var node: SSCNode
+    @State var valueString: String = ""
+    @State var valueNumber: Double = 0
+    @State var valueBool: Bool = false
+    @State var valueArrayString: [String] = []
+    @State var valueArrayNumber: [Double] = []
+    @State var valueArrayBool: [Bool] = []
+
+    @ViewBuilder
+    private func pickerView(options: [JSONData]) -> some View {
+        Text("Picker view not implemented")
+    }
+
+    @ViewBuilder
+    private func editView(_ jsonType: JSONData) -> some View {
+        switch jsonType {
+        case .string(let v):
+            TextField("Node data", text: $valueString)
+                .onAppear { valueString = v }
+                .onSubmit {
+                    node.value = NodeData(value: valueString)
+                    Task {
+                        do {
+                            try await node.sendLeaf()
+                        } catch {
+                            print("Sending node failed with: \(error)")
+                        }
+                    }
+                }
+                .disabled(node.limits?.isWriteable == false)
+        case .number(let v):
+            let precision = (node.limits?.inc == 1) ? 0 : 1
+            TextField(
+                "Node data",
+                value: $valueNumber,
+                format: .number.precision(.fractionLength(precision))
+            )
+            .onAppear { valueNumber = v }
+            .onSubmit {
+                node.value = NodeData(value: valueNumber)
+                Task {
+                    do {
+                        try await node.sendLeaf()
+                    } catch {
+                        print("Sending node failed with: \(error)")
+                    }
+                }
+            }
+            .disabled(node.limits?.isWriteable == false)
+        case .bool(let v):
+            Toggle("Node data", isOn: $valueBool)
+                .onAppear { valueBool = v }
+                .onChange(of: valueBool) {
+                    node.value = NodeData(value: valueBool)
+                    Task {
+                        do {
+                            try await node.sendLeaf()
+                        } catch {
+                            print("Sending node failed with: \(error)")
+                        }
+                    }
+                }
+                .disabled(node.limits?.isWriteable == false)
+        case .object:
+            Text("Can't edit non-leaf node")
+        case .null:
+            Text("null")
+        case .array:
+            /*
+            List(vs, id: \.self) { v in
+                editView(jsonType: v)
+            }
+             */
+            Text("Array editing not implemented")
+        }
+    }
+    
+    var body: some View {
+        if let option = node.limits?.option {
+            if case .value(let T) = node.value {
+                pickerView(options: [])
+            } else {
+                Text("Options given, but no value")
+            }
+        } else if case .value(let T) = node.value {
+            editView(T)
+        } else {
+            Text("Can't edit non-leaf node")
+        }
+    }
+}
+
 struct NodeView: View {
     var node: SSCNode
     @State var mappedParameter: KHParameters?
 
     var body: some View {
         Form {
+            Section("Edit value") {
+                NodeValueEditor(node: node)
+            }
             Section("Parameter info (/osc/limits)") {
                 if let limits = node.limits {
                     LimitsView(limits: limits)
@@ -108,6 +204,7 @@ struct NodeView: View {
                     }
                 }
             }
+            // TODO maybe make this read-only.
             Section("UI Mapping") {
                 Picker("UI Element", selection: $mappedParameter) {
                     Text("None").tag(nil as KHParameters?)
@@ -124,7 +221,7 @@ struct NodeView: View {
                     }
                 }
                 .onChange(of: mappedParameter) {
-                    // TODO check type and stuff
+                    // TODO check type and stuff?
                     if let mappedParameter {
                         mappedParameter.setDevicePath(to: node.pathToNode())
                     }
@@ -137,7 +234,7 @@ struct NodeView: View {
     }
 }
 
-struct SSCTreeView: View {
+struct DeviceBrowser: View {
     var rootNode: SSCNode
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
@@ -169,6 +266,7 @@ struct SSCTreeView: View {
                 EmptyView()
             case .value(let v):
                 Text(v.stringify())
+                    .foregroundColor(.secondary)
             }
         }
     }
@@ -181,7 +279,11 @@ struct SSCTreeView: View {
             ) { node in
                 switch node.value {
                 case .unknown:
-                    Text("Refresh to query")
+                    Button("Query parameters") {
+                        Task {
+                            await khAccess.populateParameters()
+                        }
+                    }
                 default:
                     NavigationLink(destination: NodeView(node: node)) {
                         description(node)
@@ -196,38 +298,36 @@ struct SSCTreeView: View {
 struct ParameterMapper: View {
     var parameter: KHParameters
     var rootNode: SSCNode
-    @State var currentMapping: [String]
-
-    init(parameter: KHParameters, rootNode: SSCNode) {
-        self.parameter = parameter
-        self.rootNode = rootNode
-        currentMapping = parameter.getDevicePath()
-        print(currentMapping)
-    }
+    @Binding var pathStrings: [String: String]
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        if rootNode.value == .unknown {
-            Text("Current mapping: /" + currentMapping.joined(separator: "/"))
-            Text("Query parameters to see available ones.")
-        } else {
-            Text("Current mapping: /" + currentMapping.joined(separator: "/"))
-            List(
-                rootNode.children ?? [],
-                children: \.children,
-            ) { node in
-                let unitString =
-                    node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
-                let s = node.name + unitString
+        Text(parameter.rawValue)
+        // let pathString: String = pathStrings[parameter.rawValue] ?? "unknown"
+        // Text("Current mapping: " + pathString)
+        List(
+            rootNode.children ?? [rootNode],
+            children: \.children,
+        ) { node in
+            let unitString =
+                node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
+            let s = node.name + unitString
 
-                switch node.value {
-                case .value, .error:
-                    Button(s) {
-                        currentMapping = node.pathToNode()
-                        parameter.setDevicePath(to: currentMapping)
-                    }
-                default:
-                    Text(s)
+            switch node.value {
+            case .value, .error:
+                Button(s) {
+                    // TODO check type and stuff?
+                    parameter.setDevicePath(to: node.pathToNode())
+                    pathStrings[parameter.rawValue] = parameter.getPathString()
                 }
+            case .unknown:
+                Button("Query parameters") {
+                    Task {
+                        await khAccess.populateParameters()
+                    }
+                }
+            default:
+                Text(s)
             }
         }
     }
@@ -235,55 +335,52 @@ struct ParameterMapper: View {
 
 struct ParameterTab: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
+    @State private var pathStrings: [String: String] = [:]
+
+    func updatePathStrings() {
+        for parameter in KHParameters.allCases {
+            pathStrings[parameter.rawValue] = parameter.getPathString()
+        }
+    }
 
     var body: some View {
-        if khAccess.devices.isEmpty {
+        let devices = khAccess.devices
+        if devices.isEmpty {
             Text("No devices")
         } else {
             NavigationStack {
                 List {
-                    if khAccess.devices.first!.parameterTree.value == .unknown {
-                        Button("Query parameters") {
-                            Task {
-                                await khAccess.populateParameters()
-                            }
-                        }
-                    }
                     Section("Device List") {
-                        ForEach(khAccess.devices) { device in
+                        ForEach(devices) { device in
                             NavigationLink(
                                 device.state.name,
-                                destination: SSCTreeView(rootNode: device.parameterTree)
+                                destination: DeviceBrowser(
+                                    rootNode: device.parameterTree
+                                )
                             )
                         }
                     }
                     Section("Map UI Elements") {
                         Button("Reset all") {
                             KHParameters.resetAllDevicePaths()
+                            updatePathStrings()
                         }
                         ForEach(KHParameters.allCases) { parameter in
-                            NavigationLink(
-                                parameter.rawValue,
-                                destination: ParameterMapper(
-                                    parameter: parameter,
-                                    rootNode: khAccess.devices.first!.parameterTree
-                                )
-                            )
-                            /*
                             LabeledContent {
                                 NavigationLink(
-                                    "/" + parameter.getDevicePath().joined(separator: "/"),
+                                    pathStrings[parameter.rawValue] ?? "unknown",
                                     destination: ParameterMapper(
                                         parameter: parameter,
-                                        rootNode: khAccess.devices.first!.parameterTree
+                                        rootNode: devices.first!.parameterTree,
+                                        pathStrings: $pathStrings
                                     )
                                 )
                             } label: {
                                 Text(parameter.rawValue)
                             }
-                             */
                         }
                     }
+                    .onAppear { updatePathStrings() }
                 }
             }
         }

@@ -30,6 +30,7 @@ struct ContentView: View {
                         Button("Rescan") {
                             Task {
                                 await khAccess.scan()
+                                await khAccess.setup()
                             }
                         }
                     }
