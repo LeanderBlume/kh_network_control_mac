@@ -14,13 +14,13 @@ class KHDevice: Identifiable {
     let parameterTree: SSCNode
     let connection: SSCConnection
 
-    private let fetchParameters = KHParameterCategories.fetchParameters.map({
+    private let fetchParameters = KHParameters.fetchParameters.map({
         SSCParameter(parameter: $0)
     })
-    private let sendParameters = KHParameterCategories.sendParameters.map({
+    private let sendParameters = KHParameters.sendParameters.map({
         SSCParameter(parameter: $0)
     })
-    private let setupParameters = KHParameterCategories.setupParameters.map({
+    private let setupParameters = KHParameters.setupParameters.map({
         SSCParameter(parameter: $0)
     })
 

@@ -224,6 +224,44 @@ enum KHParameters: String, CaseIterable, Identifiable {
     case eq1type = "EQ 2 Type"
 
     var id: String { self.rawValue }
+    
+    static let fetchParameters: [KHParameters] = [
+        .volume,
+        .muted,
+        .logoBrightness,
+        .eq0boost,
+        .eq0enabled,
+        .eq0frequency,
+        .eq0gain,
+        .eq0q,
+        .eq0type,
+        .eq1boost,
+        .eq1enabled,
+        .eq1frequency,
+        .eq1gain,
+        .eq1q,
+        .eq1type,
+        .name,
+    ]
+    static let sendParameters: [KHParameters] = [
+        .volume,
+        .muted,
+        .logoBrightness,
+        .eq0boost,
+        .eq0enabled,
+        .eq0frequency,
+        .eq0gain,
+        .eq0q,
+        .eq0type,
+        .eq1boost,
+        .eq1enabled,
+        .eq1frequency,
+        .eq1gain,
+        .eq1q,
+        .eq1type,
+    ]
+    static let setupParameters: [KHParameters] = [.name]
+
 
     func getKeyPath() -> KeyPathType<KHState> {
         switch self {
@@ -343,43 +381,4 @@ enum KHParameters: String, CaseIterable, Identifiable {
     static func resetAllDevicePaths() {
         KHParameters.allCases.forEach { $0.resetDevicePath() }
     }
-}
-
-struct KHParameterCategories {
-    static let fetchParameters: [KHParameters] = [
-        .volume,
-        .muted,
-        .logoBrightness,
-        .eq0boost,
-        .eq0enabled,
-        .eq0frequency,
-        .eq0gain,
-        .eq0q,
-        .eq0type,
-        .eq1boost,
-        .eq1enabled,
-        .eq1frequency,
-        .eq1gain,
-        .eq1q,
-        .eq1type,
-        // .name,
-    ]
-    static let sendParameters: [KHParameters] = [
-        .volume,
-        .muted,
-        .logoBrightness,
-        .eq0boost,
-        .eq0enabled,
-        .eq0frequency,
-        .eq0gain,
-        .eq0q,
-        .eq0type,
-        .eq1boost,
-        .eq1enabled,
-        .eq1frequency,
-        .eq1gain,
-        .eq1q,
-        .eq1type,
-    ]
-    static let setupParameters: [KHParameters] = [.name]
 }

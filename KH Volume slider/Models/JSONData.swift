@@ -12,7 +12,7 @@ enum JSONData: Equatable, Encodable {
     case null
     case array([JSONData])
     case object([String: JSONData])
-
+    
     enum JSONDataError: Error {
         case error(String)
     }

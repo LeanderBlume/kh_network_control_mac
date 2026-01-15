@@ -100,87 +100,191 @@ struct NodeValueEditor: View {
     @State var valueArrayNumber: [Double] = []
     @State var valueArrayBool: [Bool] = []
 
-    @ViewBuilder
-    private func pickerView(options: [JSONData]) -> some View {
-        Text("Picker view not implemented")
+    private func initValue() {
+        switch node.value {
+        case .value(let T):
+            switch T {
+            case .string(let v):
+                valueString = v
+            case .number(let v):
+                valueNumber = v
+            case .bool(let v):
+                valueBool = v
+            case .array:
+                if let v = T.asArrayBool() {
+                    valueArrayBool = v
+                } else if let v = T.asArrayNumber() {
+                    valueArrayNumber = v
+                } else if let v = T.asArrayString() {
+                    valueArrayString = v
+                }
+            default:
+                return
+            }
+        default:
+            return
+        }
+    }
+
+    private func updateNode() {
+        switch node.value {
+        case .value(let T):
+            switch T {
+            case .string:
+                node.value = NodeData(value: valueString)
+            case .number:
+                node.value = NodeData(value: valueNumber)
+            case .bool:
+                node.value = NodeData(value: valueBool)
+            case .array:
+                if T.asArrayBool() != nil {
+                    node.value = NodeData(value: valueArrayBool)
+                } else if T.asArrayNumber() != nil {
+                    node.value = NodeData(value: valueArrayNumber)
+                } else if T.asArrayString() != nil {
+                    node.value = NodeData(value: valueArrayString)
+                }
+            default:
+                return
+            }
+        default:
+            return
+        }
+    }
+
+    private func sendValue() async {
+        updateNode()
+        do {
+            try await node.sendLeaf()
+        } catch {
+            print("Sending node failed with: \(error)")
+        }
     }
 
     @ViewBuilder
-    private func editView(_ jsonType: JSONData) -> some View {
+    private func singleValueEditor(_ jsonType: JSONData) -> some View {
         switch jsonType {
-        case .string(let v):
-            TextField("Node data", text: $valueString)
-                .onAppear { valueString = v }
-                .onSubmit {
-                    node.value = NodeData(value: valueString)
-                    Task {
-                        do {
-                            try await node.sendLeaf()
-                        } catch {
-                            print("Sending node failed with: \(error)")
-                        }
-                    }
-                }
-                .disabled(node.limits?.isWriteable == false)
-        case .number(let v):
-            let precision = (node.limits?.inc == 1) ? 0 : 1
-            TextField(
-                "Node data",
-                value: $valueNumber,
-                format: .number.precision(.fractionLength(precision))
-            )
-            .onAppear { valueNumber = v }
-            .onSubmit {
-                node.value = NodeData(value: valueNumber)
-                Task {
-                    do {
-                        try await node.sendLeaf()
-                    } catch {
-                        print("Sending node failed with: \(error)")
-                    }
-                }
+        case .string:
+            LabeledContent {
+                TextField("Node data", text: $valueString)
+            } label: {
+                Text("Data")
             }
-            .disabled(node.limits?.isWriteable == false)
-        case .bool(let v):
+        case .number:
+            let precision = (node.limits?.inc == 1) ? 0 : 1
+            LabeledContent {
+                TextField(
+                    "Node data",
+                    value: $valueNumber,
+                    format: .number.precision(.fractionLength(precision))
+                )
+            } label: {
+                Text("Data")
+            }
+        case .bool:
             Toggle("Node data", isOn: $valueBool)
-                .onAppear { valueBool = v }
-                .onChange(of: valueBool) {
-                    node.value = NodeData(value: valueBool)
-                    Task {
-                        do {
-                            try await node.sendLeaf()
-                        } catch {
-                            print("Sending node failed with: \(error)")
-                        }
-                    }
-                }
-                .disabled(node.limits?.isWriteable == false)
         case .object:
             Text("Can't edit non-leaf node")
         case .null:
             Text("null")
         case .array:
-            /*
-            List(vs, id: \.self) { v in
-                editView(jsonType: v)
-            }
-             */
-            Text("Array editing not implemented")
+            Text("Builder does not support arrays")
         }
     }
-    
-    var body: some View {
-        if let option = node.limits?.option {
-            if case .value(let T) = node.value {
-                pickerView(options: [])
-            } else {
-                Text("Options given, but no value")
+
+    @ViewBuilder
+    private func pickerEditor(options: [String]) -> some View {
+        Picker("Option", selection: $valueString) {
+            ForEach(options, id: \.self) { option in
+                Text("\"" + option + "\"").tag(option)
             }
-        } else if case .value(let T) = node.value {
-            editView(T)
-        } else {
+        }
+    }
+
+    @ViewBuilder
+    private func arrayEditor(_ data: JSONData?) -> some View {
+        // The view doesn't appear at all if there's nothing here. I don't know why.
+        Text(node.name)
+        switch data {
+        case .string:
+            ForEach(valueArrayString.indices, id: \.self) { i in
+                LabeledContent {
+                    TextField("Entry \(i + 1)", text: $valueArrayString[i])
+                        // .textFieldStyle(.plain)
+                } label: {
+                    Text("Entry \(i + 1)")
+                }
+            }
+        case .number:
+            let precision = (node.limits?.inc == 1) ? 0 : 1
+            ForEach(valueArrayNumber.indices, id: \.self) { i in
+                LabeledContent {
+                    TextField(
+                        "Entry \(i + 1)",
+                        value: $valueArrayNumber[i],
+                        format: .number.precision(.fractionLength(precision))
+                    )
+                    // .textFieldStyle(.plain)
+                } label: {
+                    Text("Entry \(i + 1)")
+                }
+            }
+        case .bool:
+            ForEach(valueArrayBool.indices, id: \.self) { i in
+                Toggle("Entry \(i + 1)", isOn: $valueArrayBool[i])
+            }
+        case .none:
+            Text("Empty Array")
+        case .null:
+            Text("Array of nulls")
+        case .array, .object:
+            Text("Nested arrays not supported")
+        }
+    }
+
+    @ViewBuilder
+    private func arrayPickerEditor(options: [String]) -> some View {
+        Text(node.name)
+        ForEach(valueArrayString.indices, id: \.self) { i in
+            Picker("Entry \(i + 1)", selection: $valueArrayString[i]) {
+                ForEach(options, id: \.self) { option in
+                    Text("\"" + option + "\"").tag(option)
+                }
+            }
+        }
+    }
+
+    var body: some View {
+        switch node.value {
+        case .value(let T):
+            switch T {
+            case .bool, .number, .string, .null:
+                if let option = node.limits?.option {
+                    pickerEditor(options: option)
+                        .onAppear { initValue() }
+                        .disabled(node.limits?.isWriteable == false)
+                } else {
+                    singleValueEditor(T)
+                        .onAppear { initValue() }
+                        .disabled(node.limits?.isWriteable == false)
+                }
+            case .array(let vs):
+                if let option = node.limits?.option {
+                    arrayPickerEditor(options: option)
+                        .onAppear { initValue() }
+                        .disabled(node.limits?.isWriteable == false)
+                } else {
+                    arrayEditor(vs.first)
+                        .onAppear { initValue() }
+                        .disabled(node.limits?.isWriteable == false)
+                }
+            case .object:
+                Text("Can't edit non-leaf node")
+            }
+        default:
             Text("Can't edit non-leaf node")
         }
+        Button("Send to device") { Task { await sendValue() } }
     }
 }
 
@@ -350,7 +454,7 @@ struct ParameterTab: View {
         } else {
             NavigationStack {
                 List {
-                    Section("Device List") {
+                    Section("Devices") {
                         ForEach(devices) { device in
                             NavigationLink(
                                 device.state.name,
