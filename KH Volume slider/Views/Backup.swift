@@ -10,6 +10,8 @@ import SwiftUI
 struct Backupper: View {
     @AppStorage("backups") private var backups = "{}"
     @Environment(KHAccess.self) private var khAccess
+    @State var newName: String = ""
+    @State var selection: String? = nil
 
     enum BackuperErrors: Error {
         case error(String)
@@ -41,21 +43,69 @@ struct Backupper: View {
         khAccess.state = newState
     }
 
+    func deleteBackup(name: String) throws {
+        let backupString = backups
+        var backupDict = try JSONDecoder().decode(
+            [String: KHState].self,
+            from: Data(backupString.utf8)
+        )
+        backupDict[name] = nil
+        let newBackupData = try JSONEncoder().encode(backupDict)
+        guard let newBackupString = String(data: newBackupData, encoding: .utf8) else {
+            throw BackuperErrors.error("String conversion failed")
+        }
+        backups = newBackupString
+    }
+
+    func backupList() -> [String] {
+        let backupString = backups
+        guard
+            let backupDict = try? JSONDecoder().decode(
+                [String: KHState].self,
+                from: Data(backupString.utf8)
+            )
+        else {
+            return []
+        }
+        return backupDict.keys.map({ String($0) }).sorted()
+    }
+
     var body: some View {
-        VStack {
-            Button("Save backup") {
-                Task {
-                    try writeBackup(name: "test")
+        Form {
+            Picker("Backup list", selection: $selection) {
+                ForEach(backupList(), id: \.self) {
+                    Text($0).tag($0)
                 }
             }
-            Button("Load backup") {
-                Task {
-                    try loadBackup(name: "test")
-                    await khAccess.send()
+            .pickerStyle(.inline)
+            
+            Group {
+                Button("Load") {
+                    if let selection {
+                        Task {
+                            try loadBackup(name: selection)
+                            await khAccess.send()
+                        }
+                    }
+                }
+                Button("Delete") {
+                    if let s = selection {
+                        Task { try deleteBackup(name: s) }
+                        selection = nil
+                    }
                 }
             }
-            Button("Print backup") {
-                print(backups)
+            .disabled(selection == nil || backupList().isEmpty)
+
+            Section("Create new backup") {
+                TextField("Backup name", text: $newName)
+                    .textFieldStyle(.automatic)
+                Button("Save backup") {
+                    Task {
+                        try writeBackup(name: newName)
+                        newName = ""
+                    }
+                }
             }
         }
     }
