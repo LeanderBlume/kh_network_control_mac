@@ -78,28 +78,26 @@ struct Backupper: View {
                 }
             }
             .pickerStyle(.inline)
-            
-            Group {
-                Button("Load") {
-                    if let selection {
-                        Task {
-                            try loadBackup(name: selection)
-                            await khAccess.send()
-                        }
-                    }
-                }
-                Button("Delete") {
-                    if let s = selection {
-                        Task { try deleteBackup(name: s) }
-                        selection = nil
+
+            Button("Load") {
+                if let selection {
+                    Task {
+                        try loadBackup(name: selection)
+                        await khAccess.send()
                     }
                 }
             }
-            .disabled(selection == nil || backupList().isEmpty)
+            Button("Delete") {
+                if let s = selection {
+                    Task { try deleteBackup(name: s) }
+                    selection = nil
+                }
+            }
 
             Section("Create new backup") {
                 TextField("Backup name", text: $newName)
                     .textFieldStyle(.automatic)
+                    // .keyboardType(.default)
                 Button("Save backup") {
                     Task {
                         try writeBackup(name: newName)
