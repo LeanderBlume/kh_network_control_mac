@@ -7,6 +7,63 @@
 
 import SwiftUI
 
+enum UILeafNodeType {
+    case number(Double)
+    case bool(Bool)
+    case string(String)
+    case arrayNumber([Double])
+    case arrayString([String])
+    case arrayBool([Bool])
+    case stringPicker(String, [String])
+    case arrayStringPicker([String], [String])
+
+    init?(jsonData: JSONData, limits: OSCLimits?) {
+        switch jsonData {
+        case .object, .null:
+            return nil
+        case .bool(let v):
+            self = .bool(v)
+        case .string(let s):
+            if let options = limits?.option {
+                self = .stringPicker(s, options)
+            } else {
+                self = .string(s)
+            }
+        case .number(let v):
+            self = .number(v)
+        case .array(let a):
+            switch a.first {
+            case nil:
+                return nil
+            case .bool:
+                if let raw = jsonData.asArrayBool() {
+                    self = .arrayBool(raw)
+                } else {
+                    return nil
+                }
+            case .number:
+                if let raw = jsonData.asArrayNumber() {
+                    self = .arrayNumber(raw)
+                } else {
+                    return nil
+                }
+            case .string:
+                if let raw = jsonData.asArrayString() {
+                    if let options = limits?.option {
+                        self = .arrayStringPicker(raw, options)
+                    } else {
+                        self = .arrayString(raw)
+                    }
+                } else {
+                    return nil
+                }
+            case .null, .object, .array:
+                return nil
+            }
+        }
+    }
+}
+
 struct LimitsView: View {
     var limits: OSCLimits
 
@@ -99,26 +156,31 @@ struct NodeValueEditor: View {
     @State var valueArrayString: [String] = []
     @State var valueArrayNumber: [Double] = []
     @State var valueArrayBool: [Bool] = []
+    @State var pickerOptions: [String] = []
 
     private func initValue() {
         switch node.value {
         case .value(let T):
-            switch T {
+            switch UILeafNodeType(jsonData: T, limits: node.limits) {
             case .string(let v):
                 valueString = v
             case .number(let v):
                 valueNumber = v
             case .bool(let v):
                 valueBool = v
-            case .array:
-                if let v = T.asArrayBool() {
-                    valueArrayBool = v
-                } else if let v = T.asArrayNumber() {
-                    valueArrayNumber = v
-                } else if let v = T.asArrayString() {
-                    valueArrayString = v
-                }
-            default:
+            case .arrayBool(let v):
+                valueArrayBool = v
+            case .arrayNumber(let v):
+                valueArrayNumber = v
+            case .arrayString(let v):
+                valueArrayString = v
+            case .stringPicker(let v, let options):
+                valueString = v
+                pickerOptions = options
+            case .arrayStringPicker(let v, let options):
+                valueArrayString = v
+                pickerOptions = options
+            case .none:
                 return
             }
         default:
@@ -129,22 +191,20 @@ struct NodeValueEditor: View {
     private func updateNode() {
         switch node.value {
         case .value(let T):
-            switch T {
-            case .string:
-                node.value = NodeData(value: valueString)
+            switch UILeafNodeType(jsonData: T, limits: node.limits) {
             case .number:
                 node.value = NodeData(value: valueNumber)
             case .bool:
                 node.value = NodeData(value: valueBool)
-            case .array:
-                if T.asArrayBool() != nil {
-                    node.value = NodeData(value: valueArrayBool)
-                } else if T.asArrayNumber() != nil {
-                    node.value = NodeData(value: valueArrayNumber)
-                } else if T.asArrayString() != nil {
-                    node.value = NodeData(value: valueArrayString)
-                }
-            default:
+            case .string, .stringPicker:
+                node.value = NodeData(value: valueString)
+            case .arrayBool:
+                node.value = NodeData(value: valueArrayBool)
+            case .arrayNumber:
+                node.value = NodeData(value: valueArrayNumber)
+            case .arrayString, .arrayStringPicker:
+                node.value = NodeData(value: valueArrayString)
+            case .none:
                 return
             }
         default:
@@ -161,130 +221,66 @@ struct NodeValueEditor: View {
         }
     }
 
-    @ViewBuilder
-    private func singleValueEditor(_ jsonType: JSONData) -> some View {
-        switch jsonType {
-        case .string:
-            LabeledContent {
-                TextField("Node data", text: $valueString)
-            } label: {
-                Text("Data")
-            }
-        case .number:
-            let precision = (node.limits?.inc == 1) ? 0 : 1
-            LabeledContent {
+    var body: some View {
+        switch node.value {
+        case .value(let T):
+            switch UILeafNodeType(jsonData: T, limits: node.limits) {
+            case .string:
+                TextField("Data", text: $valueString)
+                    .textFieldStyle(.plain)
+            case .number:
+                let precision = (node.limits?.inc == 1) ? 0 : 1
                 TextField(
-                    "Node data",
+                    "Data",
                     value: $valueNumber,
                     format: .number.precision(.fractionLength(precision))
                 )
-            } label: {
-                Text("Data")
-            }
-        case .bool:
-            Toggle("Node data", isOn: $valueBool)
-        case .object:
-            Text("Can't edit non-leaf node")
-        case .null:
-            Text("null")
-        case .array:
-            Text("Builder does not support arrays")
-        }
-    }
-
-    @ViewBuilder
-    private func pickerEditor(options: [String]) -> some View {
-        Picker("Option", selection: $valueString) {
-            ForEach(options, id: \.self) { option in
-                Text("\"" + option + "\"").tag(option)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func arrayEditor(_ data: JSONData?) -> some View {
-        // The view doesn't appear at all if there's nothing here. I don't know why.
-        Text(node.name)
-        switch data {
-        case .string:
-            ForEach(valueArrayString.indices, id: \.self) { i in
-                LabeledContent {
-                    TextField("Entry \(i + 1)", text: $valueArrayString[i])
-                        // .textFieldStyle(.plain)
-                } label: {
-                    Text("Entry \(i + 1)")
+                .textFieldStyle(.plain)
+            case .bool:
+                Toggle("Data", isOn: $valueBool)
+            case .arrayBool:
+                ForEach(valueArrayBool.indices, id: \.self) { i in
+                    Toggle("Entry \(i + 1)", isOn: $valueArrayBool[i])
                 }
-            }
-        case .number:
-            let precision = (node.limits?.inc == 1) ? 0 : 1
-            ForEach(valueArrayNumber.indices, id: \.self) { i in
-                LabeledContent {
+            case .arrayNumber:
+                let precision = (node.limits?.inc == 1) ? 0 : 1
+                ForEach(valueArrayNumber.indices, id: \.self) { i in
                     TextField(
                         "Entry \(i + 1)",
                         value: $valueArrayNumber[i],
                         format: .number.precision(.fractionLength(precision))
                     )
-                    // .textFieldStyle(.plain)
-                } label: {
-                    Text("Entry \(i + 1)")
+                    .textFieldStyle(.plain)
                 }
-            }
-        case .bool:
-            ForEach(valueArrayBool.indices, id: \.self) { i in
-                Toggle("Entry \(i + 1)", isOn: $valueArrayBool[i])
-            }
-        case .none:
-            Text("Empty Array")
-        case .null:
-            Text("Array of nulls")
-        case .array, .object:
-            Text("Nested arrays not supported")
-        }
-    }
-
-    @ViewBuilder
-    private func arrayPickerEditor(options: [String]) -> some View {
-        Text(node.name)
-        ForEach(valueArrayString.indices, id: \.self) { i in
-            Picker("Entry \(i + 1)", selection: $valueArrayString[i]) {
-                ForEach(options, id: \.self) { option in
-                    Text("\"" + option + "\"").tag(option)
+            case .arrayString:
+                ForEach(valueArrayString.indices, id: \.self) { i in
+                    TextField("Entry \(i + 1)", text: $valueArrayString[i])
+                        .textFieldStyle(.plain)
                 }
-            }
-        }
-    }
-
-    var body: some View {
-        switch node.value {
-        case .value(let T):
-            switch T {
-            case .bool, .number, .string, .null:
-                if let option = node.limits?.option {
-                    pickerEditor(options: option)
-                        .onAppear { initValue() }
-                        .disabled(node.limits?.isWriteable == false)
-                } else {
-                    singleValueEditor(T)
-                        .onAppear { initValue() }
-                        .disabled(node.limits?.isWriteable == false)
+            case .stringPicker:
+                Picker("Option", selection: $valueString) {
+                    ForEach(pickerOptions, id: \.self) { option in
+                        Text("\"" + option + "\"").tag(option)
+                    }
                 }
-            case .array(let vs):
-                if let option = node.limits?.option {
-                    arrayPickerEditor(options: option)
-                        .onAppear { initValue() }
-                        .disabled(node.limits?.isWriteable == false)
-                } else {
-                    arrayEditor(vs.first)
-                        .onAppear { initValue() }
-                        .disabled(node.limits?.isWriteable == false)
+            case .arrayStringPicker:
+                ForEach(valueArrayString.indices, id: \.self) { i in
+                    Picker("Entry \(i + 1)", selection: $valueArrayString[i]) {
+                        ForEach(pickerOptions, id: \.self) { option in
+                            Text("\"" + option + "\"").tag(option)
+                        }
+                    }
                 }
-            case .object:
-                Text("Can't edit non-leaf node")
+            case .none:
+                Text("Non-leaf node or unknown type")
             }
         default:
             Text("Can't edit non-leaf node")
         }
+
         Button("Send to device") { Task { await sendValue() } }
+            .onAppear { initValue() }
+            .disabled(node.limits?.isWriteable == false)
     }
 }
 
@@ -308,7 +304,7 @@ struct NodeView: View {
                     }
                 }
             }
-            // TODO maybe make this read-only.
+            // Should this be read-only?
             Section("UI Mapping") {
                 Picker("UI Element", selection: $mappedParameter) {
                     Text("None").tag(nil as KHParameters?)
@@ -317,6 +313,7 @@ struct NodeView: View {
                     }
                 }
                 .onAppear {
+                    // Check if this path is already mapped to a parameter.
                     KHParameters.allCases.forEach { parameter in
                         if parameter.getDevicePath() == node.pathToNode() {
                             mappedParameter = parameter
@@ -342,45 +339,15 @@ struct DeviceBrowser: View {
     var rootNode: SSCNode
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
-    private enum Errors: Error {
-        case noDevicesFound
-    }
-
-    @ViewBuilder
-    private func description(_ node: SSCNode) -> some View {
-        /// Ideas:
-        /// - Colors for different types (at least expandable / not expandable
-
-        HStack {
-            let unitString =
-                node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
-            Text(node.name + unitString)
-
-            Spacer()
-
-            switch node.value {
-            case .unknown, .unknownValue, .unknownChildren:
-                ProgressView()
-                    #if os(macOS)
-                        .scaleEffect(0.5)
-                    #endif
-            case .error(let s):
-                Label(s, systemImage: "exclamationmark.circle")
-            case .children:
-                EmptyView()
-            case .value(let v):
-                Text(v.stringify())
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-
     var body: some View {
         NavigationStack {
             List(
                 rootNode.children ?? [rootNode],
                 children: \.children,
             ) { node in
+                let unitString =
+                    node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
+
                 switch node.value {
                 case .unknown:
                     Button("Query parameters") {
@@ -390,7 +357,26 @@ struct DeviceBrowser: View {
                     }
                 default:
                     NavigationLink(destination: NodeView(node: node)) {
-                        description(node)
+                        HStack {
+                            Text(node.name + unitString)
+
+                            Spacer()
+
+                            switch node.value {
+                            case .unknown, .unknownValue, .unknownChildren:
+                                ProgressView()
+                                    #if os(macOS)
+                                        .scaleEffect(0.5)
+                                    #endif
+                            case .error(let s):
+                                Label(s, systemImage: "exclamationmark.circle")
+                            case .children:
+                                EmptyView()
+                            case .value(let v):
+                                Text(v.stringify())
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
             }
@@ -403,27 +389,28 @@ struct ParameterMapper: View {
     var parameter: KHParameters
     var rootNode: SSCNode
     @Binding var pathStrings: [String: String]
+    @State var selection: SSCNode.ID? = nil
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
+    private func setParameter() {
+        guard let node = rootNode.first(where: { $0.id == selection }) else {
+            return
+        }
+        parameter.setDevicePath(to: node.pathToNode())
+        pathStrings[parameter.rawValue] = parameter.getPathString()
+    }
+
     var body: some View {
-        Text(parameter.rawValue)
-        // let pathString: String = pathStrings[parameter.rawValue] ?? "unknown"
-        // Text("Current mapping: " + pathString)
         List(
             rootNode.children ?? [rootNode],
             children: \.children,
+            selection: $selection
         ) { node in
             let unitString =
                 node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
             let s = node.name + unitString
 
             switch node.value {
-            case .value, .error:
-                Button(s) {
-                    // TODO check type and stuff?
-                    parameter.setDevicePath(to: node.pathToNode())
-                    pathStrings[parameter.rawValue] = parameter.getPathString()
-                }
             case .unknown:
                 Button("Query parameters") {
                     Task {
@@ -433,6 +420,31 @@ struct ParameterMapper: View {
             default:
                 Text(s)
             }
+        }
+        .navigationTitle(Text(parameter.rawValue))
+        .overlay(alignment: .bottom) {
+            Button(action: setParameter) {
+                if let selection = selection {
+                    VStack {
+                        Text(pathStrings[parameter.rawValue] ?? "unknown")
+                            .strikethrough(true)
+                        if let node = rootNode.first(where: { $0.id == selection }) {
+                            Label(
+                                "/" + node.pathToNode().joined(separator: "/"),
+                                systemImage: "arrow.right"
+                            )
+                        } else {
+                            Label("Node doesn't exist", systemImage: "arrow.right")
+                        }
+                    }
+                    .padding(.horizontal)
+                } else {
+                    Text("Select a node")
+                }
+            }
+            .padding()
+            .buttonStyle(.borderedProminent)
+            .disabled(selection == nil)
         }
     }
 }
@@ -461,6 +473,7 @@ struct ParameterTab: View {
                                 destination: DeviceBrowser(
                                     rootNode: device.parameterTree
                                 )
+                                .navigationTitle(device.state.name)
                             )
                         }
                     }
@@ -484,7 +497,7 @@ struct ParameterTab: View {
                             }
                         }
                     }
-                    .onAppear { updatePathStrings() }
+                    .onAppear(perform: updatePathStrings)
                 }
             }
         }
