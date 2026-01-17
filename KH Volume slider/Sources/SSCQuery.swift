@@ -44,6 +44,8 @@ struct OSCLimits: Equatable {
     let writeable: Bool?
     let option: [String]?
     let count: Int?
+    
+    var isWriteable: Bool { !(writeable == false || const == true) }
 
     init(fromDict dict: [String: Any?]) {
         type = dict["type"] as? String
@@ -68,7 +70,7 @@ enum SSCNodeError: Error {
 
 @Observable
 @MainActor
-class SSCNode: Identifiable, Equatable {
+class SSCNode: Identifiable, Equatable, @MainActor Sequence {
     private var connection: SSCConnection
     var name: String
     var value: NodeData
@@ -225,13 +227,17 @@ class SSCNode: Identifiable, Equatable {
         }
     }
     
-    private func sendLeaf() async throws {
+    func sendLeaf() async throws {
         let path = pathToNode()
         switch value {
         case .error:
             return
         case .value(let T):
+            // TODO this sucks. khAccess or device or someone like that should handle
+            // this.
+            try await connection.open()
             try await connection.sendSSCValue(path: path, value: T)
+            connection.close()
         case .children, .unknown, .unknownChildren, .unknownValue:
             throw SSCNodeError.error("Not a populated leaf")
         }
@@ -321,5 +327,12 @@ class SSCNode: Identifiable, Equatable {
 
     nonisolated static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
         return (lhs.id == rhs.id)
+    }
+
+    func makeIterator() -> [SSCNode].Iterator {
+        if case .children(let v) = value {
+            return v.flatMap({$0.makeIterator() + [$0]}).makeIterator()
+        }
+        return [].makeIterator()
     }
 }

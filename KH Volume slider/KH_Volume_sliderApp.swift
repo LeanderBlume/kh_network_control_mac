@@ -10,6 +10,17 @@ import SwiftUI
 @main
 struct KH_Volume_sliderApp: App {
     @State private var khAccess = KHAccess()
+
+    // decodes to [String: [String]]
+    @AppStorage("paths") private var paths: Data = Data()
+    
+    init() {
+        do {
+            paths = try JSONEncoder().encode(KHParameters.devicePathDictDefault())
+        } catch {
+            return
+        }
+    }
     
     var body: some Scene {
         #if os(macOS)

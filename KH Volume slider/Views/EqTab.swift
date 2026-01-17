@@ -334,7 +334,7 @@ struct EqTab: View {
 
         ScrollView {
             VStack(spacing: 15) {
-                EqChart(state: khAccess.state).frame(height: 150)
+                EqChart(eqs: khAccess.state.eqs).frame(height: 150)
                 
                 Picker("", selection: $selectedEq) {
                     Text("post EQ").tag(0)

@@ -28,10 +28,9 @@ func magnitudeResponseLoshelf(f: Double, boost: Double, q: Double, f0: Double) -
 }
 
 struct EqChart: View {
-    var state: KHState
+    var eqs: [Eq]
 
     var body: some View {
-        let eqs = state.eqs
         let activeBands = eqs.map { eq in
             eq.enabled.indices.filter { eq.enabled[$0] }
         }
@@ -86,7 +85,7 @@ struct EqChart: View {
             }
 
             let colors = [Color.yellow, Color.orange]
-            ForEach(0..<state.eqs.count, id: \.self) { i in
+            ForEach(0..<eqs.count, id: \.self) { i in
                 let eq = eqs[i]
                 ForEach(activeBands[i], id: \.self) { j in
                     PointMark(
@@ -108,5 +107,5 @@ struct EqChart: View {
 }
 
 #Preview {
-    EqChart(state: KHState())
+    EqChart(eqs: [Eq(numBands: 10)])
 }
