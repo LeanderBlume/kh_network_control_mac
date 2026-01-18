@@ -13,7 +13,7 @@ class KHDevice: Identifiable {
     var state: KHState = KHState()
     let parameterTree: SSCNode
     let connection: SSCConnection
-    
+
     enum KHDeviceError: Error {
         case error(String)
     }
@@ -46,12 +46,12 @@ class KHDevice: Identifiable {
         try await parameterTree.populate(connection: connection, recursive: true)
         disconnect()
     }
-    
+
     func fetchParameters() async throws {
         try await connect()
         for node in parameterTree {
             if case .value = node.value {
-                try await fetchNode(node.pathToNode())
+                try await fetchSingleNode(node: node)
             }
         }
         disconnect()
@@ -90,7 +90,7 @@ class KHDevice: Identifiable {
         state = newState
         disconnect()
     }
-    
+
     private func getNode(atPath path: [String]) -> SSCNode? {
         var node: SSCNode? = parameterTree
         for p in path {
@@ -101,36 +101,46 @@ class KHDevice: Identifiable {
         }
         return node
     }
-    
+
+    private func sendSingleNode(node: SSCNode) async throws {
+        switch node.value {
+        case .error:
+            return
+        case .value(let T):
+            try await connection.sendSSCValue(path: node.pathToNode(), value: T)
+        case .children, .unknown, .unknownChildren, .unknownValue:
+            throw KHDeviceError.error("Node is not a populated leaf")
+        }
+    }
+
+    private func fetchSingleNode(node: SSCNode) async throws {
+        switch node.value {
+        case .error:
+            return
+        case .value(let T):
+            node.value = .value(
+                try await T.fetch(connection: connection, path: node.pathToNode())
+            )
+        case .children, .unknown, .unknownChildren, .unknownValue:
+            throw KHDeviceError.error("Node is not a populated leaf")
+        }
+    }
+
     func sendNode(_ path: [String]) async throws {
         guard let node = getNode(atPath: path) else {
             throw KHDeviceError.error("Node not found")
         }
         try await connect()
-        switch node.value {
-        case .error:
-            return
-        case .value(let T):
-            try await connection.sendSSCValue(path: path, value: T)
-        case .children, .unknown, .unknownChildren, .unknownValue:
-            throw KHDeviceError.error("Node is not a populated leaf")
-        }
+        try await sendSingleNode(node: node)
         disconnect()
     }
-    
+
     func fetchNode(_ path: [String]) async throws {
         guard let node = getNode(atPath: path) else {
             throw KHDeviceError.error("Node not found")
         }
-        // try await connect()
-        switch node.value {
-        case .error:
-            return
-        case .value(let T):
-            node.value = .value(try await T.fetch(connection: connection, path: path))
-        case .children, .unknown, .unknownChildren, .unknownValue:
-            throw KHDeviceError.error("Node is not a populated leaf")
-        }
-        // disconnect()
+        try await connect()
+        try await fetchSingleNode(node: node)
+        disconnect()
     }
 }
