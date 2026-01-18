@@ -71,7 +71,6 @@ enum SSCNodeError: Error {
 @Observable
 @MainActor
 class SSCNode: Identifiable, Equatable, @MainActor Sequence {
-    private var connection: SSCConnection
     var name: String
     var value: NodeData
     var parent: SSCNode?
@@ -80,13 +79,11 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
     // let id = UUID()
 
     init(
-        connection connection_: SSCConnection,
         name name_: String,
         value value_: NodeData = .unknown,
         parent parent_: SSCNode? = nil,
         limits limits_: OSCLimits? = nil,
     ) {
-        connection = connection_
         name = name_
         value = value_
         parent = parent_
@@ -112,7 +109,7 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         return result.dropLast().reversed()
     }
 
-    private func queryAux(query: [String], path: [String]) async throws -> [String: Any]
+    private func queryAux(connection: SSCConnection, query: [String], path: [String]) async throws -> [String: Any]
     {
         // Queries device with
         // {query[0]: { ... { query[-1]: [ pathToNode() ] } ... }
@@ -141,8 +138,8 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         return result[query[0]]![query[1]]![0]
     }
 
-    func getSchema(path: [String]) async throws -> [String: [String: String]?]? {
-        var result = try await queryAux(query: ["osc", "schema"], path: path)
+    func getSchema(connection: SSCConnection, path: [String]) async throws -> [String: [String: String]?]? {
+        var result = try await queryAux(connection: connection, query: ["osc", "schema"], path: path)
         if path.isEmpty {
             return result as? [String: [String: String]?]
         }
@@ -152,8 +149,8 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         return result[path.last!] as? [String: [String: String]?]
     }
 
-    func getLimits(path: [String]) async throws -> OSCLimits {
-        var result = try await queryAux(query: ["osc", "limits"], path: path)
+    func getLimits(connection: SSCConnection, path: [String]) async throws -> OSCLimits {
+        var result = try await queryAux(connection: connection, query: ["osc", "limits"], path: path)
         for p in path.dropLast() {
             result = result[p] as! [String: Any]
         }
@@ -162,9 +159,9 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         return OSCLimits(fromDict: result__)
     }
 
-    private func populateLeaf() async throws {
+    private func populateLeaf(connection: SSCConnection) async throws {
         let path = pathToNode()
-        limits = try await getLimits(path: path)
+        limits = try await getLimits(connection: connection, path: path)
         let response = try await connection.fetchSSCValueAny(path: path)
         // print(response)
         // In theory: Count is given => array type
@@ -214,38 +211,9 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         }
     }
 
-    private func fetchLeaf() async throws {
-        // this once again seems dumb. I don't know if there's a better way.
-        let path = pathToNode()
-        switch value {
-        case .error:
-            return
-        case .value(let T):
-            value = .value(try await T.fetch(connection: connection, path: path))
-        case .children, .unknown, .unknownChildren, .unknownValue:
-            throw SSCNodeError.error("Not a populated leaf")
-        }
-    }
-    
-    func sendLeaf() async throws {
-        let path = pathToNode()
-        switch value {
-        case .error:
-            return
-        case .value(let T):
-            // TODO this sucks. khAccess or device or someone like that should handle
-            // this.
-            try await connection.open()
-            try await connection.sendSSCValue(path: path, value: T)
-            connection.close()
-        case .children, .unknown, .unknownChildren, .unknownValue:
-            throw SSCNodeError.error("Not a populated leaf")
-        }
-    }
-
-    private func populateInternal() async throws {
+    private func populateInternal(connection: SSCConnection) async throws {
         // We are not at a leaf node and need to discover subcommands.
-        guard let resultStripped = try await getSchema(path: pathToNode()) else {
+        guard let resultStripped = try await getSchema(connection: connection, path: pathToNode()) else {
             throw SSCNodeError.error(
                 "Populating internal node did not result in a sub-dictionary."
             )
@@ -264,7 +232,6 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
             }
             subNodeArray.append(
                 SSCNode(
-                    connection: self.connection,
                     name: k,
                     value: subNodeValue,
                     parent: self
@@ -284,26 +251,24 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         value = .children(subNodeArray)
     }
 
-    func populate(recursive: Bool = true) async throws {
+    func populate(connection: SSCConnection, recursive: Bool = true) async throws {
         // Populates the tree. Does not refresh previously fetched values!
         // print("populating", pathToNode())
         switch value {
         // Technically bad. We should try to find out if there is a subvalue or
         // children, even for the root node.
         case .unknown, .unknownChildren:
-            try await populateInternal()
-            try await populate(recursive: recursive)
+            try await populateInternal(connection: connection)
+            try await populate(connection: connection, recursive: recursive)
         case .children(let subNodeArray):
             if recursive {
                 for n in subNodeArray {
-                    try await n.populate()
+                    try await n.populate(connection: connection, recursive: true)
                 }
             }
         case .unknownValue:
-            try await populateLeaf()
-        case .value:
-            try await fetchLeaf()
-        case .error:
+            try await populateLeaf(connection: connection)
+        case .value, .error:
             return
         }
     }
@@ -334,5 +299,12 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
             return v.flatMap({$0.makeIterator() + [$0]}).makeIterator()
         }
         return [].makeIterator()
+    }
+    
+    subscript(index: String) -> SSCNode? {
+        if case .children(let v) = value {
+            return v.first(where: { $0.name == index })
+        }
+        return nil
     }
 }

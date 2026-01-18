@@ -55,6 +55,8 @@ protocol KHAccessProtocol: Observable, Identifiable {
     func populateParameters() async
     func send() async
     func fetch() async
+    func sendNode(deviceIndex: Int, path: [String]) async
+    func fetchNode(deviceIndex: Int, path: [String]) async
 }
 
 @Observable
@@ -116,6 +118,23 @@ final class KHAccessNative: KHAccessProtocol {
         }
         status = .success
     }
+    
+    
+    func fetchParameters() async {
+        status = .busy("Fetching...")
+        await withThrowingTaskGroup { group in
+            for device in devices {
+                group.addTask { try await device.fetchParameters() }
+            }
+            do {
+                try await group.waitForAll()
+            } catch {
+                status = .otherError(String(describing: error))
+                return
+            }
+        }
+        status = .success
+    }
 
 
     func fetch() async {
@@ -144,6 +163,28 @@ final class KHAccessNative: KHAccessProtocol {
             } catch {
                 status = .otherError(String(describing: error))
             }
+        }
+    }
+    
+    func sendNode(deviceIndex i: Int, path: [String]) async {
+        if !devices.indices.contains(i) {
+            status = .otherError("Device does not exist")
+        }
+        do {
+            try await devices[i].sendNode(path)
+        } catch {
+            status = .otherError(String(describing: error))
+        }
+    }
+    
+    func fetchNode(deviceIndex i: Int, path: [String]) async {
+        if !devices.indices.contains(i) {
+            status = .otherError("Device does not exist")
+        }
+        do {
+            try await devices[i].fetchNode(path)
+        } catch {
+            status = .otherError(String(describing: error))
         }
     }
 }
@@ -194,6 +235,14 @@ final class KHAccessDummy: KHAccessProtocol {
     }
 
     func send() async {
+        status = .clean
+    }
+    
+    func sendNode(deviceIndex: Int, path: [String]) async {
+        status = .clean
+    }
+    
+    func fetchNode(deviceIndex: Int, path: [String]) async {
         status = .clean
     }
 }

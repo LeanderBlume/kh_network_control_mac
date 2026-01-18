@@ -64,6 +64,72 @@ enum UILeafNodeType {
     }
 }
 
+// seems like it should be an enum. But maybe not, I don't know how bindings to enum values work.
+@MainActor
+struct PossibleValues {
+    var string: String = ""
+    var number: Double = 0
+    var bool: Bool = false
+    var arrayString: [String] = []
+    var arrayNumber: [Double] = []
+    var arrayBool: [Bool] = []
+    var pickerOptions: [String] = []
+
+    init(fromNode node: SSCNode) {
+        switch node.value {
+        case .value(let T):
+            switch UILeafNodeType(jsonData: T, limits: node.limits) {
+            case .string(let v):
+                string = v
+            case .number(let v):
+                number = v
+            case .bool(let v):
+                bool = v
+            case .arrayBool(let v):
+                arrayBool = v
+            case .arrayNumber(let v):
+                arrayNumber = v
+            case .arrayString(let v):
+                arrayString = v
+            case .stringPicker(let v, let options):
+                string = v
+                pickerOptions = options
+            case .arrayStringPicker(let v, let options):
+                arrayString = v
+                pickerOptions = options
+            case .none:
+                return
+            }
+        default:
+            return
+        }
+    }
+
+    func updateNode(node: SSCNode) {
+        switch node.value {
+        case .value(let T):
+            switch UILeafNodeType(jsonData: T, limits: node.limits) {
+            case .number:
+                node.value = NodeData(value: number)
+            case .bool:
+                node.value = NodeData(value: bool)
+            case .string, .stringPicker:
+                node.value = NodeData(value: string)
+            case .arrayBool:
+                node.value = NodeData(value: arrayBool)
+            case .arrayNumber:
+                node.value = NodeData(value: arrayNumber)
+            case .arrayString, .arrayStringPicker:
+                node.value = NodeData(value: arrayString)
+            case .none:
+                return
+            }
+        default:
+            return
+        }
+    }
+}
+
 struct LimitsView: View {
     var limits: OSCLimits
 
@@ -150,75 +216,13 @@ struct LimitsView: View {
 
 struct NodeValueEditor: View {
     var node: SSCNode
-    @State var valueString: String = ""
-    @State var valueNumber: Double = 0
-    @State var valueBool: Bool = false
-    @State var valueArrayString: [String] = []
-    @State var valueArrayNumber: [Double] = []
-    @State var valueArrayBool: [Bool] = []
-    @State var pickerOptions: [String] = []
-
-    private func initValue() {
-        switch node.value {
-        case .value(let T):
-            switch UILeafNodeType(jsonData: T, limits: node.limits) {
-            case .string(let v):
-                valueString = v
-            case .number(let v):
-                valueNumber = v
-            case .bool(let v):
-                valueBool = v
-            case .arrayBool(let v):
-                valueArrayBool = v
-            case .arrayNumber(let v):
-                valueArrayNumber = v
-            case .arrayString(let v):
-                valueArrayString = v
-            case .stringPicker(let v, let options):
-                valueString = v
-                pickerOptions = options
-            case .arrayStringPicker(let v, let options):
-                valueArrayString = v
-                pickerOptions = options
-            case .none:
-                return
-            }
-        default:
-            return
-        }
-    }
-
-    private func updateNode() {
-        switch node.value {
-        case .value(let T):
-            switch UILeafNodeType(jsonData: T, limits: node.limits) {
-            case .number:
-                node.value = NodeData(value: valueNumber)
-            case .bool:
-                node.value = NodeData(value: valueBool)
-            case .string, .stringPicker:
-                node.value = NodeData(value: valueString)
-            case .arrayBool:
-                node.value = NodeData(value: valueArrayBool)
-            case .arrayNumber:
-                node.value = NodeData(value: valueArrayNumber)
-            case .arrayString, .arrayStringPicker:
-                node.value = NodeData(value: valueArrayString)
-            case .none:
-                return
-            }
-        default:
-            return
-        }
-    }
+    var deviceIndex: Int
+    @Binding var values: PossibleValues
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     private func sendValue() async {
-        updateNode()
-        do {
-            try await node.sendLeaf()
-        } catch {
-            print("Sending node failed with: \(error)")
-        }
+        values.updateNode(node: node)
+        await khAccess.sendNode(deviceIndex: deviceIndex, path: node.pathToNode())
     }
 
     var body: some View {
@@ -226,47 +230,47 @@ struct NodeValueEditor: View {
         case .value(let T):
             switch UILeafNodeType(jsonData: T, limits: node.limits) {
             case .string:
-                TextField("Data", text: $valueString)
+                TextField("Data", text: $values.string)
                     .textFieldStyle(.plain)
             case .number:
                 let precision = (node.limits?.inc == 1) ? 0 : 1
                 TextField(
                     "Data",
-                    value: $valueNumber,
+                    value: $values.number,
                     format: .number.precision(.fractionLength(precision))
                 )
                 .textFieldStyle(.plain)
             case .bool:
-                Toggle("Data", isOn: $valueBool)
+                Toggle("Data", isOn: $values.bool)
             case .arrayBool:
-                ForEach(valueArrayBool.indices, id: \.self) { i in
-                    Toggle("Entry \(i + 1)", isOn: $valueArrayBool[i])
+                ForEach(values.arrayBool.indices, id: \.self) { i in
+                    Toggle("Entry \(i + 1)", isOn: $values.arrayBool[i])
                 }
             case .arrayNumber:
                 let precision = (node.limits?.inc == 1) ? 0 : 1
-                ForEach(valueArrayNumber.indices, id: \.self) { i in
+                ForEach($values.arrayNumber.indices, id: \.self) { i in
                     TextField(
                         "Entry \(i + 1)",
-                        value: $valueArrayNumber[i],
+                        value: $values.arrayNumber[i],
                         format: .number.precision(.fractionLength(precision))
                     )
                     .textFieldStyle(.plain)
                 }
             case .arrayString:
-                ForEach(valueArrayString.indices, id: \.self) { i in
-                    TextField("Entry \(i + 1)", text: $valueArrayString[i])
+                ForEach(values.arrayString.indices, id: \.self) { i in
+                    TextField("Entry \(i + 1)", text: $values.arrayString[i])
                         .textFieldStyle(.plain)
                 }
             case .stringPicker:
-                Picker("Option", selection: $valueString) {
-                    ForEach(pickerOptions, id: \.self) { option in
+                Picker("Option", selection: $values.string) {
+                    ForEach(values.pickerOptions, id: \.self) { option in
                         Text("\"" + option + "\"").tag(option)
                     }
                 }
             case .arrayStringPicker:
-                ForEach(valueArrayString.indices, id: \.self) { i in
-                    Picker("Entry \(i + 1)", selection: $valueArrayString[i]) {
-                        ForEach(pickerOptions, id: \.self) { option in
+                ForEach($values.arrayString.indices, id: \.self) { i in
+                    Picker("Entry \(i + 1)", selection: $values.arrayString[i]) {
+                        ForEach(values.pickerOptions, id: \.self) { option in
                             Text("\"" + option + "\"").tag(option)
                         }
                     }
@@ -279,19 +283,27 @@ struct NodeValueEditor: View {
         }
 
         Button("Send to device") { Task { await sendValue() } }
-            .onAppear { initValue() }
             .disabled(node.limits?.isWriteable == false)
     }
 }
 
 struct NodeView: View {
     var node: SSCNode
+    var deviceIndex: Int
     @State var mappedParameter: KHParameters?
+    @State var values: PossibleValues
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    init(node: SSCNode, deviceIndex: Int) {
+        self.node = node
+        self.deviceIndex = deviceIndex
+        values = .init(fromNode: node)
+    }
 
     var body: some View {
         Form {
             Section("Edit value") {
-                NodeValueEditor(node: node)
+                NodeValueEditor(node: node, deviceIndex: deviceIndex, values: $values)
             }
             Section("Parameter info (/osc/limits)") {
                 if let limits = node.limits {
@@ -314,8 +326,9 @@ struct NodeView: View {
                 }
                 .onAppear {
                     // Check if this path is already mapped to a parameter.
+                    let path = node.pathToNode()
                     KHParameters.allCases.forEach { parameter in
-                        if parameter.getDevicePath() == node.pathToNode() {
+                        if parameter.getDevicePath() == path {
                             mappedParameter = parameter
                             return
                         }
@@ -332,14 +345,19 @@ struct NodeView: View {
                 }
             }
         }
+        .refreshable {
+            await khAccess.fetchNode(deviceIndex: deviceIndex, path: node.pathToNode())
+            values = .init(fromNode: node)
+        }
     }
 }
 
 struct DeviceBrowser: View {
-    var rootNode: SSCNode
+    var deviceIndex: Int
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
+        let rootNode = khAccess.devices[deviceIndex].parameterTree
         NavigationStack {
             List(
                 rootNode.children ?? [rootNode],
@@ -356,7 +374,9 @@ struct DeviceBrowser: View {
                         }
                     }
                 default:
-                    NavigationLink(destination: NodeView(node: node)) {
+                    NavigationLink(
+                        destination: NodeView(node: node, deviceIndex: deviceIndex)
+                    ) {
                         HStack {
                             Text(node.name + unitString)
 
@@ -380,7 +400,7 @@ struct DeviceBrowser: View {
                     }
                 }
             }
-            .refreshable { await khAccess.populateParameters() }
+            .refreshable { await khAccess.fetchParameters() }
         }
     }
 }
@@ -467,11 +487,12 @@ struct ParameterTab: View {
             NavigationStack {
                 List {
                     Section("Devices") {
-                        ForEach(devices) { device in
+                        ForEach(devices.indices, id: \.self) { i in
+                            let device = khAccess.devices[i]
                             NavigationLink(
                                 device.state.name,
                                 destination: DeviceBrowser(
-                                    rootNode: device.parameterTree
+                                    deviceIndex: i
                                 )
                                 .navigationTitle(device.state.name)
                             )
