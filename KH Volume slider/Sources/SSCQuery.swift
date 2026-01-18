@@ -7,6 +7,30 @@
 
 import Foundation
 
+
+@MainActor
+protocol SSCNodeProtocol: Identifiable, Equatable, @MainActor Sequence {
+    var name: String { get }
+    var parent: (any SSCNodeProtocol)? { get }
+    var children: [any SSCNodeProtocol]? { get }
+
+    func pathToNode() -> [String]
+    func populate(connection: SSCConnection, recursive: Bool) async throws
+}
+
+protocol SSCInternalNodeProtocol: SSCNodeProtocol {
+    func fetch(connection: SSCConnection) async throws
+    func send(connection: SSCConnection) async throws
+}
+
+protocol SSCLeafNodeProtocol: SSCNodeProtocol {
+    var value: JSONData? { get set }
+    var limits: OSCLimits { get }
+
+    func fetch(connection: SSCConnection) async throws
+    func send(connection: SSCConnection) async throws
+}
+
 enum NodeData: Equatable {
     case unknown
     case unknownChildren
