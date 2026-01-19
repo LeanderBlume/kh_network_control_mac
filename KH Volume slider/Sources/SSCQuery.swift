@@ -296,7 +296,9 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
 
     func makeIterator() -> [SSCNode].Iterator {
         if case .children(let v) = value {
-            return v.flatMap({$0.makeIterator() + [$0]}).makeIterator()
+            return v.flatMap({ child in
+                [child] + child.makeIterator()
+            }).makeIterator()
         }
         return [].makeIterator()
     }
