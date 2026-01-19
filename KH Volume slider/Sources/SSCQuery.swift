@@ -159,7 +159,7 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         return OSCLimits(fromDict: result__)
     }
 
-    private func populateLeaf(connection: SSCConnection) async throws {
+    private func populateLeafOld(connection: SSCConnection) async throws {
         let path = pathToNode()
         limits = try await getLimits(connection: connection, path: path)
         let response = try await connection.fetchSSCValueAny(path: path)
@@ -209,6 +209,43 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         default:
             throw SSCNodeError.unknownTypeFromLimits(limits!.type)
         }
+    }
+
+    // Nice idea, does not work. See comment.
+    private func populateLeaf(connection: SSCConnection) async throws {
+        let path = pathToNode()
+        limits = try await getLimits(connection: connection, path: path)
+        let decoder = JSONDecoder()
+        let schemata: [JSONData]
+        switch limits!.type {
+        case "Number":
+            schemata = [.number(0), .array([.number(0)])]
+        case "String":
+            schemata = [.string(""), .array([.string("")])]
+        case "Boolean":
+            schemata = [.bool(false), .array([.bool(false)])]
+        case .none:
+            schemata = [
+                .bool(false),
+                .number(0),
+                .string(""),
+                .array([.bool(false)]),
+                .array([.number(0)]),
+                .array([.string("")]),
+            ]
+        default:
+            throw SSCNodeError.unknownTypeFromLimits(limits!.type)
+        }
+        let data = try await connection.fetchSSCValueData(path: path)
+        for schema in schemata {
+            // This does not work because the data is stil wrapped in the path!
+            decoder.userInfo[.schemaJSONData] = schema
+            if let v = try? decoder.decode(JSONData.self, from: data) {
+                value = .value(v)
+                return
+            }
+        }
+        value = .error("Populating leaf fell through")
     }
 
     private func populateInternal(connection: SSCConnection) async throws {
