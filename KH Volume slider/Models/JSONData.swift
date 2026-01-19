@@ -40,7 +40,7 @@ enum JSONData: Equatable, Codable, Sendable {
 
     init(from decoder: Decoder) throws {
         guard let schema = decoder.userInfo[.schemaJSONData] as? JSONData else {
-            throw JSONDataError.decodingError("No schema was provideds")
+            throw JSONDataError.decodingError("No schema was provided")
         }
 
         let currentPath = decoder.codingPath
