@@ -32,12 +32,12 @@ struct TestSSC {
     @Test func testSendMessageWithScan() async throws {
         let sscDevice = SSCDevice.scan()[0]
         try await sscDevice.connect()
-
+    
         let TX1 = "{\"audio\":{\"out\":{\"mute\":true}}}"
         await sscDevice.sendMessage(TX1)
         let RX1 = try await sscDevice.receiveMessage()
         #expect(RX1.starts(with: TX1))
-
+    
         let TX2 = "{\"audio\":{\"out\":{\"mute\":false}}}"
         await sscDevice.sendMessage(TX2)
         let RX2 = try await sscDevice.receiveMessage()
@@ -61,17 +61,23 @@ struct TestSSC {
         #expect(response == false)
         sscDevice.close()
     }
-    
+
     @Test func testSendSSCValue() async throws {
         let sscDevice = await SSCConnection.scan()[0]
         try await sscDevice.open()
-        try await sscDevice.sendSSCValue(path: [
-            "audio", "out", "mute",
-        ], value: true)
+        try await sscDevice.sendSSCValue(
+            path: [
+                "audio", "out", "mute",
+            ],
+            value: true
+        )
         sleep(1)
-        try await sscDevice.sendSSCValue(path: [
-            "audio", "out", "mute",
-        ], value: false)
+        try await sscDevice.sendSSCValue(
+            path: [
+                "audio", "out", "mute",
+            ],
+            value: false
+        )
         sscDevice.close()
     }
 }
@@ -125,14 +131,14 @@ struct TestKHAccessDummy {
         }
         connection = scan[0]
     }
-    
+
     @Test func testGetSchema() async throws {
-        let node = SSCNode(connection: connection, name: "root")
+        let node = SSCNode(name: "root")
         // try await node.connect()
-        let result = try await node.getSchema(path: ["audio"])
+        let result = try await node.getSchema(connection: connection, path: ["audio"])
         #expect(result == ["out": [:], "in2": [:], "in1": [:], "in": [:]])
         sleep(1)
-        let result2 = try await node.getSchema(path: [])
+        let result2 = try await node.getSchema(connection: connection, path: [])
         #expect(
             result2 == [
                 "audio": [:], "device": [:], "m": [:], "osc": [:], "ui": [:],
@@ -140,15 +146,21 @@ struct TestKHAccessDummy {
             ]
         )
         sleep(1)
-        let result3 = try await node.getSchema(path: ["ui", "logo", "brightness"])
+        let result3 = try await node.getSchema(
+            connection: connection,
+            path: ["ui", "logo", "brightness"]
+        )
         #expect(result3 == nil)
         // node.disconnect()
     }
 
     @Test func testGetLimits() async throws {
-        let node = SSCNode(connection: connection, name: "root")
+        let node = SSCNode(name: "root")
         // try await node.connect()
-        let result = try await node.getLimits(path: ["ui", "logo", "brightness"])
+        let result = try await node.getLimits(
+            connection: connection,
+            path: ["ui", "logo", "brightness"]
+        )
         print(result)
         #expect(
             result
@@ -168,18 +180,18 @@ struct TestKHAccessDummy {
     }
 
     @Test func testPopulate() async throws {
-        let node = SSCNode(connection: connection, name: "root")
-        // try await node.connect()
-        #expect(node.pathToNode() == [])
-        try await node.populate()
-        // node.disconnect()
-    }
-    
-    @Test func testIteration() async throws {
-        let node = SSCNode(connection: connection, name: "root")
+        let node = SSCNode(name: "root")
         try await connection.open()
         #expect(node.pathToNode() == [])
-        try await node.populate()
+        try await node.populate(connection: connection)
+        connection.close()
+    }
+
+    @Test func testIteration() async throws {
+        let node = SSCNode(name: "root")
+        try await connection.open()
+        #expect(node.pathToNode() == [])
+        try await node.populate(connection: connection)
         connection.close()
         let names = node.map(\.name)
         // Not the root node!
@@ -188,30 +200,49 @@ struct TestKHAccessDummy {
         #expect(names.contains("ui"))
         // Leaf node
         #expect(names.contains("brightness"))
+        node.map({$0.pathToNode()}).forEach { print($0) }
     }
-    
+
     @Test func testSend() async throws {
-        let node1 = SSCNode(connection: connection, name: "root")
-        let node2 = SSCNode(connection: connection, name: "device", parent: node1)
-        let leaf = SSCNode(connection: connection, name: "name", parent: node2)
+        let node1 = SSCNode(name: "root")
+        let node2 = SSCNode(name: "device", parent: node1)
+        let leaf = SSCNode(name: "name", parent: node2)
         #expect(leaf.pathToNode() == ["device", "name"])
         leaf.value = NodeData(value: "New name!")
         try await connection.open()
-        try await leaf.sendLeaf()
+        // try await leaf.sendLeaf(connection: connection)
         connection.close()
+    }
+    
+    @Test func testDecoding() async throws {
+        let rootNode = SSCNode(name: "root")
+        try await connection.open()
+        #expect(rootNode.pathToNode() == [])
+        try await rootNode.populate(connection: connection)
+        connection.close()
+        let test = JSONData(fromNodeTree: rootNode)
+        let jd = try JSONEncoder().encode(test)
+        let decoder = JSONDecoder()
+        let schema = JSONData(fromNodeTree: rootNode)
+        decoder.userInfo[.schemaJSONData] = schema
+        let decodedTest = try decoder.decode(JSONData.self, from: jd)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        let reencoded = try encoder.encode(decodedTest)
+        print(String(data: reencoded, encoding: .utf8)!)
     }
 }
 
 struct TestJSONEncoding {
-    func encode<T>(_ value: T) throws -> String where T: Encodable{
+    func encode<T>(_ value: T) throws -> String where T: Encodable {
         let jsonData = try! JSONEncoder().encode(value)
         return String(data: jsonData, encoding: .utf8)!
     }
 
-    @Test func main() throws {
+    @Test func testEncoding() throws {
         let s = JSONData.string("asdf / jkl")
         print(try encode(s))
-        
+
         let s2 = "asdf / jkl"
         let s2d = try encode(s2).data(using: .utf8)!
         print(try! encode(s2))
@@ -224,6 +255,28 @@ struct TestJSONEncoding {
         print(try! encode(s2))
         let x2 = try JSONDecoder().decode([String].self, from: s3d)
         print(x2)
+    }
+    
+    @Test func testDecoding() throws {
+        struct Test: Encodable {
+            let keyA: Int = 3
+            let keyB = subStructure()
+
+            struct subStructure: Encodable {
+                let keyB: String = "hi"
+                let keyC: [Int] = [1, 2, 3]
+                let keyD: Bool = false
+                let leyE = subSubStructure()
+                
+                struct subSubStructure: Encodable {
+                    let keyE: String = "hello"
+                }
+            }
+        }
+        let test = Test()
+        let jd = try JSONEncoder().encode(test)
+        let decodedTest = try JSONDecoder().decode(JSONData.self, from: jd)
+        print(decodedTest)
     }
 }
 
