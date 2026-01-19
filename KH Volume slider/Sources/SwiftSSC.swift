@@ -160,6 +160,12 @@ class SSCConnection {
         try await _ = sendSSCCommand(command: jsonPath)
     }
 
+    func fetchSSCValueData(path: [String]) async throws -> Data {
+        let jsonPath = try SSCConnection.pathToJSONString(path: path, value: nil as Float?)
+        let RX = try await sendSSCCommand(command: jsonPath)
+        return RX.data(using: .utf8)!
+    }
+
     func fetchSSCValueAny(path: [String]) async throws -> Any? {
         let jsonPath = try SSCConnection.pathToJSONString(path: path, value: nil as Float?)
         let RX = try await sendSSCCommand(command: jsonPath)
