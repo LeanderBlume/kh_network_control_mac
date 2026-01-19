@@ -13,7 +13,7 @@ struct Backupper: View {
     @State var newName: String = ""
     @State var selection: String? = nil
 
-    enum BackuperErrors: Error {
+    enum BackupperErrors: Error {
         case error(String)
     }
 
@@ -26,7 +26,7 @@ struct Backupper: View {
         backupDict[name] = khAccess.state
         let newBackupData = try JSONEncoder().encode(backupDict)
         guard let newBackupString = String(data: newBackupData, encoding: .utf8) else {
-            throw BackuperErrors.error("String conversion failed")
+            throw BackupperErrors.error("String conversion failed")
         }
         backups = newBackupString
     }
@@ -38,7 +38,7 @@ struct Backupper: View {
             from: Data(backupString.utf8)
         )
         guard let newState = backupDict[name] else {
-            throw BackuperErrors.error("No such backup")
+            throw BackupperErrors.error("No such backup")
         }
         khAccess.state = newState
     }
@@ -52,7 +52,7 @@ struct Backupper: View {
         backupDict[name] = nil
         let newBackupData = try JSONEncoder().encode(backupDict)
         guard let newBackupString = String(data: newBackupData, encoding: .utf8) else {
-            throw BackuperErrors.error("String conversion failed")
+            throw BackupperErrors.error("String conversion failed")
         }
         backups = newBackupString
     }
@@ -65,7 +65,7 @@ struct Backupper: View {
                 from: Data(backupString.utf8)
             )
         else {
-            return []
+            return ["FAIL"]
         }
         return backupDict.keys.map({ String($0) }).sorted()
     }
@@ -91,6 +91,17 @@ struct Backupper: View {
                 if let s = selection {
                     Task { try deleteBackup(name: s) }
                     selection = nil
+                }
+            }
+            Button("Delete all") {
+                backups = "{}"
+            }
+            Button("Print full backup") {
+                let jd = JSONData(fromNodeTree: khAccess.devices[0].parameterTree)
+                if let jd {
+                    print(jd)
+                } else {
+                    print("nil")
                 }
             }
 
