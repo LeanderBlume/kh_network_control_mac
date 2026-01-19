@@ -5,16 +5,149 @@
 //  Created by Leander Blume on 12.01.26.
 //
 
-enum JSONData: Equatable, Encodable {
+extension CodingUserInfoKey {
+    static let schemaJSONData = CodingUserInfoKey(rawValue: "schemaJSONData")!
+}
+
+enum JSONData: Equatable, Codable, Sendable {
     case string(String)
     case number(Double)
     case bool(Bool)
     case null
     case array([JSONData])
     case object([String: JSONData])
-    
+
     enum JSONDataError: Error {
         case error(String)
+        case decodingError(String)
+    }
+
+    @MainActor
+    init?(fromNodeTree rootNode: SSCNode) {
+        switch rootNode.value {
+        case .children(let children):
+            var dict: [String: JSONData] = [:]
+            children.forEach { child in
+                dict[child.name] = .init(fromNodeTree: child)
+            }
+            self = .object(dict)
+        case .value(let value):
+            self = value
+        default:
+            self = .null
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        guard let schema = decoder.userInfo[.schemaJSONData] as? JSONData else {
+            throw JSONDataError.decodingError("No schema was provideds")
+        }
+
+        let currentPath = decoder.codingPath
+        var currentValue: JSONData? = schema
+        for p in currentPath {
+            currentValue = currentValue![p.stringValue]
+            if currentValue == nil {
+                throw JSONDataError.decodingError("Encountered an invalid path")
+            }
+        }
+        guard let currentValue else {
+            throw JSONDataError.decodingError("Encountered an invalid path")
+        }
+
+        struct MyStupidKey: CodingKey {
+            var intValue: Int?
+            var stringValue: String
+            init?(intValue: Int) { return nil }
+            init(stringValue: String) { self.stringValue = stringValue }
+        }
+
+        var codingKeys: [MyStupidKey] = []
+        switch currentValue {
+        case .object(let children):
+            codingKeys = children.keys.map { MyStupidKey(stringValue: $0) }
+            let values = try decoder.container(keyedBy: MyStupidKey.self)
+            var dict = [String: JSONData]()
+            for k in codingKeys {
+                // dict[k.stringValue] = try .init(from: values.superDecoder(forKey: k))
+                dict[k.stringValue] = try values.decode(JSONData.self, forKey: k)
+            }
+            self = .object(dict)
+        case .null:
+            self = .null
+        case .string:
+            let svc = try decoder.singleValueContainer()
+            if let decoded = try? svc.decode(String.self) {
+                self = .string(decoded)
+            } else {
+                throw JSONDataError.decodingError("Incorrect schema")
+            }
+        case .number:
+            let svc = try decoder.singleValueContainer()
+            if let decoded = try? svc.decode(Double.self) {
+                self = .number(decoded)
+            } else {
+                throw JSONDataError.decodingError("Incorrect schema")
+            }
+        case .bool:
+            let svc = try decoder.singleValueContainer()
+            if let decoded = try? svc.decode(Bool.self) {
+                self = .bool(decoded)
+            } else {
+                throw JSONDataError.decodingError("Incorrect schema")
+            }
+        case .array(let vs):
+            let svc = try decoder.singleValueContainer()
+            switch vs.first {
+            case .none:
+                self = .array([])
+            case .string:
+                if let decoded = try? svc.decode([String].self) {
+                    self = .array(decoded.map(JSONData.string))
+                } else {
+                    throw JSONDataError.decodingError("Incorrect schema")
+                }
+            case .number:
+                if let decoded = try? svc.decode([Double].self) {
+                    self = .array(decoded.map(JSONData.number))
+                } else {
+                    throw JSONDataError.decodingError("Incorrect schema")
+                }
+            case .bool:
+                if let decoded = try? svc.decode([Bool].self) {
+                    self = .array(decoded.map(JSONData.bool))
+                } else {
+                    throw JSONDataError.decodingError("Incorrect schema")
+                }
+            case .array, .object, .null:
+                throw JSONDataError.decodingError(
+                    "Nested arrays and null arrays not supported (yet)"
+                )
+            }
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case .null:
+            var container = encoder.singleValueContainer()
+            try container.encodeNil()
+        case .string(let v):
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+        case .number(let v):
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+        case .bool(let v):
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+        case .array(let v):
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+        case .object(let v):
+            var container = encoder.singleValueContainer()
+            try container.encode(v)
+        }
     }
 
     func asArrayAny() -> [Any?]? {
@@ -49,29 +182,6 @@ enum JSONData: Equatable, Encodable {
     func asArrayNumber() -> [Double]? { return asArrayAny() as? [Double] }
     func asArrayString() -> [String]? { return asArrayAny() as? [String] }
     func asArrayBool() -> [Bool]? { return asArrayAny() as? [Bool] }
-
-    func encode(to encoder: Encoder) throws {
-        switch self {
-        case .null:
-            var container = encoder.singleValueContainer()
-            try container.encodeNil()
-        case .string(let v):
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-        case .number(let v):
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-        case .bool(let v):
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-        case .array(let v):
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-        case .object(let v):
-            var container = encoder.singleValueContainer()
-            try container.encode(v)
-        }
-    }
 
     func stringify() -> String {
         switch self {
@@ -125,5 +235,12 @@ enum JSONData: Equatable, Encodable {
         case .object:
             throw JSONDataError.error("Path does not lead to a value")
         }
+    }
+
+    subscript(index: String) -> JSONData? {
+        if case .object(let dict) = self {
+            return dict[index]
+        }
+        return nil
     }
 }
