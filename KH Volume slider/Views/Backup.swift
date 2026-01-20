@@ -21,15 +21,16 @@ struct Backupper: View {
     }
 
     func writeBackup(name: String) throws {
-        var backupDict = try JSONDecoder().decode(
-            BackupListFormat.self,
-            from: Data(backups)
-        )
         var newBackup = BackupFormat()
         khAccess.devices.forEach { device in
             newBackup[device.id] = JSONData(fromNodeTree: device.parameterTree)
         }
-        backups = try JSONEncoder().encode(newBackup)
+        var backupDict = try JSONDecoder().decode(
+            BackupListFormat.self,
+            from: Data(backups)
+        )
+        backupDict[name] = newBackup
+        backups = try JSONEncoder().encode(backupDict)
     }
 
     func loadBackup(name: String) throws {
@@ -37,40 +38,38 @@ struct Backupper: View {
             BackupListFormat.self,
             from: backups
         )
-        khAccess.devices.forEach { device in
-            device.parameterTree.load(fr)
-        }
-        guard let newState = backupDict[name] else {
+        guard let backup = backupDict[name] else {
             throw BackupperErrors.error("No such backup")
         }
-        khAccess.state = newState
+        try khAccess.devices.forEach { device in
+            if let deviceBackup = backup[device.id] {
+                try device.parameterTree.load(from: deviceBackup)
+                device.state = try KHState(from: deviceBackup)
+            }
+        }
+        khAccess.state = khAccess.devices.first!.state
     }
 
     func deleteBackup(name: String) throws {
-        let backupString = backups
         var backupDict = try JSONDecoder().decode(
-            [String: KHState].self,
-            from: Data(backupString.utf8)
+            BackupFormat.self,
+            from: backups
         )
         backupDict[name] = nil
-        let newBackupData = try JSONEncoder().encode(backupDict)
-        guard let newBackupString = String(data: newBackupData, encoding: .utf8) else {
-            throw BackupperErrors.error("String conversion failed")
-        }
-        backups = newBackupString
+        backups = try JSONEncoder().encode(backupDict)
     }
 
     func backupList() -> [String] {
-        let backupString = backups
-        guard
-            let backupDict = try? JSONDecoder().decode(
-                [String: KHState].self,
-                from: Data(backupString.utf8)
+        do {
+            let decoder = JSONDecoder()
+            let backupDict = try decoder.decode(
+                BackupListFormat.self,
+                from: backups
             )
-        else {
-            return ["FAIL"]
+            return backupDict.keys.sorted()
+        } catch {
+            return [String(describing: error)]
         }
-        return backupDict.keys.map({ String($0) }).sorted()
     }
 
     var body: some View {
@@ -96,11 +95,13 @@ struct Backupper: View {
                     selection = nil
                 }
             }
-            Button("Delete all") {
-                backups = "{}"
+            Button("Reset") {
+                Task {
+                    backups = try JSONEncoder().encode(BackupListFormat())
+                }
             }
             Button("Print full backup") {
-                let jd = JSONData(fromNodeTree: khAccess.devices[0].parameterTree)
+                let jd = try? JSONDecoder().decode(BackupListFormat.self, from: backups)
                 if let jd {
                     print(jd)
                 } else {
