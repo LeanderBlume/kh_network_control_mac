@@ -159,64 +159,11 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         return OSCLimits(fromDict: result__)
     }
 
-    private func populateLeafOld(connection: SSCConnection) async throws {
-        let path = pathToNode()
-        limits = try await getLimits(connection: connection, path: path)
-        let response = try await connection.fetchSSCValueAny(path: path)
-        // print(response)
-        // In theory: Count is given => array type
-        // But this is often wrong. There are various values with no count given at all
-        // that are actually arrays. So we just try both single values and arrays.
-        switch limits!.type {
-        case "Number":
-            if let v = response as? Double {
-                value = NodeData(value: v)
-            } else if let v = response as? [Double] {
-                value = NodeData(value: v)
-            }
-        case "String":
-            if let v = response as? String {
-                value = NodeData(value: v)
-            } else if let v = response as? [String] {
-                value = NodeData(value: v)
-            }
-        case "Boolean":
-            if let v = response as? Bool {
-                value = NodeData(value: v)
-            } else if let v = response as? [Bool] {
-                value = NodeData(value: v)
-            }
-        case nil:
-            // Limits did not return a type, so We just try all types.
-            // This does not work on its own. true/false and 0/1 can be converted into
-            // each other so we will always get wrong results somewhere.
-            // Can we use the "is" keyword?
-            if let v = response as? Bool {
-                value = NodeData(value: v)
-            } else if let v = response as? Double {
-                value = NodeData(value: v)
-            } else if let v = response as? String {
-                value = NodeData(value: v)
-            } else if let v = response as? [Bool] {
-                value = NodeData(value: v)
-            } else if let v = response as? [Double] {
-                value = NodeData(value: v)
-            } else if let v = response as? [String] {
-                value = NodeData(value: v)
-            } else {
-                value = .error("Unknown type")
-            }
-        default:
-            throw SSCNodeError.unknownTypeFromLimits(limits!.type)
-        }
-    }
-
-    // Nice idea, does not work. See comment.
     private func populateLeaf(connection: SSCConnection) async throws {
         let path = pathToNode()
         limits = try await getLimits(connection: connection, path: path)
         let decoder = JSONDecoder()
-        let schemata: [JSONData]
+        var schemata: [JSONData]
         switch limits!.type {
         case "Number":
             schemata = [.number(0), .array([.number(0)])]
@@ -236,12 +183,23 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         default:
             throw SSCNodeError.unknownTypeFromLimits(limits!.type)
         }
+        schemata = schemata.map { schema in
+            var wrappedSchema = schema
+            for p in path.reversed() {
+                wrappedSchema = .object([p: wrappedSchema])
+            }
+            return wrappedSchema
+        }
         let data = try await connection.fetchSSCValueData(path: path)
         for schema in schemata {
             // This does not work because the data is stil wrapped in the path!
             decoder.userInfo[.schemaJSONData] = schema
             if let v = try? decoder.decode(JSONData.self, from: data) {
-                value = .value(v)
+                var unwrappedValue = v
+                for p in path {
+                    unwrappedValue = unwrappedValue[p]!
+                }
+                value = .value(unwrappedValue)
                 return
             }
         }
