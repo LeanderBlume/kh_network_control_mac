@@ -8,10 +8,13 @@
 import SwiftUI
 
 struct Backupper: View {
-    @AppStorage("backups") private var backups = Data()  // [String: [String: JSONData]]
+    @AppStorage("backups") private var backups = Data()
     @State var newName: String = ""
     @State var selection: String? = nil
     @Environment(KHAccess.self) private var khAccess
+
+    typealias BackupFormat = [KHDevice.ID: JSONData]
+    typealias BackupListFormat = [String: BackupFormat]
 
     enum BackupperErrors: Error {
         case error(String)
@@ -19,26 +22,24 @@ struct Backupper: View {
 
     func writeBackup(name: String) throws {
         var backupDict = try JSONDecoder().decode(
-            [String: [String: JSONData]].self,
+            BackupListFormat.self,
             from: Data(backups)
         )
-        var newBackup = [String: JSONData]()
+        var newBackup = BackupFormat()
         khAccess.devices.forEach { device in
             newBackup[device.id] = JSONData(fromNodeTree: device.parameterTree)
         }
-        // backupDict[name] = khAccess.state
-        guard let newBackupData = try? JSONEncoder().encode(backupDict) else {
-            throw BackupperErrors.error("JSON Encoding failed")
-        }
-        backups = newBackupData
+        backups = try JSONEncoder().encode(newBackup)
     }
 
     func loadBackup(name: String) throws {
-        let backupString = backups
         let backupDict = try JSONDecoder().decode(
-            [String: KHState].self,
-            from: Data(backupString.utf8)
+            BackupListFormat.self,
+            from: backups
         )
+        khAccess.devices.forEach { device in
+            device.parameterTree.load(fr)
+        }
         guard let newState = backupDict[name] else {
             throw BackupperErrors.error("No such backup")
         }
