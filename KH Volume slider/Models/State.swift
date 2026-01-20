@@ -51,6 +51,46 @@ struct KHState: Codable, Equatable {
     var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
     var muted = false
     var logoBrightness = 100.0
+    
+    init() {}
+
+    init(from jsonData: JSONData) throws {
+        for parameter in KHParameters.allCases {
+            let devicePath = parameter.getDevicePath()
+            var unwrappedValue = jsonData
+            for p in devicePath {
+                unwrappedValue = unwrappedValue[p]!  // TODO proper error
+            }
+
+            let keyPath = parameter.getKeyPath()
+            switch keyPath {
+            case .bool(let p):
+                if case .bool(let v) = unwrappedValue {
+                    self[keyPath: p] = v
+                }
+            case .number(let p):
+                if case .number(let v) = unwrappedValue {
+                    self[keyPath: p] = v
+                }
+            case .string(let p):
+                if case .string(let v) = unwrappedValue {
+                    self[keyPath: p] = v
+                }
+            case .arrayBool(let p):
+                if let v = unwrappedValue.asArrayBool() {
+                    self[keyPath: p] = v
+                }
+            case .arrayNumber(let p):
+                if let v = unwrappedValue.asArrayNumber() {
+                    self[keyPath: p] = v
+                }
+            case .arrayString(let p):
+                if let v = unwrappedValue.asArrayString() {
+                    self[keyPath: p] = v
+                }
+            }
+        }
+    }
 }
 
 enum KeyPathType<T> {
