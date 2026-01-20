@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct Backupper: View {
-    @AppStorage("backups") private var backups = "{}"
+    @AppStorage("backups") private var backups = Data()  // [String: [String: JSONData]]
     @Environment(KHAccess.self) private var khAccess
     @State var newName: String = ""
     @State var selection: String? = nil
@@ -18,17 +18,19 @@ struct Backupper: View {
     }
 
     func writeBackup(name: String) throws {
-        let backupString = backups
         var backupDict = try JSONDecoder().decode(
-            [String: KHState].self,
-            from: Data(backupString.utf8)
+            [String: [String: JSONData]].self,
+            from: Data(backups)
         )
-        backupDict[name] = khAccess.state
-        let newBackupData = try JSONEncoder().encode(backupDict)
-        guard let newBackupString = String(data: newBackupData, encoding: .utf8) else {
-            throw BackupperErrors.error("String conversion failed")
+        let newBackup = [String: JSONData]()
+        khAccess.devices.forEach { device in
+            newBackup[device.id] = JSONData(fromNodeTree: device.parameterTree)
         }
-        backups = newBackupString
+        // backupDict[name] = khAccess.state
+        guard let newBackupData = try? JSONEncoder().encode(backupDict) else {
+            throw BackupperErrors.error("JSON Encoding failed")
+        }
+        backups = newBackupData
     }
 
     func loadBackup(name: String) throws {
