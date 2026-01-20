@@ -7,7 +7,7 @@
 import Foundation
 import Network
 
-class SSCConnection {
+actor SSCConnection {
     private var connection: NWConnection
     private let dispatchQueue: DispatchQueue
 

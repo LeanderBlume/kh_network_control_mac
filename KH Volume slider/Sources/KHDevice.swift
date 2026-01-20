@@ -37,14 +37,14 @@ class KHDevice: Identifiable {
         try await connection.open()
     }
 
-    private func disconnect() {
-        connection.close()
+    private func disconnect() async {
+        await connection.close()
     }
 
     func populateParameters() async throws {
         try await connect()
         try await parameterTree.populate(connection: connection, recursive: true)
-        disconnect()
+        await disconnect()
     }
 
     func fetchParameters() async throws {
@@ -54,7 +54,7 @@ class KHDevice: Identifiable {
                 try await fetchSingleNode(node: node)
             }
         }
-        disconnect()
+        await disconnect()
     }
 
     func setup() async throws {
@@ -63,7 +63,7 @@ class KHDevice: Identifiable {
             state = try await p.fetch(into: state, connection: connection)
         }
         try await fetch()
-        disconnect()
+        await disconnect()
     }
 
     func fetch() async throws {
@@ -71,7 +71,7 @@ class KHDevice: Identifiable {
         for p in fetchParameters {
             state = try await p.fetch(into: state, connection: connection)
         }
-        disconnect()
+        await disconnect()
     }
 
     func send(_ newState: KHState) async throws {
@@ -88,7 +88,7 @@ class KHDevice: Identifiable {
             )
         }
         state = newState
-        disconnect()
+        await disconnect()
     }
 
     private func getNode(atPath path: [String]) -> SSCNode? {
@@ -132,7 +132,7 @@ class KHDevice: Identifiable {
         }
         try await connect()
         try await sendSingleNode(node: node)
-        disconnect()
+        await disconnect()
     }
 
     func fetchNode(_ path: [String]) async throws {
@@ -141,6 +141,6 @@ class KHDevice: Identifiable {
         }
         try await connect()
         try await fetchSingleNode(node: node)
-        disconnect()
+        await disconnect()
     }
 }
