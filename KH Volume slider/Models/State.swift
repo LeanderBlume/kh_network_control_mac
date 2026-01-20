@@ -44,6 +44,9 @@ struct Eq: Codable, Equatable {
 
 struct KHState: Codable, Equatable {
     var name = "Unknown name"
+    var product = "Unknown model"
+    var version = "Unknown version"
+    var serial = "Unknown serial"
     var volume = 54.0
     var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
     var muted = false
@@ -205,6 +208,9 @@ struct SSCParameter {
 
 enum KHParameters: String, CaseIterable, Identifiable {
     case name = "Name"
+    case serial = "Serial"
+    case product = "Product"
+    case version = "Version"
     case volume = "Volume"
     case muted = "Mute"
     case logoBrightness = "Logo brightness"
@@ -224,7 +230,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
     case eq1type = "EQ 2 Type"
 
     var id: String { self.rawValue }
-    
+
     static let fetchParameters: [KHParameters] = [
         .volume,
         .muted,
@@ -260,19 +266,25 @@ enum KHParameters: String, CaseIterable, Identifiable {
         .eq1q,
         .eq1type,
     ]
-    static let setupParameters: [KHParameters] = [.name]
-
+    static let setupParameters: [KHParameters] = [.serial, .product, .version]
 
     func getKeyPath() -> KeyPathType<KHState> {
         switch self {
         case .name:
             .string(\.name)
+        case .serial:
+            .string(\.serial)
+        case .product:
+            .string(\.product)
+        case .version:
+            .string(\.version)
         case .volume:
             .number(\.volume)
         case .muted:
             .bool(\.muted)
         case .logoBrightness:
             .number(\.logoBrightness)
+
         case .eq0boost:
             .arrayNumber(\.eqs[0].boost)
         case .eq0enabled:
@@ -304,12 +316,19 @@ enum KHParameters: String, CaseIterable, Identifiable {
         switch self {
         case .name:
             ["device", "name"]
+        case .serial:
+            ["device", "identity", "serial"]
+        case .product:
+            ["device", "identity", "product"]
+        case .version:
+            ["device", "identity", "version"]
         case .volume:
             ["audio", "out", "level"]
         case .muted:
             ["audio", "out", "mute"]
         case .logoBrightness:
             ["ui", "logo", "brightness"]
+
         case .eq0boost:
             ["audio", "out", "eq2", "boost"]
         case .eq0enabled:
@@ -352,7 +371,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
         }
         return pathDict[rawValue] ?? fallback
     }
-    
+
     func getPathString() -> String {
         return "/" + getDevicePath().joined(separator: "/")
     }

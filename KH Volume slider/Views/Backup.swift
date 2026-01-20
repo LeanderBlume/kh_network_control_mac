@@ -9,9 +9,9 @@ import SwiftUI
 
 struct Backupper: View {
     @AppStorage("backups") private var backups = Data()  // [String: [String: JSONData]]
-    @Environment(KHAccess.self) private var khAccess
     @State var newName: String = ""
     @State var selection: String? = nil
+    @Environment(KHAccess.self) private var khAccess
 
     enum BackupperErrors: Error {
         case error(String)
@@ -22,7 +22,7 @@ struct Backupper: View {
             [String: [String: JSONData]].self,
             from: Data(backups)
         )
-        let newBackup = [String: JSONData]()
+        var newBackup = [String: JSONData]()
         khAccess.devices.forEach { device in
             newBackup[device.id] = JSONData(fromNodeTree: device.parameterTree)
         }
@@ -110,10 +110,10 @@ struct Backupper: View {
             Section("Create new backup") {
                 TextField("Backup name", text: $newName)
                     .textFieldStyle(.automatic)
-                    // .keyboardType(.default)
                 Button("Save backup") {
                     Task {
                         try writeBackup(name: newName)
+                        selection = newName
                         newName = ""
                     }
                 }

@@ -9,10 +9,11 @@ import SwiftUI
 
 @Observable
 @MainActor
-class KHDevice: Identifiable {
+class KHDevice: @MainActor Identifiable {
     var state: KHState = KHState()
     let parameterTree: SSCNode
     let connection: SSCConnection
+    var id: String { state.product + state.version + state.serial }
 
     enum KHDeviceError: Error {
         case error(String)
