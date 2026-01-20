@@ -59,7 +59,7 @@ struct TestSSC {
             "audio", "out", "mute",
         ])
         #expect(response == false)
-        sscDevice.close()
+        await sscDevice.close()
     }
 
     @Test func testSendSSCValue() async throws {
@@ -78,7 +78,7 @@ struct TestSSC {
             ],
             value: false
         )
-        sscDevice.close()
+        await sscDevice.close()
     }
 }
 
@@ -184,7 +184,7 @@ struct TestKHAccessDummy {
         try await connection.open()
         #expect(node.pathToNode() == [])
         try await node.populate(connection: connection)
-        connection.close()
+        await connection.close()
     }
 
     @Test func testIteration() async throws {
@@ -192,7 +192,7 @@ struct TestKHAccessDummy {
         try await connection.open()
         #expect(node.pathToNode() == [])
         try await node.populate(connection: connection)
-        connection.close()
+        await connection.close()
         let names = node.map(\.name)
         // Not the root node!
         #expect(!names.contains("root"))
@@ -211,7 +211,7 @@ struct TestKHAccessDummy {
         leaf.value = NodeData(value: "New name!")
         try await connection.open()
         // try await leaf.sendLeaf(connection: connection)
-        connection.close()
+        await connection.close()
     }
     
     @Test func testDecoding() async throws {
@@ -219,7 +219,7 @@ struct TestKHAccessDummy {
         try await connection.open()
         #expect(rootNode.pathToNode() == [])
         try await rootNode.populate(connection: connection)
-        connection.close()
+        await connection.close()
         let test = JSONData(fromNodeTree: rootNode)
         let jd = try JSONEncoder().encode(test)
         let decoder = JSONDecoder()
