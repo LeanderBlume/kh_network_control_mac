@@ -9,6 +9,7 @@ import SwiftUI
 
 struct Backupper: View {
     @AppStorage("backups") private var backups = Data()
+    // @AppStorage("backupNames") private var backupNames = Data() // [String]
     @State var newName: String = ""
     @State var selection: String? = nil
     @Environment(KHAccess.self) private var khAccess
@@ -20,24 +21,27 @@ struct Backupper: View {
         case error(String)
     }
 
+    func decodeBackup() throws -> BackupListFormat {
+        let decoder = JSONDecoder()
+        // not as simple as I thought!
+        let schemata = khAccess.devices.map {
+            JSONData(fromNodeTree: $0.parameterTree)
+        }
+        return try decoder.decode(BackupListFormat.self, from: backups)
+    }
+
     func writeBackup(name: String) throws {
         var newBackup = BackupFormat()
         khAccess.devices.forEach { device in
             newBackup[device.id] = JSONData(fromNodeTree: device.parameterTree)
         }
-        var backupDict = try JSONDecoder().decode(
-            BackupListFormat.self,
-            from: Data(backups)
-        )
+        var backupDict = try decodeBackup()
         backupDict[name] = newBackup
         backups = try JSONEncoder().encode(backupDict)
     }
 
     func loadBackup(name: String) throws {
-        let backupDict = try JSONDecoder().decode(
-            BackupListFormat.self,
-            from: backups
-        )
+        let backupDict = try decodeBackup()
         guard let backup = backupDict[name] else {
             throw BackupperErrors.error("No such backup")
         }
@@ -51,21 +55,14 @@ struct Backupper: View {
     }
 
     func deleteBackup(name: String) throws {
-        var backupDict = try JSONDecoder().decode(
-            BackupFormat.self,
-            from: backups
-        )
+        var backupDict = try decodeBackup()
         backupDict[name] = nil
         backups = try JSONEncoder().encode(backupDict)
     }
 
     func backupList() -> [String] {
         do {
-            let decoder = JSONDecoder()
-            let backupDict = try decoder.decode(
-                BackupListFormat.self,
-                from: backups
-            )
+            let backupDict = try decodeBackup()
             return backupDict.keys.sorted()
         } catch {
             return [String(describing: error)]
@@ -101,7 +98,7 @@ struct Backupper: View {
                 }
             }
             Button("Print full backup") {
-                let jd = try? JSONDecoder().decode(BackupListFormat.self, from: backups)
+                let jd = try? decodeBackup()
                 if let jd {
                     print(jd)
                 } else {
