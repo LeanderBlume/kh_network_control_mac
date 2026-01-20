@@ -220,8 +220,8 @@ struct TestKHAccessDummy {
         #expect(rootNode.pathToNode() == [])
         try await rootNode.populate(connection: connection)
         await connection.close()
-        let test = JSONData(fromNodeTree: rootNode)
-        let jd = try JSONEncoder().encode(test)
+        let treeData = JSONData(fromNodeTree: rootNode)!
+        let jd = try JSONEncoder().encode(treeData)
         let decoder = JSONDecoder()
         let schema = JSONData(fromNodeTree: rootNode)
         decoder.userInfo[.schemaJSONData] = schema
@@ -230,6 +230,7 @@ struct TestKHAccessDummy {
         encoder.outputFormatting = .prettyPrinted
         let reencoded = try encoder.encode(decodedTest)
         print(String(data: reencoded, encoding: .utf8)!)
+        try rootNode.load(from: treeData)
     }
 }
 

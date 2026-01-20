@@ -44,7 +44,7 @@ struct OSCLimits: Equatable {
     let writeable: Bool?
     let option: [String]?
     let count: Int?
-    
+
     var isWriteable: Bool { !(writeable == false || const == true) }
 
     init(fromDict dict: [String: Any?]) {
@@ -109,7 +109,8 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         return result.dropLast().reversed()
     }
 
-    private func queryAux(connection: SSCConnection, query: [String], path: [String]) async throws -> [String: Any]
+    private func queryAux(connection: SSCConnection, query: [String], path: [String])
+        async throws -> [String: Any]
     {
         // Queries device with
         // {query[0]: { ... { query[-1]: [ pathToNode() ] } ... }
@@ -138,8 +139,15 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         return result[query[0]]![query[1]]![0]
     }
 
-    func getSchema(connection: SSCConnection, path: [String]) async throws -> [String: [String: String]?]? {
-        var result = try await queryAux(connection: connection, query: ["osc", "schema"], path: path)
+    func getSchema(
+        connection: SSCConnection,
+        path: [String]
+    ) async throws -> [String: [String: String]?]? {
+        var result = try await queryAux(
+            connection: connection,
+            query: ["osc", "schema"],
+            path: path
+        )
         if path.isEmpty {
             return result as? [String: [String: String]?]
         }
@@ -149,8 +157,13 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         return result[path.last!] as? [String: [String: String]?]
     }
 
-    func getLimits(connection: SSCConnection, path: [String]) async throws -> OSCLimits {
-        var result = try await queryAux(connection: connection, query: ["osc", "limits"], path: path)
+    func getLimits(connection: SSCConnection, path: [String]) async throws -> OSCLimits
+    {
+        var result = try await queryAux(
+            connection: connection,
+            query: ["osc", "limits"],
+            path: path
+        )
         for p in path.dropLast() {
             result = result[p] as! [String: Any]
         }
@@ -208,7 +221,12 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
 
     private func populateInternal(connection: SSCConnection) async throws {
         // We are not at a leaf node and need to discover subcommands.
-        guard let resultStripped = try await getSchema(connection: connection, path: pathToNode()) else {
+        guard
+            let resultStripped = try await getSchema(
+                connection: connection,
+                path: pathToNode()
+            )
+        else {
             throw SSCNodeError.error(
                 "Populating internal node did not result in a sub-dictionary."
             )
@@ -267,6 +285,48 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
             return
         }
     }
+    
+    func isPopulated(recursive: Bool = true) -> Bool {
+        switch value {
+        case .unknown, .unknownValue, .unknownChildren:
+            return false
+        case .value, .error:
+            return true
+        case .children(let children):
+            if recursive {
+                return children.allSatisfy({$0.isPopulated(recursive: true)})
+            }
+            return true
+        }
+    }
+
+    // populates leaf nodes in subtree with data from the JSONData object. Assumes node
+    // tree is already populated and that the node tree structure is a subtree of the
+    // JSONData tree. Value-bearing Leaf nodes will assign data at path, no
+    // questions asked.
+    func load(from jsonData: JSONData) throws {
+        switch value {
+        case .unknown, .unknownValue, .unknownChildren:
+            throw SSCNodeError.error(
+                "Node tree must be populated to load from JSONData"
+            )
+        case .error:
+            return
+        case .value:
+            value = .value(jsonData)
+        case .children(let children):
+            guard case .object(let dictionary) = jsonData else {
+                throw SSCNodeError.error("JSONData structure children/object mismatch")
+            }
+            try children.forEach({ child in
+                if let subData = dictionary[child.name] {
+                    try child.load(from: subData)
+                } else {
+                    throw SSCNodeError.error("No value in data for \(child.name)")
+                }
+            })
+        }
+    }
 
     /// Returns list of child nodes, if there are any. This is for SSCTreeView lazy loading. Maybe we don't need this.
     var children: [SSCNode]? {
@@ -297,7 +357,7 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         }
         return [].makeIterator()
     }
-    
+
     subscript(index: String) -> SSCNode? {
         if case .children(let v) = value {
             return v.first(where: { $0.name == index })
