@@ -119,7 +119,6 @@ final class KHAccessNative: KHAccessProtocol {
         status = .success
     }
     
-    
     func fetchParameters() async {
         status = .busy("Fetching...")
         await withThrowingTaskGroup { group in
@@ -136,6 +135,21 @@ final class KHAccessNative: KHAccessProtocol {
         status = .success
     }
 
+    func sendParameters() async {
+        status = .busy("Sending...")
+        await withThrowingTaskGroup { group in
+            for device in devices {
+                group.addTask { try await device.sendParameters() }
+            }
+            do {
+                try await group.waitForAll()
+            } catch {
+                status = .otherError(String(describing: error))
+                return
+            }
+        }
+        status = .success
+    }
 
     func fetch() async {
         status = .busy("Fetching...")

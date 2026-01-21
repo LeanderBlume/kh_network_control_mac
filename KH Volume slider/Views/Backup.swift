@@ -8,64 +8,90 @@
 import SwiftUI
 
 struct Backupper: View {
-    @AppStorage("backups") private var backups = Data()
-    // @AppStorage("backupNames") private var backupNames = Data() // [String]
     @State var newName: String = ""
     @State var selection: String? = nil
     @Environment(KHAccess.self) private var khAccess
+    let backupsDir: URL = URL.documentsDirectory.appending(path: "backups")
 
-    typealias BackupFormat = [KHDevice.ID: JSONData]
-    typealias BackupListFormat = [String: BackupFormat]
+    typealias Backup = [KHDevice.ID: JSONData]
 
     enum BackupperErrors: Error {
         case error(String)
     }
 
-    func decodeBackup() throws -> BackupListFormat {
-        let decoder = JSONDecoder()
-        // not as simple as I thought!
-        let schemata = khAccess.devices.map {
-            JSONData(fromNodeTree: $0.parameterTree)
+    init() {
+        let fileManager = FileManager.default
+        if !fileManager.fileExists(atPath: backupsDir.path) {
+            do {
+                try fileManager.createDirectory(
+                    at: backupsDir,
+                    withIntermediateDirectories: false
+                )
+            } catch {
+                print(error)
+            }
         }
-        return try decoder.decode(BackupListFormat.self, from: backups)
+    }
+
+    func decodeBackup(from data: Data) throws -> Backup {
+        var schemaDict = [KHDevice.ID: JSONData]()
+        khAccess.devices.forEach { device in
+            schemaDict[device.id] = JSONData(fromNodeTree: device.parameterTree)
+        }
+        let decoder = JSONDecoder()
+        decoder.userInfo[.schemaJSONData] = JSONData.object(schemaDict)
+        return try decoder.decode(Backup.self, from: data)
     }
 
     func writeBackup(name: String) throws {
-        var newBackup = BackupFormat()
+        var newBackup = Backup()
         khAccess.devices.forEach { device in
             newBackup[device.id] = JSONData(fromNodeTree: device.parameterTree)
         }
-        var backupDict = try decodeBackup()
-        backupDict[name] = newBackup
-        backups = try JSONEncoder().encode(backupDict)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted]
+        let backupData = try encoder.encode(newBackup)
+        let fileManager = FileManager.default
+        fileManager.createFile(
+            atPath: backupsDir.appending(component: name + ".json").path(),
+            contents: backupData
+        )
     }
 
     func loadBackup(name: String) throws {
-        let backupDict = try decodeBackup()
-        guard let backup = backupDict[name] else {
-            throw BackupperErrors.error("No such backup")
+        let fm = FileManager.default
+        guard
+            let backupData = fm.contents(
+                atPath: backupsDir.appending(component: name).path()
+            )
+        else {
+            throw BackupperErrors.error("Backup does not exist")
         }
+        let backup = try decodeBackup(from: backupData)
         try khAccess.devices.forEach { device in
             if let deviceBackup = backup[device.id] {
                 try device.parameterTree.load(from: deviceBackup)
-                device.state = try KHState(from: deviceBackup)
             }
         }
         khAccess.state = khAccess.devices.first!.state
     }
 
     func deleteBackup(name: String) throws {
-        var backupDict = try decodeBackup()
-        backupDict[name] = nil
-        backups = try JSONEncoder().encode(backupDict)
+        let fm = FileManager.default
+        try fm.trashItem(at: backupsDir.appending(path: name), resultingItemURL: nil)
     }
 
     func backupList() -> [String] {
+        let fm = FileManager.default
         do {
-            let backupDict = try decodeBackup()
-            return backupDict.keys.sorted()
+            let urls = try fm.contentsOfDirectory(
+                at: backupsDir,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )
+            return urls.map(\.lastPathComponent)
         } catch {
-            return [String(describing: error)]
+            return ["Error loading list: " + String(describing: error)]
         }
     }
 
@@ -80,29 +106,21 @@ struct Backupper: View {
 
             Button("Load") {
                 if let selection {
-                    Task {
+                    do {
                         try loadBackup(name: selection)
-                        await khAccess.send()
+                    } catch {
+                        print(error)
+                    }
+                    Task {
+                        await khAccess.sendParameters()
+                        await khAccess.fetch()
                     }
                 }
             }
             Button("Delete") {
                 if let s = selection {
-                    Task { try deleteBackup(name: s) }
+                    do { try deleteBackup(name: s) } catch { print(error) }
                     selection = nil
-                }
-            }
-            Button("Reset") {
-                Task {
-                    backups = try JSONEncoder().encode(BackupListFormat())
-                }
-            }
-            Button("Print full backup") {
-                let jd = try? decodeBackup()
-                if let jd {
-                    print(jd)
-                } else {
-                    print("nil")
                 }
             }
 
@@ -110,11 +128,14 @@ struct Backupper: View {
                 TextField("Backup name", text: $newName)
                     .textFieldStyle(.automatic)
                 Button("Save backup") {
-                    Task {
+                    // Task { await khAccess.fetchParameters() }
+                    do {
                         try writeBackup(name: newName)
-                        selection = newName
-                        newName = ""
+                    } catch {
+                        print(error)
                     }
+                    selection = newName
+                    newName = ""
                 }
             }
         }

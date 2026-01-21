@@ -48,11 +48,11 @@ enum JSONData: Equatable, Codable, Sendable {
         for p in currentPath {
             currentValue = currentValue![p.stringValue]
             if currentValue == nil {
-                throw JSONDataError.decodingError("Encountered an invalid path")
+                throw JSONDataError.decodingError("Decoding path not found in schema")
             }
         }
         guard let currentValue else {
-            throw JSONDataError.decodingError("Encountered an invalid path")
+            throw JSONDataError.decodingError("Decoding path not found in schema")
         }
 
         struct MyStupidKey: CodingKey {

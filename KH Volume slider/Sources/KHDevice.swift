@@ -57,6 +57,16 @@ class KHDevice: @MainActor Identifiable {
         }
         await disconnect()
     }
+    
+    func sendParameters() async throws {
+        try await connect()
+        for node in parameterTree {
+            if case .value = node.value {
+                try await sendSingleNode(node: node)
+            }
+        }
+        await disconnect()
+    }
 
     func setup() async throws {
         try await connect()
@@ -87,8 +97,8 @@ class KHDevice: @MainActor Identifiable {
                 newState: newState,
                 connection: connection
             )
+            state = p.copy(from: newState, into: state)
         }
-        state = newState
         await disconnect()
     }
 

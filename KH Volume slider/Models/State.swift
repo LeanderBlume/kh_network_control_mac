@@ -183,6 +183,10 @@ struct SSCParameter {
         }
         return newState
     }
+    
+    func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
+        set(value: get(from: sourceState), into: targetState)
+    }
 
     func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {
         var v: ValueType
