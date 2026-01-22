@@ -416,9 +416,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
         return pathDict[rawValue] ?? fallback
     }
 
-    func getPathString() -> String {
-        return "/" + getDevicePath().joined(separator: "/")
-    }
+    func getPathString() -> String { "/" + getDevicePath().joined(separator: "/") }
 
     static func devicePathDictDefault() -> [String: [String]] {
         var result: [String: [String]] = [:]

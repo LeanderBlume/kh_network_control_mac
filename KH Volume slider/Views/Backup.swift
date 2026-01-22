@@ -96,48 +96,63 @@ struct Backupper: View {
     }
 
     var body: some View {
+        let populated = khAccess.devices.first?.parameterTree.value.isUnknown() == false
         Form {
-            Picker("Backup list", selection: $selection) {
-                ForEach(backupList(), id: \.self) {
-                    Text($0).tag($0)
+            if !populated {
+                Text("Populate parameters to save and load backups")
+                Button("Populate parameters") {
+                    Task { await khAccess.populateParameters() }
                 }
             }
-            .pickerStyle(.inline)
+            Group {
+                if backupList().isEmpty {
+                    Section("Backup list") {
+                        Text("No backups").foregroundColor(.secondary)
+                    }
+                } else {
+                    Picker("Backup list", selection: $selection) {
+                        ForEach(backupList(), id: \.self) {
+                            Label($0, systemImage: "text.document").tag($0)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    Button("Load") {
+                        if let selection {
+                            do {
+                                try loadBackup(name: selection)
+                            } catch {
+                                print(error)
+                            }
+                            Task {
+                                await khAccess.sendParameters()
+                                await khAccess.fetch()
+                            }
+                        }
+                    }
+                    Button("Delete", systemImage: "trash") {
+                        if let s = selection {
+                            do { try deleteBackup(name: s) } catch { print(error) }
+                            selection = nil
+                        }
+                    }
+                }
 
-            Button("Load") {
-                if let selection {
-                    do {
-                        try loadBackup(name: selection)
-                    } catch {
-                        print(error)
-                    }
-                    Task {
-                        await khAccess.sendParameters()
-                        await khAccess.fetch()
+                Section("Create new backup") {
+                    TextField("Backup name", text: $newName)
+                        .textFieldStyle(.automatic)
+                    Button("Save backup") {
+                        // Task { await khAccess.fetchParameters() }
+                        do {
+                            try writeBackup(name: newName)
+                        } catch {
+                            print(error)
+                        }
+                        selection = newName
+                        newName = ""
                     }
                 }
             }
-            Button("Delete") {
-                if let s = selection {
-                    do { try deleteBackup(name: s) } catch { print(error) }
-                    selection = nil
-                }
-            }
-
-            Section("Create new backup") {
-                TextField("Backup name", text: $newName)
-                    .textFieldStyle(.automatic)
-                Button("Save backup") {
-                    // Task { await khAccess.fetchParameters() }
-                    do {
-                        try writeBackup(name: newName)
-                    } catch {
-                        print(error)
-                    }
-                    selection = newName
-                    newName = ""
-                }
-            }
+            .disabled(!populated)
         }
     }
 }

@@ -108,6 +108,8 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         // The root node doesn't have a name, so we drop it.
         return result.dropLast().reversed()
     }
+    
+    func getPathString() -> String { "/" + pathToNode().joined(separator: "/") }
 
     private func queryAux(connection: SSCConnection, query: [String], path: [String])
         async throws -> [String: Any]

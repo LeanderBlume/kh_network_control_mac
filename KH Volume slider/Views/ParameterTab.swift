@@ -340,15 +340,14 @@ struct NodeView: View {
                         mappedParameter.setDevicePath(to: node.pathToNode())
                     }
                 }
-                Button("Reset All") {
-                    KHParameters.resetAllDevicePaths()
-                }
+                Button("Reset All") { KHParameters.resetAllDevicePaths() }
             }
         }
         .refreshable {
             await khAccess.fetchNode(deviceIndex: deviceIndex, path: node.pathToNode())
             values = .init(fromNode: node)
         }
+        .navigationTitle(node.getPathString())
     }
 }
 
@@ -386,7 +385,7 @@ struct DeviceBrowser: View {
                             case .unknown, .unknownValue, .unknownChildren:
                                 ProgressView()
                                     #if os(macOS)
-                                        .scaleEffect(0.5)
+                                        .scaleEffect(0.2)
                                     #endif
                             case .error(let s):
                                 Label(s, systemImage: "exclamationmark.circle")
@@ -469,6 +468,107 @@ struct ParameterMapper: View {
     }
 }
 
+struct iOSDeviceBrowserForm: View {
+    var devices: [KHDevice]
+    @State private var pathStrings: [String: String] = [:]
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    func updatePathStrings() {
+        for parameter in KHParameters.allCases {
+            pathStrings[parameter.rawValue] = parameter.getPathString()
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Devices") {
+                    ForEach(devices.indices, id: \.self) { i in
+                        let device = khAccess.devices[i]
+                        NavigationLink(
+                            device.state.name,
+                            destination: DeviceBrowser(deviceIndex: i)
+                                .navigationTitle(device.state.name)
+                        )
+                    }
+                }
+
+                Section("Map UI Elements") {
+                    Button("Reset all") {
+                        KHParameters.resetAllDevicePaths()
+                        updatePathStrings()
+                    }
+                    ForEach(KHParameters.allCases) { parameter in
+                        LabeledContent {
+                            NavigationLink(
+                                pathStrings[parameter.rawValue] ?? "unknown",
+                                destination: ParameterMapper(
+                                    parameter: parameter,
+                                    rootNode: devices.first!.parameterTree,
+                                    pathStrings: $pathStrings
+                                )
+                            )
+                        } label: {
+                            Text(parameter.rawValue)
+                        }
+                    }
+                }
+            }
+            .onAppear(perform: updatePathStrings)
+        }
+    }
+}
+
+struct macOSDeviceBrowserForm: View {
+    var devices: [KHDevice]
+    @State private var pathStrings: [String: String] = [:]
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    func updatePathStrings() {
+        for parameter in KHParameters.allCases {
+            pathStrings[parameter.rawValue] = parameter.getPathString()
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Devices") {
+                    ForEach(devices.indices, id: \.self) { i in
+                        let device = khAccess.devices[i]
+                        NavigationLink(
+                            device.state.name,
+                            destination: DeviceBrowser(deviceIndex: i)
+                                .navigationTitle(device.state.name)
+                        )
+                    }
+                }
+                Section("Map UI Elements") {
+                    Button("Reset all") {
+                        KHParameters.resetAllDevicePaths()
+                        updatePathStrings()
+                    }
+                    ForEach(KHParameters.allCases) { parameter in
+                        LabeledContent {
+                            NavigationLink(
+                                pathStrings[parameter.rawValue] ?? "unknown",
+                                destination: ParameterMapper(
+                                    parameter: parameter,
+                                    rootNode: devices.first!.parameterTree,
+                                    pathStrings: $pathStrings
+                                )
+                            )
+                        } label: {
+                            Text(parameter.rawValue)
+                        }
+                    }
+                }
+                .onAppear(perform: updatePathStrings)
+            }
+        }
+    }
+}
+
 struct ParameterTab: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var pathStrings: [String: String] = [:]
@@ -484,43 +584,11 @@ struct ParameterTab: View {
         if devices.isEmpty {
             Text("No devices")
         } else {
-            NavigationStack {
-                List {
-                    Section("Devices") {
-                        ForEach(devices.indices, id: \.self) { i in
-                            let device = khAccess.devices[i]
-                            NavigationLink(
-                                device.state.name,
-                                destination: DeviceBrowser(
-                                    deviceIndex: i
-                                )
-                                .navigationTitle(device.state.name)
-                            )
-                        }
-                    }
-                    Section("Map UI Elements") {
-                        Button("Reset all") {
-                            KHParameters.resetAllDevicePaths()
-                            updatePathStrings()
-                        }
-                        ForEach(KHParameters.allCases) { parameter in
-                            LabeledContent {
-                                NavigationLink(
-                                    pathStrings[parameter.rawValue] ?? "unknown",
-                                    destination: ParameterMapper(
-                                        parameter: parameter,
-                                        rootNode: devices.first!.parameterTree,
-                                        pathStrings: $pathStrings
-                                    )
-                                )
-                            } label: {
-                                Text(parameter.rawValue)
-                            }
-                        }
-                    }
-                    .onAppear(perform: updatePathStrings)
-                }
-            }
+            #if os(iOS)
+                iOSDeviceBrowserForm(devices: khAccess.devices)
+            #elseif os(macOS)
+                macOSDeviceBrowserForm(devices: khAccess.devices)
+            #endif
         }
     }
 }
