@@ -261,28 +261,6 @@ struct TestJSONEncoding {
         let x2 = try JSONDecoder().decode([String].self, from: s3d)
         print(x2)
     }
-
-    @Test func testDecoding() throws {
-        struct Test: Encodable {
-            let keyA: Int = 3
-            let keyB = subStructure()
-
-            struct subStructure: Encodable {
-                let keyB: String = "hi"
-                let keyC: [Int] = [1, 2, 3]
-                let keyD: Bool = false
-                let leyE = subSubStructure()
-
-                struct subSubStructure: Encodable {
-                    let keyE: String = "hello"
-                }
-            }
-        }
-        let test = Test()
-        let jd = try JSONEncoder().encode(test)
-        let decodedTest = try JSONDecoder().decode(JSONData.self, from: jd)
-        print(decodedTest)
-    }
 }
 
 struct TestKHParameter {

@@ -13,8 +13,6 @@ struct Backupper: View {
     @Environment(KHAccess.self) private var khAccess
     let backupsDir: URL = URL.documentsDirectory.appending(path: "backups")
 
-    typealias Backup = [KHDevice.ID: JSONData]
-
     enum BackupperErrors: Error {
         case error(String)
     }
@@ -33,7 +31,7 @@ struct Backupper: View {
         }
     }
 
-    func decodeBackup(from data: Data) throws -> Backup {
+    func decodeBackup(from data: Data) throws -> JSONData {
         var schemaDict = [KHDevice.ID: JSONData]()
         khAccess.devices.forEach { device in
             schemaDict[device.id] = JSONData(fromNodeTree: device.parameterTree)
@@ -41,17 +39,18 @@ struct Backupper: View {
         let decoder = JSONDecoder()
         // decoder.userInfo[.schemaJSONData] = JSONData.object(schemaDict)
         return try decoder.decode(
-            Backup.self,
+            JSONData.self,
             from: data,
             configuration: JSONData.object(schemaDict)
         )
     }
 
     func writeBackup(name: String) throws {
-        var newBackup = Backup()
+        var newBackupDict = [String: JSONData]()
         khAccess.devices.forEach { device in
-            newBackup[device.id] = JSONData(fromNodeTree: device.parameterTree)
+            newBackupDict[device.id] = JSONData(fromNodeTree: device.parameterTree)
         }
+        let newBackup = JSONData.object(newBackupDict)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         let backupData = try encoder.encode(newBackup)
