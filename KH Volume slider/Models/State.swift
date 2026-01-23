@@ -163,35 +163,13 @@ enum KHParameters: String, CaseIterable, Identifiable {
         .eq1type,
     ]
     static let setupParameters: [KHParameters] = [.serial, .product, .version]
-    
-    private enum ValueType: Equatable {
-        case string(String)
-        case number(Double)
-        case bool(Bool)
-        case arrayString([String])
-        case arrayNumber([Double])
-        case arrayBool([Bool])
-    }
-    
-    private func get(from state: KHState) -> ValueType {
-        switch getKeyPath() {
-        case .number(let keyPath):
-            return .number(state[keyPath: keyPath])
-        case .bool(let keyPath):
-            return .bool(state[keyPath: keyPath])
-        case .string(let keyPath):
-            return .string(state[keyPath: keyPath])
-        case .arrayBool(let keyPath):
-            return .arrayBool(state[keyPath: keyPath])
-        case .arrayNumber(let keyPath):
-            return .arrayNumber(state[keyPath: keyPath])
-        case .arrayString(let keyPath):
-            return .arrayString(state[keyPath: keyPath])
-        }
+
+    private func get(from state: KHState) -> JSONDataSimple {
+        JSONDataSimple(state: state, keyPath: getKeyPath())
     }
 
     private func set(
-        value: ValueType,
+        value: JSONDataSimple,
         into state: KHState,
     ) -> KHState {
         var newState = state
@@ -379,7 +357,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
     }
     
     func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {
-        var v: ValueType
+        var v: JSONDataSimple
         let devicePath = getDevicePath()
         switch getKeyPath() {
         case .number:

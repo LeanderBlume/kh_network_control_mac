@@ -9,6 +9,32 @@ extension CodingUserInfoKey {
     static let schemaJSONData = CodingUserInfoKey(rawValue: "schemaJSONData")!
 }
 
+enum JSONDataSimple: Equatable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case arrayString([String])
+    case arrayNumber([Double])
+    case arrayBool([Bool])
+
+    init(state: KHState, keyPath: KeyPathType<KHState>) {
+        switch keyPath {
+        case .number(let keyPath):
+            self = .number(state[keyPath: keyPath])
+        case .bool(let keyPath):
+            self = .bool(state[keyPath: keyPath])
+        case .string(let keyPath):
+            self = .string(state[keyPath: keyPath])
+        case .arrayBool(let keyPath):
+            self = .arrayBool(state[keyPath: keyPath])
+        case .arrayNumber(let keyPath):
+            self = .arrayNumber(state[keyPath: keyPath])
+        case .arrayString(let keyPath):
+            self = .arrayString(state[keyPath: keyPath])
+        }
+    }
+}
+
 enum JSONData: Equatable, Codable, Sendable {
     case string(String)
     case number(Double)
@@ -204,6 +230,7 @@ enum JSONData: Equatable, Codable, Sendable {
         }
     }
 
+    // TODO We might not need this anymore since this is codable now??
     func fetch(connection: SSCConnection, path: [String]) async throws -> JSONData {
         switch self {
         case .null:
