@@ -51,15 +51,18 @@ struct KHState: Codable, Equatable {
     var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
     var muted = false
     var logoBrightness = 100.0
-    
+
     init() {}
 
-    init(from jsonData: JSONData) throws {
+    init?(from jsonData: JSONData) {
         for parameter in KHParameters.allCases {
             let devicePath = parameter.getDevicePath()
             var unwrappedValue = jsonData
             for p in devicePath {
-                unwrappedValue = unwrappedValue[p]!  // TODO proper error
+                if unwrappedValue[p] == nil {
+                    return nil
+                }
+                unwrappedValue = unwrappedValue[p]!
             }
 
             let keyPath = parameter.getKeyPath()
@@ -172,55 +175,9 @@ enum KHParameters: String, CaseIterable, Identifiable {
         value: JSONDataSimple,
         into state: KHState,
     ) -> KHState {
-        var newState = state
-        let keyPath = getKeyPath()
-        switch value {
-        case .number(let value):
-            switch keyPath {
-            case .number(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .string(let value):
-            switch keyPath {
-            case .string(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .bool(let value):
-            switch keyPath {
-            case .bool(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayNumber(let value):
-            switch keyPath {
-            case .arrayNumber(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayBool(let value):
-            switch keyPath {
-            case .arrayBool(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayString(let value):
-            switch keyPath {
-            case .arrayString(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        }
-        return newState
+        value.set(into: state, keyPath: getKeyPath())
     }
-    
+
     func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
         set(value: get(from: sourceState), into: targetState)
     }

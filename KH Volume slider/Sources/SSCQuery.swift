@@ -198,23 +198,11 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         default:
             throw SSCNodeError.unknownTypeFromLimits(limits!.type)
         }
-        schemata = schemata.map { schema in
-            var wrappedSchema = schema
-            for p in path.reversed() {
-                wrappedSchema = .object([p: wrappedSchema])
-            }
-            return wrappedSchema
-        }
         let data = try await connection.fetchSSCValueData(path: path)
         for schema in schemata {
-            // This does not work because the data is stil wrapped in the path!
-            decoder.userInfo[.schemaJSONData] = schema
+            decoder.userInfo[.schemaJSONData] = schema.wrap(in: path)
             if let v = try? decoder.decode(JSONData.self, from: data) {
-                var unwrappedValue = v
-                for p in path {
-                    unwrappedValue = unwrappedValue[p]!
-                }
-                value = .value(unwrappedValue)
+                value = .value(v.unwrap())
                 return
             }
         }
@@ -299,6 +287,30 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
                 return children.allSatisfy({$0.isPopulated(recursive: true)})
             }
             return true
+        }
+    }
+    
+    func send(connection: SSCConnection) async throws {
+        switch value {
+        case .error:
+            return
+        case .value(let T):
+            try await connection.sendSSCValue(path: pathToNode(), value: T)
+        case .children, .unknown, .unknownChildren, .unknownValue:
+            throw SSCNodeError.error("Node is not a populated leaf")
+        }
+    }
+
+    func fetch(connection: SSCConnection) async throws {
+        switch value {
+        case .error:
+            return
+        case .value(let T):
+            value = .value(
+                try await connection.fetchJSONData(path: pathToNode(), type: T)
+            )
+        case .children, .unknown, .unknownChildren, .unknownValue:
+            throw SSCNodeError.error("Node is not a populated leaf")
         }
     }
 

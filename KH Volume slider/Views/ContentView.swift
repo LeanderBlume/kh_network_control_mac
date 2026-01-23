@@ -17,9 +17,7 @@ struct iOSButtonBar: View {
 
             HStack {
                 Button("Fetch") {
-                    Task {
-                        await khAccess.fetch()
-                    }
+                    Task { await khAccess.fetch() }
                 }
 
                 Spacer()

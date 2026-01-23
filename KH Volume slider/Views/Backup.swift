@@ -58,7 +58,7 @@ struct Backupper: View {
         )
     }
 
-    func loadBackup(name: String) throws {
+    func loadBackup(name: String) async throws {
         let fm = FileManager.default
         guard
             let backupData = fm.contents(
@@ -74,6 +74,17 @@ struct Backupper: View {
             }
         }
         khAccess.state = khAccess.devices.first!.state
+        await khAccess.sendParameters()
+        try khAccess.devices.forEach { device in
+            if let deviceBackup = backup[device.id] {
+                guard let newState = KHState(from: deviceBackup) else {
+                    throw BackupperErrors.error(
+                        "backed up JSONData not compatibe with state."
+                    )
+                }
+                device.state = newState
+            }
+        }
     }
 
     func deleteBackup(name: String) throws {
@@ -118,15 +129,7 @@ struct Backupper: View {
                     .pickerStyle(.inline)
                     Button("Load") {
                         if let selection {
-                            do {
-                                try loadBackup(name: selection)
-                            } catch {
-                                print(error)
-                            }
-                            Task {
-                                await khAccess.sendParameters()
-                                await khAccess.fetch()
-                            }
+                            Task { try await loadBackup(name: selection) }
                         }
                     }
                     Button("Delete", systemImage: "trash") {
