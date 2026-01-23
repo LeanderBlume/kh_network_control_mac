@@ -19,16 +19,6 @@ class KHDevice: @MainActor Identifiable {
         case error(String)
     }
 
-    private let fetchParameters = KHParameters.fetchParameters.map({
-        SSCParameter(parameter: $0)
-    })
-    private let sendParameters = KHParameters.sendParameters.map({
-        SSCParameter(parameter: $0)
-    })
-    private let setupParameters = KHParameters.setupParameters.map({
-        SSCParameter(parameter: $0)
-    })
-
     init(connection connection_: SSCConnection) {
         connection = connection_
         parameterTree = SSCNode(name: "root")
@@ -70,7 +60,7 @@ class KHDevice: @MainActor Identifiable {
 
     func setup() async throws {
         try await connect()
-        for p in setupParameters {
+        for p in KHParameters.setupParameters {
             state = try await p.fetch(into: state, connection: connection)
         }
         try await fetch()
@@ -79,7 +69,7 @@ class KHDevice: @MainActor Identifiable {
 
     func fetch() async throws {
         try await connect()
-        for p in fetchParameters {
+        for p in KHParameters.fetchParameters {
             state = try await p.fetch(into: state, connection: connection)
         }
         await disconnect()
@@ -91,7 +81,7 @@ class KHDevice: @MainActor Identifiable {
             return
         }
         try await connect()
-        for p in sendParameters {
+        for p in KHParameters.sendParameters {
             try await p.send(
                 oldState: state,
                 newState: newState,

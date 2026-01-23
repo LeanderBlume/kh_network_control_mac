@@ -90,8 +90,8 @@ final class KHAccessNative: KHAccessProtocol {
     private func setupDevices() async {
         status = .busy("Setting up...")
         await withThrowingTaskGroup { group in
-            for i in devices.indices {
-                group.addTask { try await self.devices[i].setup() }
+            for d in devices {
+                group.addTask { try await d.setup() }
             }
             do {
                 try await group.waitForAll()
@@ -106,8 +106,8 @@ final class KHAccessNative: KHAccessProtocol {
     func populateParameters() async {
         status = .queryingParameters
         await withThrowingTaskGroup { group in
-            for device in devices {
-                group.addTask { try await device.populateParameters() }
+            for d in devices {
+                group.addTask { try await d.populateParameters() }
             }
             do {
                 try await group.waitForAll()
@@ -122,8 +122,8 @@ final class KHAccessNative: KHAccessProtocol {
     func fetchParameters() async {
         status = .busy("Fetching...")
         await withThrowingTaskGroup { group in
-            for device in devices {
-                group.addTask { try await device.fetchParameters() }
+            for d in devices {
+                group.addTask { try await d.fetchParameters() }
             }
             do {
                 try await group.waitForAll()
@@ -138,8 +138,8 @@ final class KHAccessNative: KHAccessProtocol {
     func sendParameters() async {
         status = .busy("Sending...")
         await withThrowingTaskGroup { group in
-            for device in devices {
-                group.addTask { try await device.sendParameters() }
+            for d in devices {
+                group.addTask { try await d.sendParameters() }
             }
             do {
                 try await group.waitForAll()
@@ -154,8 +154,8 @@ final class KHAccessNative: KHAccessProtocol {
     func fetch() async {
         status = .busy("Fetching...")
         await withThrowingTaskGroup { group in
-            for i in devices.indices {
-                group.addTask { try await self.devices[i].fetch() }
+            for d in devices {
+                group.addTask { try await d.fetch() }
             }
             do {
                 try await group.waitForAll()
@@ -163,7 +163,7 @@ final class KHAccessNative: KHAccessProtocol {
                 status = .otherError(String(describing: error))
             }
         }
-        state = devices[0].state
+        state = devices.first!.state
         status = .success
     }
 

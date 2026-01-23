@@ -102,154 +102,6 @@ enum KeyPathType<T> {
     case arrayBool(WritableKeyPath<T, [Bool]>)
 }
 
-struct SSCParameter {
-    let parameter: KHParameters
-
-    private enum ValueType: Equatable {
-        case string(String)
-        case number(Double)
-        case bool(Bool)
-        case arrayString([String])
-        case arrayNumber([Double])
-        case arrayBool([Bool])
-    }
-
-    private func get(from state: KHState) -> ValueType {
-        switch parameter.getKeyPath() {
-        case .number(let keyPath):
-            return .number(state[keyPath: keyPath])
-        case .bool(let keyPath):
-            return .bool(state[keyPath: keyPath])
-        case .string(let keyPath):
-            return .string(state[keyPath: keyPath])
-        case .arrayBool(let keyPath):
-            return .arrayBool(state[keyPath: keyPath])
-        case .arrayNumber(let keyPath):
-            return .arrayNumber(state[keyPath: keyPath])
-        case .arrayString(let keyPath):
-            return .arrayString(state[keyPath: keyPath])
-        }
-    }
-
-    private func set(
-        value: ValueType,
-        into state: KHState,
-    ) -> KHState {
-        var newState = state
-        let keyPath = parameter.getKeyPath()
-        switch value {
-        case .number(let value):
-            switch keyPath {
-            case .number(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .string(let value):
-            switch keyPath {
-            case .string(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .bool(let value):
-            switch keyPath {
-            case .bool(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayNumber(let value):
-            switch keyPath {
-            case .arrayNumber(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayBool(let value):
-            switch keyPath {
-            case .arrayBool(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayString(let value):
-            switch keyPath {
-            case .arrayString(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        }
-        return newState
-    }
-    
-    func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
-        set(value: get(from: sourceState), into: targetState)
-    }
-
-    func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {
-        var v: ValueType
-        let devicePath = parameter.getDevicePath()
-        switch parameter.getKeyPath() {
-        case .number:
-            v = .number(try await connection.fetchSSCValue(path: devicePath))
-        case .bool:
-            v = .bool(try await connection.fetchSSCValue(path: devicePath))
-        case .string:
-            v = .string(try await connection.fetchSSCValue(path: devicePath))
-        case .arrayBool:
-            v = .arrayBool(try await connection.fetchSSCValue(path: devicePath))
-        case .arrayNumber:
-            v = .arrayNumber(try await connection.fetchSSCValue(path: devicePath))
-        case .arrayString:
-            v = .arrayString(try await connection.fetchSSCValue(path: devicePath))
-        }
-        return set(value: v, into: state)
-    }
-
-    func send(oldState: KHState, newState: KHState, connection: SSCConnection)
-        async throws
-    {
-        if get(from: oldState) == get(from: newState) {
-            return
-        }
-        let devicePath = parameter.getDevicePath()
-        switch parameter.getKeyPath() {
-        case .number(let keyPath):
-            try await connection.sendSSCValue(
-                path: devicePath,
-                value: newState[keyPath: keyPath]
-            )
-        case .string(let keyPath):
-            try await connection.sendSSCValue(
-                path: devicePath,
-                value: newState[keyPath: keyPath]
-            )
-        case .bool(let keyPath):
-            try await connection.sendSSCValue(
-                path: devicePath,
-                value: newState[keyPath: keyPath]
-            )
-        case .arrayNumber(let keyPath):
-            try await connection.sendSSCValue(
-                path: devicePath,
-                value: newState[keyPath: keyPath]
-            )
-        case .arrayBool(let keyPath):
-            try await connection.sendSSCValue(
-                path: devicePath,
-                value: newState[keyPath: keyPath]
-            )
-        case .arrayString(let keyPath):
-            try await connection.sendSSCValue(
-                path: devicePath,
-                value: newState[keyPath: keyPath]
-            )
-        }
-    }
-}
-
 enum KHParameters: String, CaseIterable, Identifiable {
     case name = "Name"
     case serial = "Serial"
@@ -311,6 +163,89 @@ enum KHParameters: String, CaseIterable, Identifiable {
         .eq1type,
     ]
     static let setupParameters: [KHParameters] = [.serial, .product, .version]
+    
+    private enum ValueType: Equatable {
+        case string(String)
+        case number(Double)
+        case bool(Bool)
+        case arrayString([String])
+        case arrayNumber([Double])
+        case arrayBool([Bool])
+    }
+    
+    private func get(from state: KHState) -> ValueType {
+        switch getKeyPath() {
+        case .number(let keyPath):
+            return .number(state[keyPath: keyPath])
+        case .bool(let keyPath):
+            return .bool(state[keyPath: keyPath])
+        case .string(let keyPath):
+            return .string(state[keyPath: keyPath])
+        case .arrayBool(let keyPath):
+            return .arrayBool(state[keyPath: keyPath])
+        case .arrayNumber(let keyPath):
+            return .arrayNumber(state[keyPath: keyPath])
+        case .arrayString(let keyPath):
+            return .arrayString(state[keyPath: keyPath])
+        }
+    }
+
+    private func set(
+        value: ValueType,
+        into state: KHState,
+    ) -> KHState {
+        var newState = state
+        let keyPath = getKeyPath()
+        switch value {
+        case .number(let value):
+            switch keyPath {
+            case .number(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .string(let value):
+            switch keyPath {
+            case .string(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .bool(let value):
+            switch keyPath {
+            case .bool(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .arrayNumber(let value):
+            switch keyPath {
+            case .arrayNumber(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .arrayBool(let value):
+            switch keyPath {
+            case .arrayBool(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .arrayString(let value):
+            switch keyPath {
+            case .arrayString(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        }
+        return newState
+    }
+    
+    func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
+        set(value: get(from: sourceState), into: targetState)
+    }
 
     func getKeyPath() -> KeyPathType<KHState> {
         switch self {
@@ -441,5 +376,66 @@ enum KHParameters: String, CaseIterable, Identifiable {
 
     static func resetAllDevicePaths() {
         KHParameters.allCases.forEach { $0.resetDevicePath() }
+    }
+    
+    func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {
+        var v: ValueType
+        let devicePath = getDevicePath()
+        switch getKeyPath() {
+        case .number:
+            v = .number(try await connection.fetchSSCValue(path: devicePath))
+        case .bool:
+            v = .bool(try await connection.fetchSSCValue(path: devicePath))
+        case .string:
+            v = .string(try await connection.fetchSSCValue(path: devicePath))
+        case .arrayBool:
+            v = .arrayBool(try await connection.fetchSSCValue(path: devicePath))
+        case .arrayNumber:
+            v = .arrayNumber(try await connection.fetchSSCValue(path: devicePath))
+        case .arrayString:
+            v = .arrayString(try await connection.fetchSSCValue(path: devicePath))
+        }
+        return set(value: v, into: state)
+    }
+
+    func send(oldState: KHState, newState: KHState, connection: SSCConnection)
+        async throws
+    {
+        if get(from: oldState) == get(from: newState) {
+            return
+        }
+        let devicePath = getDevicePath()
+        switch getKeyPath() {
+        case .number(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        case .string(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        case .bool(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        case .arrayNumber(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        case .arrayBool(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        case .arrayString(let keyPath):
+            try await connection.sendSSCValue(
+                path: devicePath,
+                value: newState[keyPath: keyPath]
+            )
+        }
     }
 }
