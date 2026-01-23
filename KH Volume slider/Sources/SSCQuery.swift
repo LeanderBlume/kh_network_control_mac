@@ -200,7 +200,6 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         }
         let data = try await connection.fetchSSCValueData(path: path)
         for schema in schemata {
-            // decoder.userInfo[.schemaJSONData] = schema.wrap(in: path)
             if let v = try? decoder.decode(
                 JSONData.self,
                 from: data,

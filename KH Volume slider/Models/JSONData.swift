@@ -7,10 +7,6 @@
 
 import Foundation
 
-extension CodingUserInfoKey {
-    static let schemaJSONData = CodingUserInfoKey(rawValue: "schemaJSONData")!
-}
-
 enum JSONDataSimple: Equatable {
     case string(String)
     case number(Double)
@@ -128,15 +124,8 @@ enum JSONData: Equatable, Sendable, Encodable, DecodableWithConfiguration {
     }
 
     init(from decoder: Decoder, configuration: DecodingConfiguration) throws {
-        /*
-        guard let schema = decoder.userInfo[.schemaJSONData] as? JSONData else {
-            throw JSONDataError.decodingError("No schema was provided")
-        }
-         */
-        let schema = configuration
-
         let currentPath = decoder.codingPath
-        var currentValue: JSONData? = schema
+        var currentValue: JSONData? = configuration
         for p in currentPath {
             currentValue = currentValue![p.stringValue]
             if currentValue == nil {
