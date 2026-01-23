@@ -5,6 +5,8 @@
 //  Created by Leander Blume on 12.01.26.
 //
 
+import Foundation
+
 extension CodingUserInfoKey {
     static let schemaJSONData = CodingUserInfoKey(rawValue: "schemaJSONData")!
 }
@@ -33,7 +35,7 @@ enum JSONDataSimple: Equatable {
             self = .arrayString(state[keyPath: keyPath])
         }
     }
-    
+
     func set(
         into state: KHState,
         keyPath: KeyPathType<KHState>
@@ -87,7 +89,9 @@ enum JSONDataSimple: Equatable {
     }
 }
 
-enum JSONData: Equatable, Codable, Sendable {
+enum JSONData: Equatable, Sendable, Encodable, DecodableWithConfiguration {
+    typealias DecodingConfiguration = JSONData
+
     case string(String)
     case number(Double)
     case bool(Bool)
@@ -123,10 +127,13 @@ enum JSONData: Equatable, Codable, Sendable {
         }
     }
 
-    init(from decoder: Decoder) throws {
+    init(from decoder: Decoder, configuration: DecodingConfiguration) throws {
+        /*
         guard let schema = decoder.userInfo[.schemaJSONData] as? JSONData else {
             throw JSONDataError.decodingError("No schema was provided")
         }
+         */
+        let schema = configuration
 
         let currentPath = decoder.codingPath
         var currentValue: JSONData? = schema
@@ -155,7 +162,11 @@ enum JSONData: Equatable, Codable, Sendable {
             var dict = [String: JSONData]()
             for k in codingKeys {
                 // dict[k.stringValue] = try .init(from: values.superDecoder(forKey: k))
-                dict[k.stringValue] = try values.decode(JSONData.self, forKey: k)
+                dict[k.stringValue] = try values.decode(
+                    JSONData.self,
+                    forKey: k,
+                    configuration: configuration
+                )
             }
             self = .object(dict)
         case .null:
@@ -234,7 +245,7 @@ enum JSONData: Equatable, Codable, Sendable {
             try container.encode(v)
         }
     }
-    
+
     func wrap(in path: [String]) -> Self {
         var result = self
         for p in path.reversed() {
@@ -242,7 +253,7 @@ enum JSONData: Equatable, Codable, Sendable {
         }
         return result
     }
-    
+
     // removes layers of single key objects until something else remains.
     func unwrap() -> Self {
         if case .object(let v) = self {

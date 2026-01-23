@@ -39,8 +39,12 @@ struct Backupper: View {
             schemaDict[device.id] = JSONData(fromNodeTree: device.parameterTree)
         }
         let decoder = JSONDecoder()
-        decoder.userInfo[.schemaJSONData] = JSONData.object(schemaDict)
-        return try decoder.decode(Backup.self, from: data)
+        // decoder.userInfo[.schemaJSONData] = JSONData.object(schemaDict)
+        return try decoder.decode(
+            Backup.self,
+            from: data,
+            configuration: JSONData.object(schemaDict)
+        )
     }
 
     func writeBackup(name: String) throws {

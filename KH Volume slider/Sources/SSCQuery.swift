@@ -108,7 +108,7 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         // The root node doesn't have a name, so we drop it.
         return result.dropLast().reversed()
     }
-    
+
     func getPathString() -> String { "/" + pathToNode().joined(separator: "/") }
 
     private func queryAux(connection: SSCConnection, query: [String], path: [String])
@@ -200,8 +200,12 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         }
         let data = try await connection.fetchSSCValueData(path: path)
         for schema in schemata {
-            decoder.userInfo[.schemaJSONData] = schema.wrap(in: path)
-            if let v = try? decoder.decode(JSONData.self, from: data) {
+            // decoder.userInfo[.schemaJSONData] = schema.wrap(in: path)
+            if let v = try? decoder.decode(
+                JSONData.self,
+                from: data,
+                configuration: schema.wrap(in: path)
+            ) {
                 value = .value(v.unwrap())
                 return
             }
@@ -275,7 +279,7 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
             return
         }
     }
-    
+
     func isPopulated(recursive: Bool = true) -> Bool {
         switch value {
         case .unknown, .unknownValue, .unknownChildren:
@@ -284,12 +288,12 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
             return true
         case .children(let children):
             if recursive {
-                return children.allSatisfy({$0.isPopulated(recursive: true)})
+                return children.allSatisfy({ $0.isPopulated(recursive: true) })
             }
             return true
         }
     }
-    
+
     func send(connection: SSCConnection) async throws {
         switch value {
         case .error:

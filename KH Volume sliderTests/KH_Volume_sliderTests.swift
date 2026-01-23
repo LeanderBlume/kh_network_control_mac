@@ -200,7 +200,7 @@ struct TestKHAccessDummy {
         #expect(names.contains("ui"))
         // Leaf node
         #expect(names.contains("brightness"))
-        node.map({$0.pathToNode()}).forEach { print($0) }
+        node.map({ $0.pathToNode() }).forEach { print($0) }
     }
 
     @Test func testSend() async throws {
@@ -213,7 +213,7 @@ struct TestKHAccessDummy {
         // try await leaf.sendLeaf(connection: connection)
         await connection.close()
     }
-    
+
     @Test func testDecoding() async throws {
         let rootNode = SSCNode(name: "root")
         try await connection.open()
@@ -224,8 +224,12 @@ struct TestKHAccessDummy {
         let jd = try JSONEncoder().encode(treeData)
         let decoder = JSONDecoder()
         let schema = JSONData(fromNodeTree: rootNode)
-        decoder.userInfo[.schemaJSONData] = schema
-        let decodedTest = try decoder.decode(JSONData.self, from: jd)
+        // decoder.userInfo[.schemaJSONData] = schema
+        let decodedTest = try decoder.decode(
+            JSONData.self,
+            from: jd,
+            configuration: schema!
+        )
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
         let reencoded = try encoder.encode(decodedTest)
@@ -257,7 +261,7 @@ struct TestJSONEncoding {
         let x2 = try JSONDecoder().decode([String].self, from: s3d)
         print(x2)
     }
-    
+
     @Test func testDecoding() throws {
         struct Test: Encodable {
             let keyA: Int = 3
@@ -268,7 +272,7 @@ struct TestJSONEncoding {
                 let keyC: [Int] = [1, 2, 3]
                 let keyD: Bool = false
                 let leyE = subSubStructure()
-                
+
                 struct subSubStructure: Encodable {
                     let keyE: String = "hello"
                 }
