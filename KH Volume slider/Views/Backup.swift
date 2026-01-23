@@ -75,7 +75,6 @@ struct Backupper: View {
                 try device.parameterTree.load(from: deviceBackup)
             }
         }
-        khAccess.state = khAccess.devices.first!.state
         await khAccess.sendParameters()
         try khAccess.devices.forEach { device in
             if let deviceBackup = backup[device.id] {
@@ -87,6 +86,7 @@ struct Backupper: View {
                 device.state = newState
             }
         }
+        khAccess.state = khAccess.devices.first!.state
     }
 
     func deleteBackup(name: String) throws {
@@ -146,14 +146,13 @@ struct Backupper: View {
                     TextField("Backup name", text: $newName)
                         .textFieldStyle(.automatic)
                     Button("Save backup") {
-                        // Task { await khAccess.fetchParameters() }
-                        do {
+                        Task {
+                            // TODO better: Load parameters from state.
+                            await khAccess.fetchParameters()
                             try writeBackup(name: newName)
-                        } catch {
-                            print(error)
+                            selection = newName
+                            newName = ""
                         }
-                        selection = newName
-                        newName = ""
                     }
                 }
             }
