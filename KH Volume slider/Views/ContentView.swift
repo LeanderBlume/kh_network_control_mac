@@ -68,32 +68,55 @@ struct ContentView: View {
     var body: some View {
         VStack {
             #if os(iOS)
-                iOSButtonBar()
+                // iOSButtonBar()
             #endif
 
-            TabView {
-                Tab("Volume", systemImage: "speaker.wave.3") {
-                    VolumeTab()
-                        .scenePadding()
-                        .disabled(!khAccess.status.isClean())
-                }
-                Tab("DSP", systemImage: "slider.vertical.3") {
-                    EqTab()
-                        .scenePadding()
-                        .disabled(!khAccess.status.isClean())
-                }
-                Tab("Hardware", systemImage: "hifispeaker") {
-                    HardwareTab()
-                        .scenePadding()
-                        .disabled(!khAccess.status.isClean())
-                }
-                #if os(iOS)
+            NavigationView {
+                TabView {
+                    Tab("Volume", systemImage: "speaker.wave.3") {
+                        VolumeTab()
+                            .scenePadding()
+                            .disabled(!khAccess.status.isClean())
+                    }
+                    Tab("DSP", systemImage: "slider.vertical.3") {
+                        EqTab()
+                            .scenePadding()
+                            .disabled(!khAccess.status.isClean())
+                    }
+                    Tab("Hardware", systemImage: "hifispeaker") {
+                        HardwareTab()
+                            .scenePadding()
+                            .disabled(!khAccess.status.isClean())
+                    }
+#if os(iOS)
                     Tab("Browser", systemImage: "list.bullet.indent") {
                         ParameterTab()
                     }
-                #endif
-                Tab("Backup", systemImage: "heart") {
-                    Backupper()
+#endif
+                    Tab("Backup", systemImage: "heart") {
+                        Backupper()
+                    }
+                }
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        StatusDisplay(status: khAccess.status)
+                            .frame(minWidth: 50)
+                    }
+                    ToolbarItemGroup {
+                        Group {
+                            Button("Rescan") {
+                                Task {
+                                    await khAccess.scan()
+                                    await khAccess.setup()
+                                }
+                            }
+                            Button("Fetch") {
+                                Task { await khAccess.fetch() }
+                            }
+                            .disabled(khAccess.devices.isEmpty)
+                        }
+                        .disabled(khAccess.status.isBusy())
+                    }
                 }
             }
             #if os(macOS)

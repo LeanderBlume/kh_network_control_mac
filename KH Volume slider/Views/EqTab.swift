@@ -348,6 +348,11 @@ struct EqTab: View {
                 )
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .keyboard) {
+                Button("Done") {  }
+            }
+        }
     }
 }
 

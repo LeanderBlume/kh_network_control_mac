@@ -595,8 +595,8 @@ struct ParameterTab: View {
 
 #Preview {
     let khAccess = KHAccess()
-    ParameterTab().environment(khAccess)
-        .task {
-            await khAccess.setup()
-        }
+    ParameterTab()
+        .environment(khAccess)
+        .task { await khAccess.setup() }
+        .frame(minWidth: 400, minHeight: 800)
 }
