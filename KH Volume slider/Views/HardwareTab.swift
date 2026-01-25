@@ -66,7 +66,6 @@ struct HardwareTab: View {
                     .textFieldStyle(.roundedBorder)
                 }
             }
-            .scenePadding()
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()

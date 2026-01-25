@@ -97,6 +97,7 @@ struct ContentView: View {
                     // .keyboard-placed toolbars don't show up in NavigationStack due to a bug, so we have to fall back to NavigationView.
                     NavigationView {
                         HardwareTab()
+                            .scenePadding()
                             .disabled(!khAccess.status.isClean())
                             .toolbar { standardToolbar }
                     }
@@ -129,6 +130,7 @@ struct ContentView: View {
                 }
                 Tab("Hardware", systemImage: "hifispeaker") {
                     HardwareTab()
+                        .scenePadding()
                         .disabled(!khAccess.status.isClean())
                 }
                 Tab("Browser", systemImage: "list.bullet.indent") {
