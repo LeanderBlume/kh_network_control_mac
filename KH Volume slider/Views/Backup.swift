@@ -7,103 +7,12 @@
 
 import SwiftUI
 
-struct Backupper: View {
+
+struct BackupView: View {
     @State var newName: String = ""
     @State var selection: String? = nil
     @Environment(KHAccess.self) private var khAccess
-    let backupsDir: URL = URL.documentsDirectory.appending(path: "backups")
-
-    enum BackupperErrors: Error {
-        case error(String)
-    }
-
-    init() {
-        let fileManager = FileManager.default
-        if !fileManager.fileExists(atPath: backupsDir.path) {
-            do {
-                try fileManager.createDirectory(
-                    at: backupsDir,
-                    withIntermediateDirectories: false
-                )
-            } catch {
-                print(error)
-            }
-        }
-    }
-
-    func decodeBackup(from data: Data) throws -> [KHDevice.ID: JSONDataCodable] {
-        return try JSONDecoder().decode(
-            [KHDevice.ID: JSONDataCodable].self,
-            from: data
-        )
-    }
-
-    func writeBackup(name: String) throws {
-        var newBackup = [String: JSONDataCodable]()
-        khAccess.devices.forEach { device in
-            if let jsonData = JSONData(fromNodeTree: device.parameterTree) {
-                newBackup[device.id] = JSONDataCodable(jsonData: jsonData)
-            }
-        }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted]
-        let backupData = try encoder.encode(newBackup)
-        let fileManager = FileManager.default
-        fileManager.createFile(
-            atPath: backupsDir.appending(component: name + ".json").path(),
-            contents: backupData
-        )
-    }
-
-    func loadBackup(name: String) async throws {
-        let fm = FileManager.default
-        guard
-            let backupData = fm.contents(
-                atPath: backupsDir.appending(component: name).path()
-            )
-        else {
-            throw BackupperErrors.error("Backup does not exist")
-        }
-        let backup = try decodeBackup(from: backupData)
-        try khAccess.devices.forEach { device in
-            if let deviceBackup = backup[device.id] {
-                let jsonData = JSONData(jsonDataCodable: deviceBackup)
-                try device.parameterTree.load(from: jsonData)
-            }
-        }
-        await khAccess.sendParameters()
-        try khAccess.devices.forEach { device in
-            if let deviceBackup = backup[device.id] {
-                let jsonData = JSONData(jsonDataCodable: deviceBackup)
-                guard let newState = KHState(from: jsonData) else {
-                    throw BackupperErrors.error(
-                        "backed up JSONData not compatibe with state."
-                    )
-                }
-                device.state = newState
-            }
-        }
-        khAccess.state = khAccess.devices.first!.state
-    }
-
-    func deleteBackup(name: String) throws {
-        let fm = FileManager.default
-        try fm.trashItem(at: backupsDir.appending(path: name), resultingItemURL: nil)
-    }
-
-    func backupList() -> [String] {
-        let fm = FileManager.default
-        do {
-            let urls = try fm.contentsOfDirectory(
-                at: backupsDir,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]
-            )
-            return urls.map(\.lastPathComponent)
-        } catch {
-            return ["Error loading list: " + String(describing: error)]
-        }
-    }
+    let backupper = Backupper()
 
     var body: some View {
         let populated = khAccess.devices.first?.parameterTree.value.isUnknown() == false
@@ -115,25 +24,30 @@ struct Backupper: View {
                 }
             }
             Group {
-                if backupList().isEmpty {
+                if backupper.list().isEmpty {
                     Section("Backup list") {
                         Text("No backups").foregroundColor(.secondary)
                     }
                 } else {
                     Picker("Backup list", selection: $selection) {
-                        ForEach(backupList(), id: \.self) {
+                        ForEach(backupper.list(), id: \.self) {
                             Label($0, systemImage: "text.document").tag($0)
                         }
                     }
                     .pickerStyle(.inline)
                     Button("Load") {
                         if let selection {
-                            Task { try await loadBackup(name: selection) }
+                            Task {
+                                try await backupper.load(
+                                    name: selection,
+                                    khAccess: khAccess
+                                )
+                            }
                         }
                     }
                     Button("Delete", systemImage: "trash") {
                         if let s = selection {
-                            do { try deleteBackup(name: s) } catch { print(error) }
+                            do { try backupper.delete(name: s) } catch { print(error) }
                             selection = nil
                         }
                     }
@@ -146,7 +60,7 @@ struct Backupper: View {
                         Task {
                             // TODO better: Load parameters from state.
                             await khAccess.fetchParameters()
-                            try writeBackup(name: newName)
+                            try backupper.write(name: newName, khAccess: khAccess)
                             selection = newName
                             newName = ""
                         }

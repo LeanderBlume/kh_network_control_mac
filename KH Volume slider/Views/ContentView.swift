@@ -138,7 +138,7 @@ struct ContentView: View {
                         .scenePadding()
                 }
                 Tab("Backup", systemImage: "heart") {
-                    Backupper()
+                    BackupView()
                         .scenePadding()
                 }
             }

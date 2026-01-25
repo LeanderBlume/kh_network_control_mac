@@ -42,16 +42,28 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"Preview Content/Preview Assets.xcassets",
+				Resources/DeviceSchemata.json,
 			);
 			target = C50DCA5E2D17309900780112 /* KH Volume slider */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		C51958C52F26AD99007D2F22 /* Exceptions for "KH Volume slider" folder in "Compile Sources" phase from "KH Volume slider" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = C50DCA5B2D17309900780112 /* Sources */;
+			membershipExceptions = (
+				Resources/DeviceSchemata.json,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C50DCA612D17309900780112 /* KH Volume slider */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				C5B99A552D1DB3B7003366EB /* Exceptions for "KH Volume slider" folder in "KH Volume slider" target */,
+				C51958C52F26AD99007D2F22 /* Exceptions for "KH Volume slider" folder in "Compile Sources" phase from "KH Volume slider" target */,
 			);
 			path = "KH Volume slider";
 			sourceTree = "<group>";
