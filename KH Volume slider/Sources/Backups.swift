@@ -105,28 +105,24 @@ struct Backupper {
 
     @MainActor
     func write(name: String, khAccess: KHAccess) throws {
-        var newBackup = [String: JSONDataCodable]()
+        var newBackup = Backup()
         khAccess.devices.forEach { device in
             if let jsonData = JSONData(fromNodeTree: device.parameterTree) {
                 newBackup[device.id] = JSONDataCodable(jsonData: jsonData)
             }
         }
+
         try saveBackup(name: name, backup: newBackup)
     }
 
     @MainActor
     func load(name: String, khAccess: KHAccess) async throws {
         let backup = try getBackup(name: name)
+
         try khAccess.devices.forEach { device in
             if let deviceBackup = backup[device.id] {
                 let jsonData = JSONData(jsonDataCodable: deviceBackup)
                 try device.parameterTree.load(from: jsonData)
-            }
-        }
-        await khAccess.sendParameters()
-        try khAccess.devices.forEach { device in
-            if let deviceBackup = backup[device.id] {
-                let jsonData = JSONData(jsonDataCodable: deviceBackup)
                 guard let newState = KHState(from: jsonData) else {
                     throw BackupperErrors.error(
                         "backed up JSONData not compatibe with state."
@@ -135,6 +131,7 @@ struct Backupper {
                 device.state = newState
             }
         }
+        await khAccess.sendParameters()
         khAccess.state = khAccess.devices.first!.state
     }
 }
