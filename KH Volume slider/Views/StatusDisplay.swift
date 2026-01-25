@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct StatusDisplay: View {
+struct StatusDisplayCompact: View {
     var status: KHAccessStatus
 
     var body: some View {
@@ -16,48 +16,56 @@ struct StatusDisplay: View {
                 .scaleEffect(0.5)
             #endif
         let circ = Image(systemName: "circle.fill")
-        Group {
-            switch status {
-            case .clean:
-                circ.foregroundColor(.green)
-            case .busy(let s):
-                HStack {
-                    if let s {
-                        Text(s)
-                    }
-                    pv
-                }
-            case .queryingParameters:
-                HStack {
-                    Text("Querying...")
-                    pv
-                }
-            case .couldNotConnect:
-                HStack {
-                    Text("Could not connect")
-                    circ.foregroundColor(.red)
-                }
-            case .speakersFound(let n):
-                if n == 0 {
-                    HStack {
-                        Text("No speakers found")
-                        circ.foregroundColor(.red)
-                    }
-                } else {
-                    HStack {
-                        Text("Discovered \(n) speakers")
-                        circ.foregroundColor(.green)
-                    }
-                }
-            case .success:
-                // Text("Parameters fetched")
-                Image(systemName: "checkmark").foregroundColor(.green)
-            case .otherError(let s):
-                HStack {
-                    Text(s)
-                    Image(systemName: "exclamationmark.circle").foregroundColor(.red)
-                }
+        switch status {
+        case .clean:
+            circ.foregroundColor(.green)
+        case .busy, .queryingParameters:
+            pv
+        case .couldNotConnect:
+            circ.foregroundColor(.red)
+        case .speakersFound(let n):
+            circ.foregroundColor(n > 0 ? .green : .red)
+        case .success:
+            Image(systemName: "checkmark").foregroundColor(.green)
+        case .otherError:
+            Image(systemName: "exclamationmark.circle").foregroundColor(.red)
+        }
+    }
+}
+
+// This could be a function of Status returning String?
+struct StatusDisplayText: View {
+    var status: KHAccessStatus
+
+    var body: some View {
+        switch status {
+        case .clean, .success:
+            EmptyView()
+        case .busy(let s):
+            if let s { Text(s) }
+        case .queryingParameters:
+            Text("Querying...")
+        case .couldNotConnect:
+            Text("Could not connect")
+        case .speakersFound(let n):
+            if n == 0 {
+                Text("No speakers found")
+            } else {
+                Text("Discovered \(n) speakers")
             }
+        case .otherError(let s):
+            Text(s)
+        }
+    }
+}
+
+struct StatusDisplay: View {
+    var status: KHAccessStatus
+
+    var body: some View {
+        HStack {
+            StatusDisplayText(status: status)
+            StatusDisplayCompact(status: status)
         }
         .frame(height: 20)
         .frame(minWidth: 33)

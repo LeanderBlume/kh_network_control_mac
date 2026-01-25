@@ -5,11 +5,89 @@
 //  Created by Leander Blume on 12.01.26.
 //
 
-extension CodingUserInfoKey {
-    static let schemaJSONData = CodingUserInfoKey(rawValue: "schemaJSONData")!
+import Foundation
+
+enum JSONDataSimple: Equatable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case arrayString([String])
+    case arrayNumber([Double])
+    case arrayBool([Bool])
+
+    init(state: KHState, keyPath: KeyPathType<KHState>) {
+        switch keyPath {
+        case .number(let keyPath):
+            self = .number(state[keyPath: keyPath])
+        case .bool(let keyPath):
+            self = .bool(state[keyPath: keyPath])
+        case .string(let keyPath):
+            self = .string(state[keyPath: keyPath])
+        case .arrayBool(let keyPath):
+            self = .arrayBool(state[keyPath: keyPath])
+        case .arrayNumber(let keyPath):
+            self = .arrayNumber(state[keyPath: keyPath])
+        case .arrayString(let keyPath):
+            self = .arrayString(state[keyPath: keyPath])
+        }
+    }
+
+    func set(
+        into state: KHState,
+        keyPath: KeyPathType<KHState>
+    ) -> KHState {
+        var newState = state
+        switch self {
+        case .number(let value):
+            switch keyPath {
+            case .number(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .string(let value):
+            switch keyPath {
+            case .string(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .bool(let value):
+            switch keyPath {
+            case .bool(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .arrayNumber(let value):
+            switch keyPath {
+            case .arrayNumber(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .arrayBool(let value):
+            switch keyPath {
+            case .arrayBool(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        case .arrayString(let value):
+            switch keyPath {
+            case .arrayString(let keyPath):
+                newState[keyPath: keyPath] = value
+            default:
+                break
+            }
+        }
+        return newState
+    }
 }
 
-enum JSONData: Equatable, Codable, Sendable {
+enum JSONData: Equatable, Sendable, Encodable, DecodableWithConfiguration {
+    typealias DecodingConfiguration = JSONData
+
     case string(String)
     case number(Double)
     case bool(Bool)
@@ -21,6 +99,13 @@ enum JSONData: Equatable, Codable, Sendable {
         case error(String)
         case decodingError(String)
     }
+
+    init(singleValue: String) { self = .string(singleValue) }
+    init(singleValue: Double) { self = .number(singleValue) }
+    init(singleValue: Bool) { self = .bool(singleValue) }
+    init(singleValue: [String]) { self = .array(singleValue.map({ .string($0) })) }
+    init(singleValue: [Double]) { self = .array(singleValue.map({ .number($0) })) }
+    init(singleValue: [Bool]) { self = .array(singleValue.map({ .bool($0) })) }
 
     @MainActor
     init?(fromNodeTree rootNode: SSCNode) {
@@ -38,13 +123,9 @@ enum JSONData: Equatable, Codable, Sendable {
         }
     }
 
-    init(from decoder: Decoder) throws {
-        guard let schema = decoder.userInfo[.schemaJSONData] as? JSONData else {
-            throw JSONDataError.decodingError("No schema was provided")
-        }
-
+    init(from decoder: Decoder, configuration: DecodingConfiguration) throws {
         let currentPath = decoder.codingPath
-        var currentValue: JSONData? = schema
+        var currentValue: JSONData? = configuration
         for p in currentPath {
             currentValue = currentValue![p.stringValue]
             if currentValue == nil {
@@ -70,7 +151,11 @@ enum JSONData: Equatable, Codable, Sendable {
             var dict = [String: JSONData]()
             for k in codingKeys {
                 // dict[k.stringValue] = try .init(from: values.superDecoder(forKey: k))
-                dict[k.stringValue] = try values.decode(JSONData.self, forKey: k)
+                dict[k.stringValue] = try values.decode(
+                    JSONData.self,
+                    forKey: k,
+                    configuration: configuration
+                )
             }
             self = .object(dict)
         case .null:
@@ -150,6 +235,24 @@ enum JSONData: Equatable, Codable, Sendable {
         }
     }
 
+    func wrap(in path: [String]) -> Self {
+        var result = self
+        for p in path.reversed() {
+            result = .object([p: result])
+        }
+        return result
+    }
+
+    // removes layers of single key objects until something else remains.
+    func unwrap() -> Self {
+        if case .object(let v) = self {
+            if v.count == 1 {
+                return v.values.first!.unwrap()
+            }
+        }
+        return self
+    }
+
     func asArrayAny() -> [Any?]? {
         var result: [Any?] = []
         switch self {
@@ -201,39 +304,6 @@ enum JSONData: Equatable, Codable, Sendable {
                 result[k] = v.stringify()
             }
             return String(describing: result)
-        }
-    }
-
-    func fetch(connection: SSCConnection, path: [String]) async throws -> JSONData {
-        switch self {
-        case .null:
-            return self
-        case .number:
-            return .number(try await connection.fetchSSCValue(path: path))
-        case .string:
-            return .string(try await connection.fetchSSCValue(path: path))
-        case .bool:
-            return .bool(try await connection.fetchSSCValue(path: path))
-        case .array(let vs):
-            switch vs.first {
-            case .null:
-                return self
-            case .number:
-                let newV: [Double] = try await connection.fetchSSCValue(path: path)
-                return .array(newV.map({ JSONData.number($0) }))
-            case .string:
-                let newV: [String] = try await connection.fetchSSCValue(path: path)
-                return .array(newV.map({ JSONData.string($0) }))
-            case .bool:
-                let newV: [Bool] = try await connection.fetchSSCValue(path: path)
-                return .array(newV.map({ JSONData.bool($0) }))
-            case nil:
-                throw JSONDataError.error("Could not determine type of empty array")
-            case .array, .object:
-                throw JSONDataError.error("Nested container types are not supported")
-            }
-        case .object:
-            throw JSONDataError.error("Path does not lead to a value")
         }
     }
 

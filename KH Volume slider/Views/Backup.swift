@@ -13,8 +13,6 @@ struct Backupper: View {
     @Environment(KHAccess.self) private var khAccess
     let backupsDir: URL = URL.documentsDirectory.appending(path: "backups")
 
-    typealias Backup = [KHDevice.ID: JSONData]
-
     enum BackupperErrors: Error {
         case error(String)
     }
@@ -33,21 +31,25 @@ struct Backupper: View {
         }
     }
 
-    func decodeBackup(from data: Data) throws -> Backup {
+    func decodeBackup(from data: Data) throws -> JSONData {
         var schemaDict = [KHDevice.ID: JSONData]()
         khAccess.devices.forEach { device in
             schemaDict[device.id] = JSONData(fromNodeTree: device.parameterTree)
         }
         let decoder = JSONDecoder()
-        decoder.userInfo[.schemaJSONData] = JSONData.object(schemaDict)
-        return try decoder.decode(Backup.self, from: data)
+        return try decoder.decode(
+            JSONData.self,
+            from: data,
+            configuration: JSONData.object(schemaDict)
+        )
     }
 
     func writeBackup(name: String) throws {
-        var newBackup = Backup()
+        var newBackupDict = [String: JSONData]()
         khAccess.devices.forEach { device in
-            newBackup[device.id] = JSONData(fromNodeTree: device.parameterTree)
+            newBackupDict[device.id] = JSONData(fromNodeTree: device.parameterTree)
         }
+        let newBackup = JSONData.object(newBackupDict)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         let backupData = try encoder.encode(newBackup)
@@ -58,7 +60,7 @@ struct Backupper: View {
         )
     }
 
-    func loadBackup(name: String) throws {
+    func loadBackup(name: String) async throws {
         let fm = FileManager.default
         guard
             let backupData = fm.contents(
@@ -71,6 +73,17 @@ struct Backupper: View {
         try khAccess.devices.forEach { device in
             if let deviceBackup = backup[device.id] {
                 try device.parameterTree.load(from: deviceBackup)
+            }
+        }
+        await khAccess.sendParameters()
+        try khAccess.devices.forEach { device in
+            if let deviceBackup = backup[device.id] {
+                guard let newState = KHState(from: deviceBackup) else {
+                    throw BackupperErrors.error(
+                        "backed up JSONData not compatibe with state."
+                    )
+                }
+                device.state = newState
             }
         }
         khAccess.state = khAccess.devices.first!.state
@@ -118,15 +131,7 @@ struct Backupper: View {
                     .pickerStyle(.inline)
                     Button("Load") {
                         if let selection {
-                            do {
-                                try loadBackup(name: selection)
-                            } catch {
-                                print(error)
-                            }
-                            Task {
-                                await khAccess.sendParameters()
-                                await khAccess.fetch()
-                            }
+                            Task { try await loadBackup(name: selection) }
                         }
                     }
                     Button("Delete", systemImage: "trash") {
@@ -141,14 +146,13 @@ struct Backupper: View {
                     TextField("Backup name", text: $newName)
                         .textFieldStyle(.automatic)
                     Button("Save backup") {
-                        // Task { await khAccess.fetchParameters() }
-                        do {
+                        Task {
+                            // TODO better: Load parameters from state.
+                            await khAccess.fetchParameters()
                             try writeBackup(name: newName)
-                        } catch {
-                            print(error)
+                            selection = newName
+                            newName = ""
                         }
-                        selection = newName
-                        newName = ""
                     }
                 }
             }

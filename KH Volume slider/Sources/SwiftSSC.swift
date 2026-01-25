@@ -85,6 +85,16 @@ actor SSCConnection {
         connection.cancel()
     }
 
+    static func pathToJSONString<T>(path: [String], value: T) throws -> String
+    where T: Encodable {
+        let jsonData = try JSONEncoder().encode(value)
+        var jsonPath = String(data: jsonData, encoding: .utf8)!
+        for p in path.reversed() {
+            jsonPath = "{\"\(p)\":\(jsonPath)}"
+        }
+        return jsonPath
+    }
+
     private func sendMessage(_ TXString: String) async throws {
         return try await withCheckedThrowingContinuation { continuation in
             let sendCompHandler = NWConnection.SendCompletion.contentProcessed {
@@ -130,16 +140,6 @@ actor SSCConnection {
         }
     }
 
-    static func pathToJSONString<T>(path: [String], value: T) throws -> String
-    where T: Encodable {
-        let jsonData = try JSONEncoder().encode(value)
-        var jsonPath = String(data: jsonData, encoding: .utf8)!
-        for p in path.reversed() {
-            jsonPath = "{\"\(p)\":\(jsonPath)}"
-        }
-        return jsonPath
-    }
-
     func sendSSCCommand(command: String) async throws -> String {
         try await sendMessage(command)
         let RX = try await receiveMessage()
@@ -161,13 +161,19 @@ actor SSCConnection {
     }
 
     func fetchSSCValueData(path: [String]) async throws -> Data {
-        let jsonPath = try SSCConnection.pathToJSONString(path: path, value: nil as Float?)
+        let jsonPath = try SSCConnection.pathToJSONString(
+            path: path,
+            value: nil as Float?
+        )
         let RX = try await sendSSCCommand(command: jsonPath)
         return RX.data(using: .utf8)!
     }
 
-    func fetchSSCValueAny(path: [String]) async throws -> Any? {
-        let jsonPath = try SSCConnection.pathToJSONString(path: path, value: nil as Float?)
+    private func fetchSSCValueAny(path: [String]) async throws -> Any? {
+        let jsonPath = try SSCConnection.pathToJSONString(
+            path: path,
+            value: nil as Float?
+        )
         let RX = try await sendSSCCommand(command: jsonPath)
         let asObj = try JSONSerialization.jsonObject(with: RX.data(using: .utf8)!)
         let lastKey = path.last!
@@ -184,5 +190,15 @@ actor SSCConnection {
             throw ConnectionError.typeError
         }
         return retval
+    }
+
+    func fetchJSONData(path: [String], type: JSONData) async throws -> JSONData {
+        let data = try await fetchSSCValueData(path: path)
+        let decoder = JSONDecoder()
+        return try decoder.decode(
+            JSONData.self,
+            from: data,
+            configuration: type.wrap(in: path)
+        ).unwrap()
     }
 }

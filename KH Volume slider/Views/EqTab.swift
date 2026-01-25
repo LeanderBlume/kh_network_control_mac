@@ -83,9 +83,10 @@ struct EqSlideriOS: View {
                         await khAccess.send()
                     }
                 }
-                /// This doesn't have a return button...
-                // .keyboardType(.decimalPad)
                 .frame(width: 80)
+                #if os(iOS)
+                    .keyboardType(.decimalPad)
+                #endif
             }
         }
     }
@@ -328,6 +329,7 @@ struct EqTab: View {
     @State private var selectedEq: Int = 0
     @State var selectedBands: [Int] = [0, 0]
     @Environment(KHAccess.self) private var khAccess: KHAccess
+    @FocusState private var textFieldFocused: Bool
 
     var body: some View {
         @Bindable var khAccess = khAccess
@@ -335,17 +337,27 @@ struct EqTab: View {
         ScrollView {
             VStack(spacing: 15) {
                 EqChart(eqs: khAccess.state.eqs).frame(height: 150)
-                
+
                 Picker("", selection: $selectedEq) {
                     Text("post EQ").tag(0)
                     Text("calibration EQ").tag(1)
                 }
                 .pickerStyle(.segmented)
-                
+
                 EqPanel(
                     eq: $khAccess.state.eqs[selectedEq],
                     selectedEqBand: $selectedBands[selectedEq]
                 )
+                .focused($textFieldFocused)  // THIS WORKS???
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    Task { await khAccess.send() }
+                    textFieldFocused = false
+                }
             }
         }
     }

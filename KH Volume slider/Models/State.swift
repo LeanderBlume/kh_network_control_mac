@@ -51,15 +51,18 @@ struct KHState: Codable, Equatable {
     var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
     var muted = false
     var logoBrightness = 100.0
-    
+
     init() {}
 
-    init(from jsonData: JSONData) throws {
+    init?(from jsonData: JSONData) {
         for parameter in KHParameters.allCases {
             let devicePath = parameter.getDevicePath()
             var unwrappedValue = jsonData
             for p in devicePath {
-                unwrappedValue = unwrappedValue[p]!  // TODO proper error
+                if unwrappedValue[p] == nil {
+                    return nil
+                }
+                unwrappedValue = unwrappedValue[p]!
             }
 
             let keyPath = parameter.getKeyPath()
@@ -163,86 +166,18 @@ enum KHParameters: String, CaseIterable, Identifiable {
         .eq1type,
     ]
     static let setupParameters: [KHParameters] = [.serial, .product, .version]
-    
-    private enum ValueType: Equatable {
-        case string(String)
-        case number(Double)
-        case bool(Bool)
-        case arrayString([String])
-        case arrayNumber([Double])
-        case arrayBool([Bool])
-    }
-    
-    private func get(from state: KHState) -> ValueType {
-        switch getKeyPath() {
-        case .number(let keyPath):
-            return .number(state[keyPath: keyPath])
-        case .bool(let keyPath):
-            return .bool(state[keyPath: keyPath])
-        case .string(let keyPath):
-            return .string(state[keyPath: keyPath])
-        case .arrayBool(let keyPath):
-            return .arrayBool(state[keyPath: keyPath])
-        case .arrayNumber(let keyPath):
-            return .arrayNumber(state[keyPath: keyPath])
-        case .arrayString(let keyPath):
-            return .arrayString(state[keyPath: keyPath])
-        }
+
+    private func get(from state: KHState) -> JSONDataSimple {
+        JSONDataSimple(state: state, keyPath: getKeyPath())
     }
 
     private func set(
-        value: ValueType,
+        value: JSONDataSimple,
         into state: KHState,
     ) -> KHState {
-        var newState = state
-        let keyPath = getKeyPath()
-        switch value {
-        case .number(let value):
-            switch keyPath {
-            case .number(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .string(let value):
-            switch keyPath {
-            case .string(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .bool(let value):
-            switch keyPath {
-            case .bool(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayNumber(let value):
-            switch keyPath {
-            case .arrayNumber(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayBool(let value):
-            switch keyPath {
-            case .arrayBool(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayString(let value):
-            switch keyPath {
-            case .arrayString(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        }
-        return newState
+        value.set(into: state, keyPath: getKeyPath())
     }
-    
+
     func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
         set(value: get(from: sourceState), into: targetState)
     }
@@ -379,7 +314,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
     }
     
     func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {
-        var v: ValueType
+        var v: JSONDataSimple
         let devicePath = getDevicePath()
         switch getKeyPath() {
         case .number:
