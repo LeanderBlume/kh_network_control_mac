@@ -135,9 +135,11 @@ struct ContentView: View {
                 }
                 Tab("Browser", systemImage: "list.bullet.indent") {
                     ParameterTab()
+                        .scenePadding()
                 }
                 Tab("Backup", systemImage: "heart") {
                     Backupper()
+                        .scenePadding()
                 }
             }
             .onAppear { Task { await khAccess.setup() } }
