@@ -31,25 +31,20 @@ struct Backupper: View {
         }
     }
 
-    func decodeBackup(from data: Data) throws -> JSONData {
-        var schemaDict = [KHDevice.ID: JSONData]()
-        khAccess.devices.forEach { device in
-            schemaDict[device.id] = JSONData(fromNodeTree: device.parameterTree)
-        }
-        let decoder = JSONDecoder()
-        return try decoder.decode(
-            JSONData.self,
-            from: data,
-            configuration: JSONData.object(schemaDict)
+    func decodeBackup(from data: Data) throws -> [KHDevice.ID: JSONDataCodable] {
+        return try JSONDecoder().decode(
+            [KHDevice.ID: JSONDataCodable].self,
+            from: data
         )
     }
 
     func writeBackup(name: String) throws {
-        var newBackupDict = [String: JSONData]()
+        var newBackup = [String: JSONDataCodable]()
         khAccess.devices.forEach { device in
-            newBackupDict[device.id] = JSONData(fromNodeTree: device.parameterTree)
+            if let jsonData = JSONData(fromNodeTree: device.parameterTree) {
+                newBackup[device.id] = JSONDataCodable(jsonData: jsonData)
+            }
         }
-        let newBackup = JSONData.object(newBackupDict)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         let backupData = try encoder.encode(newBackup)
@@ -72,13 +67,15 @@ struct Backupper: View {
         let backup = try decodeBackup(from: backupData)
         try khAccess.devices.forEach { device in
             if let deviceBackup = backup[device.id] {
-                try device.parameterTree.load(from: deviceBackup)
+                let jsonData = JSONData(jsonDataCodable: deviceBackup)
+                try device.parameterTree.load(from: jsonData)
             }
         }
         await khAccess.sendParameters()
         try khAccess.devices.forEach { device in
             if let deviceBackup = backup[device.id] {
-                guard let newState = KHState(from: deviceBackup) else {
+                let jsonData = JSONData(jsonDataCodable: deviceBackup)
+                guard let newState = KHState(from: jsonData) else {
                     throw BackupperErrors.error(
                         "backed up JSONData not compatibe with state."
                     )
