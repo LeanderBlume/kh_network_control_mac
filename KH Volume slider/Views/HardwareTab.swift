@@ -34,50 +34,48 @@ struct HardwareTab: View {
                     format: .number.precision(.fractionLength(0))
                 )
                 .frame(width: 80)
-                .onSubmit {
-                    print("SUBMITTED")
-                    Task {
-                        await khAccess.send()
+                .onSubmit { Task { await khAccess.send() } }
+            }
+        #elseif os(iOS)
+            VStack {
+                Text("Logo brightness")
+
+                HStack {
+                    Slider(value: $khAccess.state.logoBrightness, in: 0...125) {
+                        Text("")
+                    } onEditingChanged: { editing in
+                        if !editing {
+                            Task {
+                                await khAccess.send()
+                            }
+                        }
+                    }
+                    .disabled(!khAccess.status.isClean())
+
+                    TextField(
+                        "Logo brightness",
+                        value: $khAccess.state.logoBrightness,
+                        format: .number.precision(.fractionLength(0))
+                    )
+                    .frame(width: 80)
+                    .keyboardType(.numberPad)
+                    .focused($textFieldFocused)
+                    .onSubmit {
+                        Task { await khAccess.send() }
+                    }
+                    .textFieldStyle(.roundedBorder)
+                }
+            }
+            .scenePadding()
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        Task { await khAccess.send() }
+                        textFieldFocused = false
                     }
                 }
             }
-        #elseif os(iOS)
-            // NavigationView {
-                VStack {
-                    Text("Logo brightness")
-
-                    HStack {
-                        Slider(value: $khAccess.state.logoBrightness, in: 0...125) {
-                            Text("")
-                        } onEditingChanged: { editing in
-                            if !editing {
-                                Task {
-                                    await khAccess.send()
-                                }
-                            }
-                        }
-                        .disabled(!khAccess.status.isClean())
-
-                        TextField(
-                            "Logo brightness",
-                            value: $khAccess.state.logoBrightness,
-                            format: .number.precision(.fractionLength(0))
-                        )
-                        .frame(width: 80)
-                        .keyboardType(.numberPad)
-                        .focused($textFieldFocused)
-                        .onSubmit {
-                            print("SUBMITTED")
-                        }
-                    }
-                    .toolbar {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer()
-                            Button("Done") { textFieldFocused = false }
-                        }
-                    }
-                }
-            // }
         #endif
     }
 }

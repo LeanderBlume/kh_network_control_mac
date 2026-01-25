@@ -231,7 +231,6 @@ struct NodeValueEditor: View {
             switch UILeafNodeType(jsonData: T, limits: node.limits) {
             case .string:
                 TextField("Data", text: $values.string)
-                    .textFieldStyle(.plain)
             case .number:
                 let precision = (node.limits?.inc == 1) ? 0 : 1
                 TextField(
@@ -239,7 +238,6 @@ struct NodeValueEditor: View {
                     value: $values.number,
                     format: .number.precision(.fractionLength(precision))
                 )
-                .textFieldStyle(.plain)
             case .bool:
                 Toggle("Data", isOn: $values.bool)
             case .arrayBool:
@@ -254,7 +252,6 @@ struct NodeValueEditor: View {
                         value: $values.arrayNumber[i],
                         format: .number.precision(.fractionLength(precision))
                     )
-                    .textFieldStyle(.plain)
                 }
             case .arrayString:
                 ForEach(values.arrayString.indices, id: \.self) { i in
@@ -383,10 +380,11 @@ struct DeviceBrowser: View {
 
                             switch node.value {
                             case .unknown, .unknownValue, .unknownChildren:
-                                ProgressView()
-                                    #if os(macOS)
-                                        .scaleEffect(0.2)
-                                    #endif
+                                #if os(iOS)
+                                    ProgressView()
+                                #elseif os(macOS)
+                                    Text("Loading...")
+                                #endif
                             case .error(let s):
                                 Label(s, systemImage: "exclamationmark.circle")
                             case .children:
