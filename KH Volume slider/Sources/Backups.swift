@@ -13,7 +13,7 @@ protocol StateManagerType {
     func getSchema(for device: KHDevice) throws -> JSONDataCodable?
     func saveSchema(of device: KHDevice) throws
     func saveConnection(_ connection: SSCConnection) throws
-    
+
 }
 
 struct PresetManager {
@@ -21,11 +21,11 @@ struct PresetManager {
         forResource: "DeviceSchemata",
         withExtension: ".json"
     )
-    
+
     enum PresetManagerErrors: Error {
         case error(String)
     }
-    
+
     private func decode(from data: Data) throws -> [KHDevice.ID: JSONDataCodable] {
         return try JSONDecoder().decode(
             [KHDevice.ID: JSONDataCodable].self,
@@ -36,6 +36,8 @@ struct PresetManager {
 
 struct Backupper {
     let backupsDir: URL = URL.documentsDirectory.appending(path: "backups")
+
+    typealias Backup = [KHDevice.ID: JSONDataCodable]
 
     enum BackupperErrors: Error {
         case error(String)
@@ -55,10 +57,30 @@ struct Backupper {
         }
     }
 
-    private func decode(from data: Data) throws -> [KHDevice.ID: JSONDataCodable] {
-        return try JSONDecoder().decode(
-            [KHDevice.ID: JSONDataCodable].self,
-            from: data
+    private func decode(from data: Data) throws -> Backup {
+        return try JSONDecoder().decode(Backup.self, from: data)
+    }
+
+    private func getBackup(name: String) throws -> Backup {
+        let fm = FileManager.default
+        guard
+            let backupData = fm.contents(
+                atPath: backupsDir.appending(component: name).path()
+            )
+        else {
+            throw BackupperErrors.error("Backup does not exist")
+        }
+        return try decode(from: backupData)
+    }
+
+    private func saveBackup(name: String, backup: Backup) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted]
+        let backupData = try encoder.encode(backup)
+        let fileManager = FileManager.default
+        fileManager.createFile(
+            atPath: backupsDir.appending(component: name + ".json").path(),
+            contents: backupData
         )
     }
 
@@ -89,27 +111,12 @@ struct Backupper {
                 newBackup[device.id] = JSONDataCodable(jsonData: jsonData)
             }
         }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted]
-        let backupData = try encoder.encode(newBackup)
-        let fileManager = FileManager.default
-        fileManager.createFile(
-            atPath: backupsDir.appending(component: name + ".json").path(),
-            contents: backupData
-        )
+        try saveBackup(name: name, backup: newBackup)
     }
 
     @MainActor
     func load(name: String, khAccess: KHAccess) async throws {
-        let fm = FileManager.default
-        guard
-            let backupData = fm.contents(
-                atPath: backupsDir.appending(component: name).path()
-            )
-        else {
-            throw BackupperErrors.error("Backup does not exist")
-        }
-        let backup = try decode(from: backupData)
+        let backup = try getBackup(name: name)
         try khAccess.devices.forEach { device in
             if let deviceBackup = backup[device.id] {
                 let jsonData = JSONData(jsonDataCodable: deviceBackup)
