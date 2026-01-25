@@ -7,6 +7,39 @@
 
 import Foundation
 
+enum JSONDataCodable: Equatable, Sendable, Codable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case null
+    case array([JSONDataCodable])
+    case object([String: JSONDataCodable])
+    
+    init(jsonData: JSONData) {
+        switch jsonData {
+        case .null:
+            self = .null
+        case .string(let string):
+            self = .string(string)
+        case .number(let number):
+            self = .number(number)
+        case .bool(let bool):
+            self = .bool(bool)
+        case .array(let array):
+            self = .array(array.map(JSONDataCodable.init))
+        case .object(let object):
+            self = .object(object.mapValues(JSONDataCodable.init))
+        }
+    }
+
+    subscript(index: String) -> JSONDataCodable? {
+        if case .object(let dict) = self {
+            return dict[index]
+        }
+        return nil
+    }
+}
+
 enum JSONDataSimple: Equatable {
     case string(String)
     case number(Double)
@@ -106,6 +139,23 @@ enum JSONData: Equatable, Sendable, Encodable, DecodableWithConfiguration {
     init(singleValue: [String]) { self = .array(singleValue.map({ .string($0) })) }
     init(singleValue: [Double]) { self = .array(singleValue.map({ .number($0) })) }
     init(singleValue: [Bool]) { self = .array(singleValue.map({ .bool($0) })) }
+    
+    init(jsonDataCodable: JSONDataCodable) {
+        switch jsonDataCodable {
+        case .null:
+            self = .null
+        case .string(let string):
+            self = .string(string)
+        case .number(let number):
+            self = .number(number)
+        case .bool(let bool):
+            self = .bool(bool)
+        case .array(let array):
+            self = .array(array.map(JSONData.init))
+        case .object(let object):
+            self = .object(object.mapValues(JSONData.init))
+        }
+    }
 
     @MainActor
     init?(fromNodeTree rootNode: SSCNode) {
