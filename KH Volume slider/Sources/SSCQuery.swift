@@ -373,8 +373,6 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
          */
         if case .children(let c) = value {
             return c.sorted { a, b in
-                // We want to put non-objects first.
-                // TODO Obviously doesn't work.
                 if a.value.isLeaf() && !b.value.isLeaf() {
                     return true
                 }

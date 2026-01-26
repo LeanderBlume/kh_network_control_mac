@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum JSONDataCodable: Equatable, Sendable, Codable {
+enum JSONDataCodable: Equatable, Codable {
     case string(String, limits: OSCLimits? = nil)
     case number(Double, limits: OSCLimits? = nil)
     case bool(Bool, limits: OSCLimits? = nil)
@@ -134,7 +134,7 @@ enum JSONDataSimple: Equatable {
     }
 }
 
-enum JSONData: Equatable, Sendable, Encodable, DecodableWithConfiguration {
+enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     typealias DecodingConfiguration = JSONData
 
     case string(String)
