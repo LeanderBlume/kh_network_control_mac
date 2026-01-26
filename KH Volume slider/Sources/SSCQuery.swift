@@ -30,6 +30,15 @@ enum NodeData: Equatable {
             return false
         }
     }
+
+    func isLeaf() -> Bool {
+        switch self {
+        case .value, .error, .unknownValue:
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 struct OSCLimits: Equatable, Codable {
@@ -236,23 +245,7 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
                     String(describing: v) + " is neither null nor {}."
                 )
             }
-            subNodeArray.append(
-                SSCNode(
-                    name: k,
-                    value: subNodeValue,
-                    parent: self
-                )
-            )
-        }
-        subNodeArray.sort { a, b in
-            // We want to put non-objects first.
-            if a.value == .unknownValue && b.value == .unknownChildren {
-                return true
-            }
-            if a.value == .unknownChildren && b.value == .unknownValue {
-                return false
-            }
-            return a.name < b.name
+            subNodeArray.append(SSCNode(name: k, value: subNodeValue, parent: self))
         }
         value = .children(subNodeArray)
     }
@@ -278,7 +271,7 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
             return
         }
     }
-    
+
     func populate(jsonDataCodable: JSONDataCodable) {
         switch jsonDataCodable {
         case .null:
@@ -289,8 +282,7 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         case .object(let dict):
             var children: [SSCNode] = []
             for k in dict.keys {
-                let child = SSCNode(name: k)
-                child.parent = self
+                let child = SSCNode(name: k, parent: self)
                 child.populate(jsonDataCodable: dict[k]!)
                 children.append(child)
                 // TODO sort children?
@@ -383,10 +375,11 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
         if case .children(let c) = value {
             return c.sorted { a, b in
                 // We want to put non-objects first.
-                if a.value == .unknownValue && b.value == .unknownChildren {
+                // TODO Obviously doesn't work.
+                if a.value.isLeaf() && !b.value.isLeaf() {
                     return true
                 }
-                if a.value == .unknownChildren && b.value == .unknownValue {
+                if !a.value.isLeaf() && b.value.isLeaf() {
                     return false
                 }
                 return a.name < b.name
