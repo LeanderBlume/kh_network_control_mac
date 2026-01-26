@@ -15,6 +15,13 @@ protocol SchemaCacheProtocol {
     func saveSchema(of device: KHDevice) throws
 }
 
+protocol ConnectionCacheProtocol {
+    init()
+
+    func getConnections() -> [SSCConnection]
+    func saveConnections(_ connections: [SSCConnection]) throws
+}
+
 struct SchemaCache: SchemaCacheProtocol {
     let deviceSchemata: URL = URL.documentsDirectory.appending(
         component: "device_schemata.json"
