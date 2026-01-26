@@ -232,6 +232,7 @@ struct Backupper {
         let backup = try getBackup(name: name)
 
         try khAccess.devices.forEach { device in
+            print(device.id)
             if let deviceBackup = backup[device.id] {
                 try device.parameterTree.load(jsonDataCodable: deviceBackup)
                 guard let newState = KHState(jsonDataCodable: deviceBackup) else {

@@ -44,10 +44,7 @@ class KHDevice: @MainActor Identifiable {
         guard let jsonData = JSONData(fromNodeTree: parameterTree) else {
             throw KHDeviceError.error("Failed to parse parameter tree")
         }
-        guard let newState = KHState(jsonData: jsonData) else {
-            throw KHDeviceError.error("Failed to read state from JSONData")
-        }
-        state = newState
+        // We do NOT update the state now because that messes up the ID
     }
 
     func fetch() async throws {
