@@ -51,6 +51,25 @@ struct TestSSC {
         #expect(!s.isEmpty)
     }
 
+    @Test func testService() async throws {
+        let s = await SSCConnection.scan()
+        #expect(!s.isEmpty)
+        if let service = await s.first!.service {
+            print(service)
+            let newC = SSCConnection(
+                serviceName: service.0,
+                type: service.1,
+                domain: service.2
+            )
+            try await newC.open()
+            let response: Bool = try await newC.fetchSSCValue(path: [
+                "audio", "out", "mute",
+            ])
+            #expect(response == false)
+            await newC.close()
+        }
+    }
+
     // This should be a SwiftSSC test.
     @Test func testFetchSSCValue() async throws {
         let sscDevice = await SSCConnection.scan()[0]
@@ -234,7 +253,7 @@ struct TestKHAccessDummy {
         encoder.outputFormatting = .prettyPrinted
         let reencoded = try encoder.encode(decodedTest)
         print(String(data: reencoded, encoding: .utf8)!)
-        try rootNode.load(from: treeData)
+        try rootNode.load(jsonData: treeData)
     }
 }
 

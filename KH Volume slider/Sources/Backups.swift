@@ -7,65 +7,123 @@
 
 import Foundation
 
-@MainActor
-protocol SchemaCacheProtocol {
-    init()
-
-    func getSchema(for device: KHDevice) throws -> JSONDataCodable?
-    func saveSchema(of device: KHDevice) throws
-}
-
 protocol ConnectionCacheProtocol {
     init()
 
-    func getConnections() -> [SSCConnection]
-    func saveConnections(_ connections: [SSCConnection]) throws
+    func getConnections() throws -> [SSCConnection]
+    func saveConnections(_ connections: [SSCConnection]) async throws
 }
 
-struct SchemaCache: SchemaCacheProtocol {
-    let deviceSchemata: URL = URL.documentsDirectory.appending(
-        component: "device_schemata.json"
-    )
+struct ConnectionCache: ConnectionCacheProtocol {
+    let url: URL = URL.documentsDirectory.appending(component: "connections.json")
 
-    private struct DeviceModelID: Codable, Hashable {
-        let product: String
-        let version: String
-        
-        init(_ state: KHState) {
-            product = state.product
-            version = state.version
-        }
+    private struct BonjourService: Codable {
+        let name: String
+        let type: String
+        let domain: String
     }
 
-    private typealias SchemaList = [DeviceModelID: JSONDataCodable]
+    private typealias FileSchema = [BonjourService]  // Stores IPv6 addresses
 
     init() {
         let fileManager = FileManager.default
-        if !fileManager.fileExists(atPath: deviceSchemata.path) {
+        if !fileManager.fileExists(atPath: url.path) {
             do {
-                let emptyList = try JSONEncoder().encode(SchemaList())
-                fileManager.createFile(
-                    atPath: deviceSchemata.path(),
-                    contents: emptyList
-                )
+                let emptyList = try JSONEncoder().encode(FileSchema())
+                fileManager.createFile(atPath: url.path(), contents: emptyList)
             } catch {
                 print(error)
             }
         }
     }
 
-    private enum PresetManagerErrors: Error {
-        case error(String)
+    private func getFileContents() throws -> FileSchema {
+        let data = try Data(contentsOf: url)
+        return try JSONDecoder().decode(FileSchema.self, from: data)
     }
 
-    private func getSchemaList() throws -> SchemaList {
-        let data = try Data(contentsOf: deviceSchemata)
-        return try JSONDecoder().decode(SchemaList.self, from: data)
+    private func writeFile(_ contents: FileSchema) throws {
+        let data = try JSONEncoder().encode(contents)
+        try data.write(to: url)
     }
 
-    private func writeSchemaList(_ schemaList: SchemaList) throws {
+    func getConnections() throws -> [SSCConnection] {
+        let services = try getFileContents()
+        var result = [SSCConnection]()
+        services.forEach { service in
+            result.append(
+                .init(
+                    serviceName: service.name,
+                    type: service.type,
+                    domain: service.domain
+                )
+            )
+        }
+        return result
+    }
+
+    func saveConnections(_ connections: [SSCConnection]) async throws {
+        var result = FileSchema()
+        for connection in connections {
+            let service = await connection.service
+            if let service {
+                result.append(
+                    BonjourService(name: service.0, type: service.1, domain: service.2)
+                )
+            }
+        }
+        try writeFile(result)
+    }
+
+    func clearConnections() async throws { try await saveConnections([]) }
+}
+
+@MainActor
+protocol SchemaCacheProtocol {
+    var url: URL { get }
+    init()
+    associatedtype FileSchema: Codable
+
+    func getSchema(for device: KHDevice) throws -> JSONDataCodable?
+    func saveSchema(of device: KHDevice) throws
+}
+
+struct SchemaCache: SchemaCacheProtocol {
+    let url: URL = URL.documentsDirectory.appending(
+        component: "device_schemata.json"
+    )
+
+    struct DeviceModelID: Codable, Hashable {
+        let product: String
+        let version: String
+
+        init(_ state: KHState) {
+            product = state.product
+            version = state.version
+        }
+    }
+    typealias FileSchema = [DeviceModelID: JSONDataCodable]
+
+    init() {
+        let fileManager = FileManager.default
+        if !fileManager.fileExists(atPath: url.path) {
+            do {
+                let emptyList = try JSONEncoder().encode(FileSchema())
+                fileManager.createFile(atPath: url.path(), contents: emptyList)
+            } catch {
+                print(error)
+            }
+        }
+    }
+
+    private func getSchemaList() throws -> FileSchema {
+        let data = try Data(contentsOf: url)
+        return try JSONDecoder().decode(FileSchema.self, from: data)
+    }
+
+    private func writeSchemaList(_ schemaList: FileSchema) throws {
         let data = try JSONEncoder().encode(schemaList)
-        try data.write(to: deviceSchemata)
+        try data.write(to: url)
     }
 
     func getSchema(for device: KHDevice) throws -> JSONDataCodable? {

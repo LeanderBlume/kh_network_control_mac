@@ -110,7 +110,7 @@ struct ContentView: View {
                 }
                 Tab("Backup", systemImage: "heart") {
                     NavigationStack {
-                        Backupper()
+                        BackupView()
                             .toolbar { browserToolbar }
                     }
                 }

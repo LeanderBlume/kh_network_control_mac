@@ -11,6 +11,15 @@ actor SSCConnection {
     private var connection: NWConnection
     private let dispatchQueue: DispatchQueue
 
+    var service: (String, String, String)? {
+        switch self.connection.endpoint {
+        case let .service(name: n, type: t, domain: d, interface: _):
+            return (n, t, d)
+        default:
+            return nil
+        }
+    }
+
     // Something goes wrong with the connection itself
     enum ConnectionError: Error {
         case couldNotConnect
@@ -36,6 +45,16 @@ actor SSCConnection {
         let endpoint = NWEndpoint.hostPort(host: hostEndpoint, port: portEndpoint)
         connection = NWConnection(to: endpoint, using: .tcp)
         dispatchQueue = DispatchQueue(label: "KH Speaker connection")
+    }
+
+    init(serviceName: String, type: String, domain: String) {
+        let endpoint = NWEndpoint.service(
+            name: serviceName,
+            type: type,
+            domain: domain,
+            interface: nil
+        )
+        self.init(endpoint: endpoint)
     }
 
     init(endpoint: NWEndpoint) {

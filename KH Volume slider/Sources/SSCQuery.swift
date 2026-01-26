@@ -285,7 +285,6 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
                 let child = SSCNode(name: k, parent: self)
                 child.populate(jsonDataCodable: dict[k]!)
                 children.append(child)
-                // TODO sort children?
             }
             value = .children(children)
         }

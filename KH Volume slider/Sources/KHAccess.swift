@@ -72,14 +72,36 @@ final class KHAccessNative: KHAccessProtocol {
     func scan(seconds: UInt32 = 1) async {
         /// Scan for devices, replacing current device list.
         status = .busy("Scanning...")
+        let connectionCache = ConnectionCache()
+        do {
+            try await connectionCache.clearConnections()
+        } catch {
+            print(error)
+        }
         let connections = await SSCConnection.scan(seconds: seconds)
+        do {
+            try await connectionCache.saveConnections(connections)
+        } catch {
+            print(error)
+        }
         devices = connections.map { KHDevice(connection: $0) }
         status = .speakersFound(devices.count)
     }
 
     func setup() async {
         if devices.isEmpty {
-            await scan()
+            let connectionCache = ConnectionCache()
+            if let connections = try? connectionCache.getConnections() {
+                if connections.isEmpty {
+                    await scan()
+                } else {
+                    devices = connections.map { KHDevice(connection: $0) }
+                    status = .speakersFound(devices.count)
+                }
+            } else {
+                print("error loading connections")
+                await scan()
+            }
             if status == .speakersFound(0) {
                 return
             }
@@ -89,18 +111,6 @@ final class KHAccessNative: KHAccessProtocol {
 
     private func setupDevices() async {
         status = .busy("Setting up...")
-        /*
-        await withThrowingTaskGroup { group in
-            for d in devices {
-                group.addTask { try await d.setup() }
-            }
-            do {
-                try await group.waitForAll()
-            } catch {
-                status = .otherError(String(describing: error))
-            }
-        }
-         */
         for d in devices {
             do { try await d.setup() } catch {
                 print(error)
@@ -130,7 +140,7 @@ final class KHAccessNative: KHAccessProtocol {
         }
         status = .success
     }
-    
+
     func fetchParameters() async {
         status = .busy("Fetching...")
         await withThrowingTaskGroup { group in
@@ -191,7 +201,7 @@ final class KHAccessNative: KHAccessProtocol {
             }
         }
     }
-    
+
     func sendNode(deviceIndex i: Int, path: [String]) async {
         if !devices.indices.contains(i) {
             status = .otherError("Device does not exist")
@@ -202,7 +212,7 @@ final class KHAccessNative: KHAccessProtocol {
             status = .otherError(String(describing: error))
         }
     }
-    
+
     func fetchNode(deviceIndex i: Int, path: [String]) async {
         if !devices.indices.contains(i) {
             status = .otherError("Device does not exist")
@@ -263,11 +273,11 @@ final class KHAccessDummy: KHAccessProtocol {
     func send() async {
         status = .clean
     }
-    
+
     func sendNode(deviceIndex: Int, path: [String]) async {
         status = .clean
     }
-    
+
     func fetchNode(deviceIndex: Int, path: [String]) async {
         status = .clean
     }
