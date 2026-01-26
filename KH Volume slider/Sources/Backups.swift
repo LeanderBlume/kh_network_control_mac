@@ -7,39 +7,86 @@
 
 import Foundation
 
-protocol StateManagerType {
+@MainActor
+protocol SchemaCacheProtocol {
     init()
 
     func getSchema(for device: KHDevice) throws -> JSONDataCodable?
     func saveSchema(of device: KHDevice) throws
-    func saveConnection(_ connection: SSCConnection) throws
-
 }
 
-struct PresetManager {
-    let deviceSchemata: URL? = Bundle.main.url(
-        forResource: "DeviceSchemata",
-        withExtension: ".json"
+struct SchemaCache: SchemaCacheProtocol {
+    let deviceSchemata: URL = URL.documentsDirectory.appending(
+        component: "device_schemata.json"
     )
 
-    enum PresetManagerErrors: Error {
+    private struct DeviceModelID: Codable, Hashable {
+        let product: String
+        let version: String
+        
+        init(_ state: KHState) {
+            product = state.product
+            version = state.version
+        }
+    }
+
+    private typealias SchemaList = [DeviceModelID: JSONDataCodable]
+
+    init() {
+        let fileManager = FileManager.default
+        if !fileManager.fileExists(atPath: deviceSchemata.path) {
+            do {
+                let emptyList = try JSONEncoder().encode(SchemaList())
+                fileManager.createFile(
+                    atPath: deviceSchemata.path(),
+                    contents: emptyList
+                )
+            } catch {
+                print(error)
+            }
+        }
+    }
+
+    private enum PresetManagerErrors: Error {
         case error(String)
     }
 
-    private func decode(from data: Data) throws -> [KHDevice.ID: JSONDataCodable] {
-        return try JSONDecoder().decode(
-            [KHDevice.ID: JSONDataCodable].self,
-            from: data
-        )
+    private func getSchemaList() throws -> SchemaList {
+        let data = try Data(contentsOf: deviceSchemata)
+        return try JSONDecoder().decode(SchemaList.self, from: data)
+    }
+
+    private func writeSchemaList(_ schemaList: SchemaList) throws {
+        let data = try JSONEncoder().encode(schemaList)
+        try data.write(to: deviceSchemata)
+    }
+
+    func getSchema(for device: KHDevice) throws -> JSONDataCodable? {
+        let schemaList = try getSchemaList()
+        return schemaList[DeviceModelID(device.state)]
+    }
+
+    func saveSchema(of device: KHDevice) throws {
+        let jdc = JSONDataCodable(fromNodeTree: device.parameterTree)
+        var schemaList = try getSchemaList()
+        schemaList[DeviceModelID(device.state)] = jdc
+        try writeSchemaList(schemaList)
     }
 }
 
 struct Backupper {
     let backupsDir: URL = URL.documentsDirectory.appending(path: "backups")
 
-    typealias Backup = [KHDevice.ID: JSONDataCodable]
+    // currently unused, maybe in the future.
+    private struct DeviceIdentifier: Codable, Hashable {
+        let model: String
+        let version: String
+        let serial: String
+    }
 
-    enum BackupperErrors: Error {
+    private typealias Backup = [KHDevice.ID: JSONDataCodable]
+
+    private enum BackupperErrors: Error {
         case error(String)
     }
 
@@ -121,9 +168,8 @@ struct Backupper {
 
         try khAccess.devices.forEach { device in
             if let deviceBackup = backup[device.id] {
-                let jsonData = JSONData(jsonDataCodable: deviceBackup)
-                try device.parameterTree.load(from: jsonData)
-                guard let newState = KHState(from: jsonData) else {
+                try device.parameterTree.load(jsonDataCodable: deviceBackup)
+                guard let newState = KHState(jsonDataCodable: deviceBackup) else {
                     throw BackupperErrors.error(
                         "backed up JSONData not compatibe with state."
                     )

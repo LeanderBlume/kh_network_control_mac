@@ -54,7 +54,7 @@ struct KHState: Codable, Equatable {
 
     init() {}
 
-    init?(from jsonData: JSONData) {
+    init?(jsonData: JSONData) {
         for parameter in KHParameters.allCases {
             let devicePath = parameter.getDevicePath()
             var unwrappedValue = jsonData
@@ -93,6 +93,10 @@ struct KHState: Codable, Equatable {
                 }
             }
         }
+    }
+
+    init?(jsonDataCodable: JSONDataCodable) {
+        self.init(jsonData: JSONData(jsonDataCodable: jsonDataCodable))
     }
 }
 

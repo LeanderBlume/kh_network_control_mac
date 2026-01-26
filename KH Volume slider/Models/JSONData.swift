@@ -8,27 +8,43 @@
 import Foundation
 
 enum JSONDataCodable: Equatable, Sendable, Codable {
-    case string(String)
-    case number(Double)
-    case bool(Bool)
+    case string(String, limits: OSCLimits? = nil)
+    case number(Double, limits: OSCLimits? = nil)
+    case bool(Bool, limits: OSCLimits? = nil)
+    case array([JSONDataCodable], limits: OSCLimits? = nil)
     case null
-    case array([JSONDataCodable])
     case object([String: JSONDataCodable])
     
-    init(jsonData: JSONData) {
+    init(jsonData: JSONData, limits: OSCLimits? = nil) {
         switch jsonData {
         case .null:
             self = .null
         case .string(let string):
-            self = .string(string)
+            self = .string(string, limits: limits)
         case .number(let number):
-            self = .number(number)
+            self = .number(number, limits: limits)
         case .bool(let bool):
-            self = .bool(bool)
+            self = .bool(bool, limits: limits)
         case .array(let array):
-            self = .array(array.map(JSONDataCodable.init))
+            self = .array(array.map({JSONDataCodable(jsonData: $0)}), limits: limits)
         case .object(let object):
-            self = .object(object.mapValues(JSONDataCodable.init))
+            self = .object(object.mapValues({JSONDataCodable(jsonData: $0)}))
+        }
+    }
+    
+    @MainActor
+    init?(fromNodeTree rootNode: SSCNode) {
+        switch rootNode.value {
+        case .value(let value):
+            self.init(jsonData: value, limits: rootNode.limits)
+        case .children(let children):
+            var dict: [String: JSONDataCodable] = [:]
+            children.forEach { child in
+                dict[child.name] = JSONDataCodable(fromNodeTree: child)
+            }
+            self = .object(dict)
+        default:
+            self = .null
         }
     }
 
@@ -144,13 +160,13 @@ enum JSONData: Equatable, Sendable, Encodable, DecodableWithConfiguration {
         switch jsonDataCodable {
         case .null:
             self = .null
-        case .string(let string):
+        case .string(let string, _):
             self = .string(string)
-        case .number(let number):
+        case .number(let number, _):
             self = .number(number)
-        case .bool(let bool):
+        case .bool(let bool, _):
             self = .bool(bool)
-        case .array(let array):
+        case .array(let array, _):
             self = .array(array.map(JSONData.init))
         case .object(let object):
             self = .object(object.mapValues(JSONData.init))

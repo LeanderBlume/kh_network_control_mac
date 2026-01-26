@@ -34,11 +34,20 @@ class KHDevice: @MainActor Identifiable {
 
     func setup() async throws {
         try await connect()
+        // We need to fetch product and version to identify the schema type.
         for p in KHParameters.setupParameters {
             state = try await p.fetch(into: state, connection: connection)
         }
-        try await fetch()
+        try await populateParameters()
         await disconnect()
+
+        guard let jsonData = JSONData(fromNodeTree: parameterTree) else {
+            throw KHDeviceError.error("Failed to parse parameter tree")
+        }
+        guard let newState = KHState(jsonData: jsonData) else {
+            throw KHDeviceError.error("Failed to read state from JSONData")
+        }
+        state = newState
     }
 
     func fetch() async throws {
@@ -65,11 +74,18 @@ class KHDevice: @MainActor Identifiable {
         }
         await disconnect()
     }
-    
+
     func populateParameters() async throws {
+        let schemaCache = SchemaCache()
+        if let cachedSchema = try schemaCache.getSchema(for: self) {
+            parameterTree.populate(jsonDataCodable: cachedSchema)
+            return
+        }
         try await connect()
         try await parameterTree.populate(connection: connection, recursive: true)
         await disconnect()
+        try schemaCache.saveSchema(of: self)
+
     }
 
     func fetchParameters() async throws {

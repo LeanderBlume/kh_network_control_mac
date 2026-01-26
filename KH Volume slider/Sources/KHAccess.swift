@@ -89,6 +89,7 @@ final class KHAccessNative: KHAccessProtocol {
 
     private func setupDevices() async {
         status = .busy("Setting up...")
+        /*
         await withThrowingTaskGroup { group in
             for d in devices {
                 group.addTask { try await d.setup() }
@@ -99,6 +100,16 @@ final class KHAccessNative: KHAccessProtocol {
                 status = .otherError(String(describing: error))
             }
         }
+         */
+        for d in devices {
+            do { try await d.setup() } catch {
+                print(error)
+                status = .otherError(String(describing: error))
+                return
+            }
+        }
+        // not sure
+        // await fetchParameters()
         state = devices[0].state
         status = .success
     }
