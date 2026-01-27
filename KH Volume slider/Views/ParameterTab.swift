@@ -371,18 +371,13 @@ struct DeviceBrowser: View {
 
                     switch node.value {
                     case .unknown, .unknownValue, .unknownChildren:
-                        #if os(iOS)
-                            ProgressView()
-                        #elseif os(macOS)
-                            Text("Loading...")
-                        #endif
+                        Text("unknown")
                     case .error(let s):
                         Label(s, systemImage: "exclamationmark.circle")
                     case .children:
                         EmptyView()
                     case .value(let v):
-                        Text(v.stringify())
-                            .foregroundColor(.secondary)
+                        Text(v.stringify()).foregroundColor(.secondary)
                     }
                 }
             }
