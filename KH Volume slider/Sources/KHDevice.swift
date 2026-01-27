@@ -40,10 +40,6 @@ class KHDevice: @MainActor Identifiable {
         }
         try await populateParameters()
         await disconnect()
-
-        guard let jsonData = JSONData(fromNodeTree: parameterTree) else {
-            throw KHDeviceError.error("Failed to parse parameter tree")
-        }
         // We do NOT update the state now because that messes up the ID
     }
 
