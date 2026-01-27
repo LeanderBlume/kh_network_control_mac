@@ -447,7 +447,6 @@ struct ParameterMapper: View {
 struct iOSDeviceBrowserForm: View {
     var devices: [KHDevice]
     @State private var pathStrings: [String: String] = [:]
-    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     func updatePathStrings() {
         for parameter in KHParameters.allCases {
@@ -459,7 +458,7 @@ struct iOSDeviceBrowserForm: View {
         List {
             Section("Devices") {
                 ForEach(devices.indices, id: \.self) { i in
-                    let device = khAccess.devices[i]
+                    let device = devices[i]
                     NavigationLink(
                         device.state.name,
                         destination: DeviceBrowser(deviceIndex: i)
@@ -496,7 +495,6 @@ struct iOSDeviceBrowserForm: View {
 struct macOSDeviceBrowserForm: View {
     var devices: [KHDevice]
     @State private var pathStrings: [String: String] = [:]
-    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     func updatePathStrings() {
         for parameter in KHParameters.allCases {
@@ -508,7 +506,7 @@ struct macOSDeviceBrowserForm: View {
         List {
             Section("Devices") {
                 ForEach(devices.indices, id: \.self) { i in
-                    let device = khAccess.devices[i]
+                    let device = devices[i]
                     NavigationLink(
                         device.state.name,
                         destination: DeviceBrowser(deviceIndex: i)
@@ -552,7 +550,7 @@ struct ParameterTab: View {
     }
 
     var body: some View {
-        let devices = khAccess.devices
+        let devices = khAccess.devices.sorted { $0.state.name < $1.state.name }
         NavigationStack {
             if devices.isEmpty {
                 Text("No devices")
