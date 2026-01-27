@@ -256,7 +256,6 @@ struct NodeValueEditor: View {
             case .arrayString:
                 ForEach(values.arrayString.indices, id: \.self) { i in
                     TextField("Entry \(i + 1)", text: $values.arrayString[i])
-                        .textFieldStyle(.plain)
                 }
             case .stringPicker:
                 Picker("Option", selection: $values.string) {
@@ -381,8 +380,7 @@ struct DeviceBrowser: View {
                     }
                 }
             }
-        }
-        .refreshable { await khAccess.fetchParameters() }
+        }.refreshable { await khAccess.fetchParameters() }
     }
 }
 
