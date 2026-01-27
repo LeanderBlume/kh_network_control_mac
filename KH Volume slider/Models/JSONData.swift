@@ -14,7 +14,7 @@ enum JSONDataCodable: Equatable, Codable {
     case array([JSONDataCodable], limits: OSCLimits? = nil)
     case null
     case object([String: JSONDataCodable])
-    
+
     init(jsonData: JSONData, limits: OSCLimits? = nil) {
         switch jsonData {
         case .null:
@@ -26,12 +26,12 @@ enum JSONDataCodable: Equatable, Codable {
         case .bool(let bool):
             self = .bool(bool, limits: limits)
         case .array(let array):
-            self = .array(array.map({JSONDataCodable(jsonData: $0)}), limits: limits)
+            self = .array(array.map({ .init(jsonData: $0) }), limits: limits)
         case .object(let object):
-            self = .object(object.mapValues({JSONDataCodable(jsonData: $0)}))
+            self = .object(object.mapValues({ .init(jsonData: $0) }))
         }
     }
-    
+
     @MainActor
     init?(fromNodeTree rootNode: SSCNode) {
         switch rootNode.value {
@@ -155,7 +155,7 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     init(singleValue: [String]) { self = .array(singleValue.map({ .string($0) })) }
     init(singleValue: [Double]) { self = .array(singleValue.map({ .number($0) })) }
     init(singleValue: [Bool]) { self = .array(singleValue.map({ .bool($0) })) }
-    
+
     init(jsonDataCodable: JSONDataCodable) {
         switch jsonDataCodable {
         case .null:
@@ -213,11 +213,11 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
         switch currentValue {
         case .object(let children):
             codingKeys = children.keys.map { MyStupidKey(stringValue: $0) }
-            let values = try decoder.container(keyedBy: MyStupidKey.self)
+            let container = try decoder.container(keyedBy: MyStupidKey.self)
             var dict = [String: JSONData]()
             for k in codingKeys {
-                // dict[k.stringValue] = try .init(from: values.superDecoder(forKey: k))
-                dict[k.stringValue] = try values.decode(
+                // dict[k.stringValue] = try .init(from: container.superDecoder(forKey: k))
+                dict[k.stringValue] = try container.decode(
                     JSONData.self,
                     forKey: k,
                     configuration: configuration
@@ -279,24 +279,19 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     }
 
     func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
         switch self {
         case .null:
-            var container = encoder.singleValueContainer()
             try container.encodeNil()
         case .string(let v):
-            var container = encoder.singleValueContainer()
             try container.encode(v)
         case .number(let v):
-            var container = encoder.singleValueContainer()
             try container.encode(v)
         case .bool(let v):
-            var container = encoder.singleValueContainer()
             try container.encode(v)
         case .array(let v):
-            var container = encoder.singleValueContainer()
             try container.encode(v)
         case .object(let v):
-            var container = encoder.singleValueContainer()
             try container.encode(v)
         }
     }
@@ -319,33 +314,28 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
         return self
     }
 
-    func asArrayAny() -> [Any?]? {
-        var result: [Any?] = []
+    private func asAny() -> Any? {
         switch self {
-        case .array(let vs):
-            if vs.isEmpty {
-                return []
-            }
-            for v in vs {
-                switch v {
-                case .number(let w):
-                    result.append(w)
-                case .string(let w):
-                    result.append(w)
-                case .bool(let w):
-                    result.append(w)
-                case .null:
-                    result.append(nil)
-                case .array:
-                    result.append([])
-                case .object:
-                    result.append([:])
-                }
-            }
-        default:
+        case .number(let w):
+            return w
+        case .string(let w):
+            return w
+        case .bool(let w):
+            return w
+        case .null:
             return nil
+        case .array(let w):
+            return w
+        case .object(let w):
+            return w
         }
-        return result
+    }
+
+    func asArrayAny() -> [Any?]? {
+        if case .array(let vs) = self {
+            return vs.map({ $0.asAny() })
+        }
+        return nil
     }
 
     func asArrayNumber() -> [Double]? { return asArrayAny() as? [Double] }
