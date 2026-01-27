@@ -358,12 +358,9 @@ struct DeviceBrowser: View {
             rootNode.children ?? [rootNode],
             children: \.children,
         ) { node in
-            // Putting a navigation link here causes a memory access error for some godforsaken reason. Any link seems to cause the bug, so nodes don't seem to be the problem. That's a huge relief actually.
-            /*
-            NavigationLink(
-                destination: NodeView(node: node, deviceIndex: deviceIndex)
-            ) {
-             */
+            // Putting a navigation link here causes a memory access error for some godforsaken reason. Any link seems to cause the bug, so nodes don't seem to be the problem. That's a huge relief actually.n
+            NavigationLink(destination: NodeView(node: node, deviceIndex: deviceIndex))
+            {
                 let unitString =
                     node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
 
@@ -388,7 +385,7 @@ struct DeviceBrowser: View {
                             .foregroundColor(.secondary)
                     }
                 }
-            // }
+            }
         }
         .refreshable { await khAccess.fetchParameters() }
     }
@@ -417,18 +414,7 @@ struct ParameterMapper: View {
         ) { node in
             let unitString =
                 node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
-            let s = node.name + unitString
-
-            switch node.value {
-            case .unknown:
-                Button("Query parameters") {
-                    Task {
-                        await khAccess.populateParameters()
-                    }
-                }
-            default:
-                Text(s)
-            }
+            Text(node.name + unitString)
         }
         .navigationTitle(Text(parameter.rawValue))
         .overlay(alignment: .bottom) {
