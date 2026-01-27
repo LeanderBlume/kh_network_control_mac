@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum NodeData: Equatable {
+enum NodeData {
     case unknown
     case unknownChildren
     case unknownValue
@@ -79,7 +79,7 @@ enum SSCNodeError: Error {
 
 @Observable
 @MainActor
-class SSCNode: Identifiable, Equatable, @MainActor Sequence {
+class SSCNode: Identifiable, @MainActor Sequence {
     var name: String
     var value: NodeData
     var parent: SSCNode?
@@ -362,31 +362,14 @@ class SSCNode: Identifiable, Equatable, @MainActor Sequence {
 
     /// Returns list of child nodes, if there are any. This is for SSCTreeView lazy loading. Maybe we don't need this.
     var children: [SSCNode]? {
-        // We need a better way to rate-limit this
-        /*
-        if value == nil {
-            Task {
-                try await Task.sleep(nanoseconds: 1_000_000)
-                try await populate(recursive: false)
-            }
-        }
-         */
         if case .children(let c) = value {
             return c.sorted { a, b in
-                if a.value.isLeaf() && !b.value.isLeaf() {
-                    return true
-                }
-                if !a.value.isLeaf() && b.value.isLeaf() {
-                    return false
-                }
+                if a.value.isLeaf() && !b.value.isLeaf() { return true }
+                if !a.value.isLeaf() && b.value.isLeaf() { return false }
                 return a.name < b.name
             }
         }
         return nil
-    }
-
-    nonisolated static func == (lhs: SSCNode, rhs: SSCNode) -> Bool {
-        return (lhs.id == rhs.id)
     }
 
     func makeIterator() -> [SSCNode].Iterator {
