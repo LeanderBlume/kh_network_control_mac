@@ -11,18 +11,12 @@ import SwiftUI
 struct BackupView: View {
     @State var newName: String = ""
     @State var selection: String? = nil
+    @FocusState private var textFieldFocused: Bool
     @Environment(KHAccess.self) private var khAccess
     let backupper = Backupper()
 
     var body: some View {
-        let populated = khAccess.devices.first?.parameterTree.value.isUnknown() == false
-        Form {
-            if !populated {
-                Text("Populate parameters to save and load backups")
-                Button("Populate parameters") {
-                    Task { await khAccess.populateParameters() }
-                }
-            }
+        Form { 
             Group {
                 if backupper.list().isEmpty {
                     Section("Backup list") {
@@ -56,6 +50,7 @@ struct BackupView: View {
                 Section("Create new backup") {
                     TextField("Backup name", text: $newName)
                         .textFieldStyle(.automatic)
+                        .focused($textFieldFocused)
                     Button("Save backup") {
                         Task {
                             // TODO better: Load parameters from state.
@@ -63,11 +58,11 @@ struct BackupView: View {
                             try backupper.write(name: newName, khAccess: khAccess)
                             selection = newName
                             newName = ""
+                            textFieldFocused = false
                         }
                     }
                 }
             }
-            .disabled(!populated)
         }
     }
 }
