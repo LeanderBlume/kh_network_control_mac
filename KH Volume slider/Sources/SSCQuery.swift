@@ -81,16 +81,16 @@ enum SSCNodeError: Error {
 @MainActor
 class SSCNode: Identifiable, @MainActor Sequence {
     var name: String
-    var value: NodeData
     var parent: SSCNode?
+    var value: NodeData
     var limits: OSCLimits?
     // Maybe this is better than the default ObjectIdentifier. But I don't think so.
     // let id = UUID()
 
     init(
         name name_: String,
+        parent parent_: SSCNode?,
         value value_: NodeData = .unknown,
-        parent parent_: SSCNode? = nil,
         limits limits_: OSCLimits? = nil,
     ) {
         name = name_
@@ -245,7 +245,7 @@ class SSCNode: Identifiable, @MainActor Sequence {
                     String(describing: v) + " is neither null nor {}."
                 )
             }
-            subNodeArray.append(SSCNode(name: k, value: subNodeValue, parent: self))
+            subNodeArray.append(SSCNode(name: k, parent: self, value: subNodeValue))
         }
         value = .children(subNodeArray)
     }

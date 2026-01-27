@@ -21,7 +21,7 @@ class KHDevice: @MainActor Identifiable {
 
     init(connection connection_: SSCConnection) {
         connection = connection_
-        parameterTree = SSCNode(name: "root")
+        parameterTree = SSCNode(name: "root", parent: nil)
     }
 
     private func connect() async throws {
