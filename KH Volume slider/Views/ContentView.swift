@@ -68,8 +68,8 @@ struct ContentView: View {
             }
         #endif
         ToolbarItem {
-            Button("Query parameters") {
-                Task { await khAccess.populateParameters() }
+            Button("Fetch parameters") {
+                Task { await khAccess.fetchParameters() }
             }
         }
     }
