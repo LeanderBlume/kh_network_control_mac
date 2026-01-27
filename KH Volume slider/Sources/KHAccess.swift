@@ -119,7 +119,7 @@ final class KHAccessNative: KHAccessProtocol {
             }
         }
         // not sure
-        await fetchParameters()
+        // await fetchParameters()
         await fetch()
         state = devices[0].state
         status = .success
