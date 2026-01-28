@@ -357,16 +357,17 @@ struct DeviceBrowser: View {
             rootNode.children ?? [rootNode],
             children: \.children,
         ) { node in
-            // Putting a navigation link here causes a memory access error for some godforsaken reason. Any link seems to cause the bug, so nodes don't seem to be the problem. That's a huge relief actually.n
             NavigationLink(destination: NodeView(node: node, deviceIndex: deviceIndex))
             {
-                let unitString =
-                    node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
-
                 HStack {
-                    Text(node.name + unitString)
+                    if let units = node.limits?.units {
+                        Text(node.name + " (\(units))")
+                    } else {
+                        Text(node.name)
+                    }
 
-                    Spacer()
+                    // This spacer can cause an EXC_BAD_ACCESS on the macOS build. Super weird.
+                    // Spacer()
 
                     switch node.value {
                     case .unknown, .unknownValue, .unknownChildren:
