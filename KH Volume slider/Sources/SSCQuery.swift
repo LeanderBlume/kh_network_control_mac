@@ -120,6 +120,17 @@ class SSCNode: Identifiable, @MainActor Sequence {
 
     func getPathString() -> String { "/" + pathToNode().joined(separator: "/") }
 
+    func getNodeByPath(_ path: [String]) -> SSCNode? {
+        var curr: SSCNode? = self
+        for p in path {
+            guard let child = self[p] else {
+                return nil
+            }
+            curr = child
+        }
+        return curr
+    }
+
     private func queryAux(connection: SSCConnection, query: [String], path: [String])
         async throws -> [String: Any]
     {
