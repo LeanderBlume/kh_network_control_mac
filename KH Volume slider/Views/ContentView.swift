@@ -141,7 +141,6 @@ struct ContentView: View {
                     BackupView()
                         .scenePadding()
                 }
-                Tab("Bug", systemImage: "bug") { BugView() }
             }
             .onAppear { Task { await khAccess.setup() } }
             .scenePadding()
