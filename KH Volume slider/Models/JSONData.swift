@@ -297,11 +297,9 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     }
 
     func wrap(in path: [String]) -> Self {
-        var result = self
-        for p in path.reversed() {
-            result = .object([p: result])
+        return path.reversed().reduce(self) { (partial, key) in
+            .object([key: partial])
         }
-        return result
     }
 
     // removes layers of single key objects until something else remains.
