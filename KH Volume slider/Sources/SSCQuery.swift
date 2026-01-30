@@ -79,24 +79,34 @@ enum SSCNodeError: Error {
 
 @Observable
 @MainActor
-class SSCNode: Identifiable, @MainActor Sequence {
-    var name: String
-    var parent: SSCNode?
+class SSCNode: @MainActor Identifiable, @MainActor Sequence {
+    let name: String
+    let deviceID: KHDevice.ID
+    let parent: SSCNode?
     var value: NodeData
     var limits: OSCLimits?
-    // Maybe this is better than the default ObjectIdentifier. But I don't think so.
-    // let id = UUID()
+
+    struct NodeID: Hashable, Codable {
+        let deviceID: KHDevice.ID
+        let path: [String]
+    }
+    
+    // typealias ID = NodeID
+
+    var id: NodeID { .init(deviceID: deviceID, path: pathToNode()) }
 
     init(
-        name name_: String,
-        parent parent_: SSCNode?,
-        value value_: NodeData = .unknown,
-        limits limits_: OSCLimits? = nil,
+        name: String,
+        deviceID: KHDevice.ID,
+        parent: SSCNode?,
+        value: NodeData = .unknown,
+        limits: OSCLimits? = nil,
     ) {
-        name = name_
-        value = value_
-        parent = parent_
-        limits = limits_
+        self.name = name
+        self.deviceID = deviceID
+        self.value = value
+        self.parent = parent
+        self.limits = limits
     }
 
     func rootNode() -> SSCNode {
@@ -123,9 +133,7 @@ class SSCNode: Identifiable, @MainActor Sequence {
     func getNodeByPath(_ path: [String]) -> SSCNode? {
         var curr: SSCNode? = self
         for p in path {
-            guard let child = self[p] else {
-                return nil
-            }
+            guard let child = self[p] else { return nil }
             curr = child
         }
         return curr
@@ -256,7 +264,14 @@ class SSCNode: Identifiable, @MainActor Sequence {
                     String(describing: v) + " is neither null nor {}."
                 )
             }
-            subNodeArray.append(SSCNode(name: k, parent: self, value: subNodeValue))
+            subNodeArray.append(
+                SSCNode(
+                    name: k,
+                    deviceID: self.id.deviceID,
+                    parent: self,
+                    value: subNodeValue
+                )
+            )
         }
         value = .children(subNodeArray)
     }
@@ -293,7 +308,7 @@ class SSCNode: Identifiable, @MainActor Sequence {
         case .object(let dict):
             var children: [SSCNode] = []
             for k in dict.keys {
-                let child = SSCNode(name: k, parent: self)
+                let child = SSCNode(name: k, deviceID: self.id.deviceID, parent: self)
                 child.populate(jsonDataCodable: dict[k]!)
                 children.append(child)
             }

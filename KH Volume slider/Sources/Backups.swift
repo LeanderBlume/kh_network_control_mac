@@ -132,7 +132,8 @@ struct SchemaCache: SchemaCacheProtocol {
     }
 
     func saveSchema(of device: KHDevice) throws {
-        let jdc = JSONDataCodable(fromNodeTree: device.parameterTree)
+        guard let rootNode = device.parameterTree else { return }
+        let jdc = JSONDataCodable(fromNodeTree: rootNode)
         var schemaList = try getSchemaList()
         schemaList[DeviceModelID(device.state)] = jdc
         try writeSchemaList(schemaList)
@@ -219,7 +220,8 @@ struct Backupper {
     func write(name: String, khAccess: KHAccess) throws {
         var newBackup = Backup()
         khAccess.devices.forEach { device in
-            if let jsonData = JSONData(fromNodeTree: device.parameterTree) {
+            guard let rootNode = device.parameterTree else { return }
+            if let jsonData = JSONData(fromNodeTree: rootNode) {
                 newBackup[device.id] = JSONDataCodable(jsonData: jsonData)
             }
         }
@@ -232,9 +234,9 @@ struct Backupper {
         let backup = try getBackup(name: name)
 
         try khAccess.devices.forEach { device in
-            print(device.id)
             if let deviceBackup = backup[device.id] {
-                try device.parameterTree.load(jsonDataCodable: deviceBackup)
+                guard let rootNode = device.parameterTree else { return }
+                try rootNode.load(jsonDataCodable: deviceBackup)
                 guard let newState = KHState(jsonDataCodable: deviceBackup) else {
                     throw BackupperErrors.error(
                         "backed up JSONData not compatibe with state."

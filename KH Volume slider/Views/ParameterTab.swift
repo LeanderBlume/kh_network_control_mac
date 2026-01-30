@@ -348,37 +348,35 @@ struct NodeView: View {
 }
 
 struct DeviceBrowser: View {
+    var rootNode: SSCNode
     var deviceIndex: Int
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        let rootNode = khAccess.devices[deviceIndex].parameterTree
         List(
-            rootNode.children ?? [rootNode],
+            rootNode.children ?? [],
             children: \.children,
         ) { node in
             NavigationLink(destination: NodeView(node: node, deviceIndex: deviceIndex))
             {
-                HStack {
-                    if let units = node.limits?.units {
-                        Text(node.name + " (\(units))")
-                    } else {
-                        Text(node.name)
-                    }
+                if let units = node.limits?.units {
+                    Text(node.name + " (\(units))")
+                } else {
+                    Text(node.name)
+                }
 
-                    // This spacer can cause an EXC_BAD_ACCESS on the macOS build. Super weird.
-                    // Spacer()
+                // This spacer can cause an EXC_BAD_ACCESS on the macOS build. Super weird.
+                Spacer()
 
-                    switch node.value {
-                    case .unknown, .unknownValue, .unknownChildren:
-                        Text("unknown")
-                    case .error(let s):
-                        Label(s, systemImage: "exclamationmark.circle")
-                    case .children:
-                        EmptyView()
-                    case .value(let v):
-                        Text(v.stringify()).foregroundColor(.secondary)
-                    }
+                switch node.value {
+                case .unknown, .unknownValue, .unknownChildren:
+                    Text("unknown")
+                case .error(let s):
+                    Label(s, systemImage: "exclamationmark.circle")
+                case .children:
+                    EmptyView()
+                case .value(let v):
+                    Text(v.stringify()).foregroundColor(.secondary)
                 }
             }
         }.refreshable { await khAccess.fetchParameters() }
@@ -453,11 +451,15 @@ struct iOSDeviceBrowserForm: View {
             Section("Devices") {
                 ForEach(devices.indices, id: \.self) { i in
                     let device = devices[i]
-                    NavigationLink(
-                        device.state.name,
-                        destination: DeviceBrowser(deviceIndex: i)
-                            .navigationTitle(device.state.name)
-                    )
+                    if let rootNode = device.parameterTree {
+                        NavigationLink(
+                            device.state.name,
+                            destination: DeviceBrowser(rootNode: rootNode, deviceIndex: i)
+                                .navigationTitle(device.state.name)
+                        )
+                    } else {
+                        Text("Parameters not populated.")
+                    }
                 }
             }
 
@@ -468,14 +470,18 @@ struct iOSDeviceBrowserForm: View {
                 }
                 ForEach(KHParameters.allCases) { parameter in
                     LabeledContent {
-                        NavigationLink(
-                            pathStrings[parameter.rawValue] ?? "unknown",
-                            destination: ParameterMapper(
-                                parameter: parameter,
-                                rootNode: devices.first!.parameterTree,
-                                pathStrings: $pathStrings
+                        if let rootNode = devices.first!.parameterTree {
+                            NavigationLink(
+                                pathStrings[parameter.rawValue] ?? "unknown",
+                                destination: ParameterMapper(
+                                    parameter: parameter,
+                                    rootNode: rootNode,
+                                    pathStrings: $pathStrings
+                                )
                             )
-                        )
+                        } else {
+                            Text(pathStrings[parameter.rawValue] ?? "unknown")
+                        }
                     } label: {
                         Text(parameter.rawValue)
                     }
@@ -501,11 +507,15 @@ struct macOSDeviceBrowserForm: View {
             Section("Devices") {
                 ForEach(devices.indices, id: \.self) { i in
                     let device = devices[i]
-                    NavigationLink(
-                        device.state.name,
-                        destination: DeviceBrowser(deviceIndex: i)
-                            .navigationTitle(device.state.name)
-                    )
+                    if let rootNode = device.parameterTree {
+                        NavigationLink(
+                            device.state.name,
+                            destination: DeviceBrowser(rootNode: rootNode, deviceIndex: i)
+                                .navigationTitle(device.state.name)
+                        )
+                    } else {
+                        Text("Parameters not populated.")
+                    }
                 }
             }
             Section("Map UI Elements") {
@@ -514,15 +524,20 @@ struct macOSDeviceBrowserForm: View {
                     updatePathStrings()
                 }
                 ForEach(KHParameters.allCases) { parameter in
+                    let pathString = pathStrings[parameter.rawValue] ?? "?"
                     LabeledContent {
-                        NavigationLink(
-                            pathStrings[parameter.rawValue] ?? "unknown",
-                            destination: ParameterMapper(
-                                parameter: parameter,
-                                rootNode: devices.first!.parameterTree,
-                                pathStrings: $pathStrings
+                        if let rootNode = devices.first!.parameterTree {
+                            NavigationLink(
+                                pathString,
+                                destination: ParameterMapper(
+                                    parameter: parameter,
+                                    rootNode: rootNode,
+                                    pathStrings: $pathStrings
+                                )
                             )
-                        )
+                        } else {
+                            Text(pathString)
+                        }
                     } label: {
                         Text(parameter.rawValue)
                     }

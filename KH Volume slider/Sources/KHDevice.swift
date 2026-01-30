@@ -9,19 +9,22 @@ import SwiftUI
 
 @Observable
 final class KHDevice: @MainActor KHDeviceProtocol {
-    var state: KHState = KHState()
-    let parameterTree: SSCNode
     let connection: SSCConnection
-    var id: String { state.product + state.version + state.serial }
+    var state: KHState = KHState()
+    var parameterTree: SSCNode? = nil
+
+    struct KHDeviceID: Hashable, Codable {
+        let name: String
+        let serial: String
+    }
+
+    var id: KHDeviceID { .init(name: state.name, serial: state.serial) }
 
     enum KHDeviceError: Error {
         case error(String)
     }
 
-    required init(connection connection_: SSCConnection) {
-        connection = connection_
-        parameterTree = SSCNode(name: "root", parent: nil)
-    }
+    required init(connection: SSCConnection) { self.connection = connection }
 
     private func connect() async throws {
         try await connection.open()
@@ -68,21 +71,23 @@ final class KHDevice: @MainActor KHDeviceProtocol {
     }
 
     func populateParameters() async throws {
+        let rootNode = SSCNode(name: "root", deviceID: self.id, parent: nil)
         let schemaCache = SchemaCache()
         if let cachedSchema = try schemaCache.getSchema(for: self) {
-            parameterTree.populate(jsonDataCodable: cachedSchema)
+            rootNode.populate(jsonDataCodable: cachedSchema)
             return
         }
         try await connect()
-        try await parameterTree.populate(connection: connection, recursive: true)
+        try await rootNode.populate(connection: connection, recursive: true)
         await disconnect()
         try schemaCache.saveSchema(of: self)
-
+        parameterTree = rootNode
     }
 
     func fetchParameters() async throws {
+        guard let rootNode = parameterTree else { return }
         try await connect()
-        for node in parameterTree {
+        for node in rootNode {
             if case .value = node.value {
                 try await node.fetch(connection: connection)
             }
@@ -91,8 +96,9 @@ final class KHDevice: @MainActor KHDeviceProtocol {
     }
 
     func sendParameters() async throws {
+        guard let rootNode = parameterTree else { return }
         try await connect()
-        for node in parameterTree {
+        for node in rootNode {
             if case .value = node.value {
                 try await node.send(connection: connection)
             }
@@ -101,7 +107,8 @@ final class KHDevice: @MainActor KHDeviceProtocol {
     }
 
     func sendNode(_ path: [String]) async throws {
-        guard let node = parameterTree.getNodeByPath(path) else {
+        guard let rootNode = parameterTree else { return }
+        guard let node = rootNode.getNodeByPath(path) else {
             throw KHDeviceError.error("Node not found")
         }
         try await connect()
@@ -110,7 +117,8 @@ final class KHDevice: @MainActor KHDeviceProtocol {
     }
 
     func fetchNode(_ path: [String]) async throws {
-        guard let node = parameterTree.getNodeByPath(path) else {
+        guard let rootNode = parameterTree else { return }
+        guard let node = rootNode.getNodeByPath(path) else {
             throw KHDeviceError.error("Node not found")
         }
         try await connect()
