@@ -108,10 +108,9 @@ actor SSCConnection {
     where T: Encodable {
         let jsonData = try JSONEncoder().encode(value)
         var jsonPath = String(data: jsonData, encoding: .utf8)!
-        for p in path.reversed() {
-            jsonPath = "{\"\(p)\":\(jsonPath)}"
+        return path.reversed().reduce(jsonPath) { partial, p in
+            "{\"\(p)\":\(partial)}"
         }
-        return jsonPath
     }
 
     private func sendMessage(_ TXString: String) async throws {
@@ -144,15 +143,14 @@ actor SSCConnection {
                     return
                 }
                 if let data {
-                    if let response = String(data: data, encoding: .utf8) {
-                        continuation.resume(returning: response)
-                        return
-                    } else {
+                    guard let response = String(data: data, encoding: .utf8) else {
                         continuation.resume(
                             throwing: ConnectionError.error("Decoding error")
                         )
                         return
                     }
+                    continuation.resume(returning: response)
+                    return
                 }
                 continuation.resume(throwing: ConnectionError.error("Receive fallback"))
             }
@@ -163,12 +161,8 @@ actor SSCConnection {
         try await sendMessage(command)
         let RX = try await receiveMessage()
         if RX.starts(with: "{\"osc\":{\"error\"") {
-            if RX.contains("404") {
-                throw DeviceError.addressNotFound(command)
-            }
-            if RX.contains("400") {
-                throw DeviceError.messageNotUnderstood(command)
-            }
+            if RX.contains("404") { throw DeviceError.addressNotFound(command) }
+            if RX.contains("400") { throw DeviceError.messageNotUnderstood(command) }
         }
         return RX
     }
@@ -196,7 +190,7 @@ actor SSCConnection {
         let RX = try await sendSSCCommand(command: jsonPath)
         let asObj = try JSONSerialization.jsonObject(with: RX.data(using: .utf8)!)
         let lastKey = path.last!
-        var result: [String: Any] = asObj as! [String: Any]
+        var result = asObj as! [String: Any]
         for p in path.dropLast() {
             result = result[p] as! [String: Any]
         }
