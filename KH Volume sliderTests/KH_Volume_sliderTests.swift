@@ -27,6 +27,11 @@ struct KH_Volume_sliderTests_Offline {
 }
 
 struct TestSSC {
+    @Test func testJsonPath() async throws {
+        let s = try SSCConnection.pathToJSONString(path: ["asdf", "jkl"], value: 3.0)
+        #expect(s == "{\"asdf\":{\"jkl\":3}}")
+    }
+
     /*
     // Private
     @Test func testSendMessageWithScan() async throws {
@@ -102,39 +107,6 @@ struct TestSSC {
 }
 
 @MainActor
-struct TestKHAccessDummy {
-    @Test func testSetup() {
-        let k = KHAccessDummy()
-        // This doesn't make sense but it's the way it is.
-        #expect(k.status == .clean)
-    }
-
-    @Test func testScan() async throws {
-        let k = KHAccessDummy()
-        await k.scan()
-        #expect(k.status == .speakersFound(2))
-    }
-
-    @Test func testCheckSpeakersAvailable() async throws {
-        let k = KHAccessDummy()
-        await k.setup()
-        // #expect(k.status == .speakersAvailable)
-    }
-
-    @Test func testFetch() async throws {
-        let k = KHAccessDummy()
-        await k.fetch()
-        #expect(k.status == .success)
-    }
-
-    @Test func testSend() async throws {
-        let k = KHAccessDummy()
-        await k.send()
-        #expect(k.status == .clean)
-    }
-}
-
-@MainActor
 @Suite struct TestSSCNodes {
     // TODO can't run this as a test suite because tests are run concurrently.
     let connection: SSCConnection
@@ -152,7 +124,7 @@ struct TestKHAccessDummy {
     }
 
     @Test func testGetSchema() async throws {
-        let node = SSCNode(name: "root")
+        let node = SSCNode(name: "root", parent: nil)
         // try await node.connect()
         let result = try await node.getSchema(connection: connection, path: ["audio"])
         #expect(result == ["out": [:], "in2": [:], "in1": [:], "in": [:]])
@@ -174,7 +146,7 @@ struct TestKHAccessDummy {
     }
 
     @Test func testGetLimits() async throws {
-        let node = SSCNode(name: "root")
+        let node = SSCNode(name: "root", parent: nil)
         // try await node.connect()
         let result = try await node.getLimits(
             connection: connection,
@@ -199,7 +171,7 @@ struct TestKHAccessDummy {
     }
 
     @Test func testPopulate() async throws {
-        let node = SSCNode(name: "root")
+        let node = SSCNode(name: "root", parent: nil)
         try await connection.open()
         #expect(node.pathToNode() == [])
         try await node.populate(connection: connection)
@@ -207,7 +179,7 @@ struct TestKHAccessDummy {
     }
 
     @Test func testIteration() async throws {
-        let node = SSCNode(name: "root")
+        let node = SSCNode(name: "root", parent: nil)
         try await connection.open()
         #expect(node.pathToNode() == [])
         try await node.populate(connection: connection)
@@ -223,7 +195,7 @@ struct TestKHAccessDummy {
     }
 
     @Test func testSend() async throws {
-        let node1 = SSCNode(name: "root")
+        let node1 = SSCNode(name: "root", parent: nil)
         let node2 = SSCNode(name: "device", parent: node1)
         let leaf = SSCNode(name: "name", parent: node2)
         #expect(leaf.pathToNode() == ["device", "name"])
@@ -234,7 +206,7 @@ struct TestKHAccessDummy {
     }
 
     @Test func testDecoding() async throws {
-        let rootNode = SSCNode(name: "root")
+        let rootNode = SSCNode(name: "root", parent: nil)
         try await connection.open()
         #expect(rootNode.pathToNode() == [])
         try await rootNode.populate(connection: connection)
