@@ -107,7 +107,7 @@ actor SSCConnection {
     static func pathToJSONString<T>(path: [String], value: T) throws -> String
     where T: Encodable {
         let jsonData = try JSONEncoder().encode(value)
-        var jsonPath = String(data: jsonData, encoding: .utf8)!
+        let jsonPath = String(data: jsonData, encoding: .utf8)!
         return path.reversed().reduce(jsonPath) { partial, p in
             "{\"\(p)\":\(partial)}"
         }
