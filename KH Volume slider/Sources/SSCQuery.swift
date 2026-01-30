@@ -90,9 +90,8 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         let deviceID: KHDevice.ID
         let path: [String]
     }
-    
-    // typealias ID = NodeID
 
+    typealias ID = NodeID
     var id: NodeID { .init(deviceID: deviceID, path: pathToNode()) }
 
     init(

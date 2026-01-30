@@ -216,12 +216,16 @@ struct LimitsView: View {
 
 struct NodeValueEditor: View {
     var node: SSCNode
-    var deviceIndex: Int
     @Binding var values: PossibleValues
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
+    private func getDeviceIndex() -> Int? {
+        khAccess.devices.firstIndex(where: { $0.id == node.deviceID })
+    }
+
     private func sendValue() async {
         values.updateNode(node: node)
+        guard let deviceIndex = getDeviceIndex() else { return }
         await khAccess.sendNode(deviceIndex: deviceIndex, path: node.pathToNode())
     }
 
@@ -285,21 +289,23 @@ struct NodeValueEditor: View {
 
 struct NodeView: View {
     var node: SSCNode
-    var deviceIndex: Int
     @State var mappedParameter: KHParameters?
     @State var values: PossibleValues
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
-    init(node: SSCNode, deviceIndex: Int) {
+    init(node: SSCNode) {
         self.node = node
-        self.deviceIndex = deviceIndex
         values = .init(fromNode: node)
+    }
+
+    private func getDeviceIndex() -> Int? {
+        khAccess.devices.firstIndex(where: { $0.id == node.deviceID })
     }
 
     var body: some View {
         Form {
             Section("Edit value") {
-                NodeValueEditor(node: node, deviceIndex: deviceIndex, values: $values)
+                NodeValueEditor(node: node, values: $values)
             }
             Section("Parameter info (/osc/limits)") {
                 if let limits = node.limits {
@@ -340,6 +346,7 @@ struct NodeView: View {
             }
         }
         .refreshable {
+            guard let deviceIndex = getDeviceIndex() else { return }
             await khAccess.fetchNode(deviceIndex: deviceIndex, path: node.pathToNode())
             values = .init(fromNode: node)
         }
@@ -349,7 +356,6 @@ struct NodeView: View {
 
 struct DeviceBrowser: View {
     var rootNode: SSCNode
-    var deviceIndex: Int
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
@@ -357,15 +363,13 @@ struct DeviceBrowser: View {
             rootNode.children ?? [],
             children: \.children,
         ) { node in
-            NavigationLink(destination: NodeView(node: node, deviceIndex: deviceIndex))
-            {
+            NavigationLink(value: node.id) {
                 if let units = node.limits?.units {
                     Text(node.name + " (\(units))")
                 } else {
                     Text(node.name)
                 }
 
-                // This spacer can cause an EXC_BAD_ACCESS on the macOS build. Super weird.
                 Spacer()
 
                 switch node.value {
@@ -379,7 +383,8 @@ struct DeviceBrowser: View {
                     Text(v.stringify()).foregroundColor(.secondary)
                 }
             }
-        }.refreshable { await khAccess.fetchParameters() }
+        }
+        .refreshable { await khAccess.fetchParameters() }
     }
 }
 
@@ -436,7 +441,7 @@ struct ParameterMapper: View {
     }
 }
 
-struct iOSDeviceBrowserForm: View {
+struct DeviceBrowserForm: View {
     var devices: [KHDevice]
     @State private var pathStrings: [String: String] = [:]
 
@@ -451,15 +456,7 @@ struct iOSDeviceBrowserForm: View {
             Section("Devices") {
                 ForEach(devices.indices, id: \.self) { i in
                     let device = devices[i]
-                    if let rootNode = device.parameterTree {
-                        NavigationLink(
-                            device.state.name,
-                            destination: DeviceBrowser(rootNode: rootNode, deviceIndex: i)
-                                .navigationTitle(device.state.name)
-                        )
-                    } else {
-                        Text("Parameters not populated.")
-                    }
+                    NavigationLink(devices[i].state.name, value: device.id)
                 }
             }
 
@@ -492,71 +489,8 @@ struct iOSDeviceBrowserForm: View {
     }
 }
 
-struct macOSDeviceBrowserForm: View {
-    var devices: [KHDevice]
-    @State private var pathStrings: [String: String] = [:]
-
-    func updatePathStrings() {
-        for parameter in KHParameters.allCases {
-            pathStrings[parameter.rawValue] = parameter.getPathString()
-        }
-    }
-
-    var body: some View {
-        List {
-            Section("Devices") {
-                ForEach(devices.indices, id: \.self) { i in
-                    let device = devices[i]
-                    if let rootNode = device.parameterTree {
-                        NavigationLink(
-                            device.state.name,
-                            destination: DeviceBrowser(rootNode: rootNode, deviceIndex: i)
-                                .navigationTitle(device.state.name)
-                        )
-                    } else {
-                        Text("Parameters not populated.")
-                    }
-                }
-            }
-            Section("Map UI Elements") {
-                Button("Reset all") {
-                    KHParameters.resetAllDevicePaths()
-                    updatePathStrings()
-                }
-                ForEach(KHParameters.allCases) { parameter in
-                    let pathString = pathStrings[parameter.rawValue] ?? "?"
-                    LabeledContent {
-                        if let rootNode = devices.first!.parameterTree {
-                            NavigationLink(
-                                pathString,
-                                destination: ParameterMapper(
-                                    parameter: parameter,
-                                    rootNode: rootNode,
-                                    pathStrings: $pathStrings
-                                )
-                            )
-                        } else {
-                            Text(pathString)
-                        }
-                    } label: {
-                        Text(parameter.rawValue)
-                    }
-                }
-            }
-            .onAppear(perform: updatePathStrings)
-        }
-    }
-}
-
 struct ParameterTab: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
-    @State private var pathStrings: [String: String] = [:]
-
-    func updatePathStrings() {
-        for parameter in KHParameters.allCases {
-            pathStrings[parameter.rawValue] = parameter.getPathString()
-        }
-    }
 
     var body: some View {
         let devices = khAccess.devices.sorted { $0.state.name < $1.state.name }
@@ -564,11 +498,25 @@ struct ParameterTab: View {
             if devices.isEmpty {
                 Text("No devices")
             } else {
-                #if os(iOS)
-                    iOSDeviceBrowserForm(devices: khAccess.devices)
-                #elseif os(macOS)
-                    macOSDeviceBrowserForm(devices: khAccess.devices)
-                #endif
+                DeviceBrowserForm(devices: khAccess.devices)
+                    .navigationDestination(for: KHDevice.ID.self) { deviceID in
+                        if let device = khAccess.getDeviceByID(deviceID) {
+                            if let rootNode = device.parameterTree {
+                                DeviceBrowser(rootNode: rootNode)
+                            } else {
+                                Text("Parameters not populated")
+                            }
+                        } else {
+                            Text("Device not found")
+                        }
+                    }
+                    .navigationDestination(for: SSCNode.ID.self) { nodeID in
+                        if let node = khAccess.getNodeByID(nodeID) {
+                            NodeView(node: node)
+                        } else {
+                            Text("Node not found")
+                        }
+                    }
             }
         }
     }
