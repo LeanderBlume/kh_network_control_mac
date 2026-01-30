@@ -8,8 +8,7 @@
 import SwiftUI
 
 @Observable
-@MainActor
-class KHDevice: @MainActor Identifiable {
+final class KHDevice: @MainActor KHDeviceProtocol {
     var state: KHState = KHState()
     let parameterTree: SSCNode
     let connection: SSCConnection
@@ -19,7 +18,7 @@ class KHDevice: @MainActor Identifiable {
         case error(String)
     }
 
-    init(connection connection_: SSCConnection) {
+    required init(connection connection_: SSCConnection) {
         connection = connection_
         parameterTree = SSCNode(name: "root", parent: nil)
     }
@@ -101,19 +100,8 @@ class KHDevice: @MainActor Identifiable {
         await disconnect()
     }
 
-    private func getNode(atPath path: [String]) -> SSCNode? {
-        var node: SSCNode? = parameterTree
-        for p in path {
-            node = node![p]
-            if node == nil {
-                return nil
-            }
-        }
-        return node
-    }
-
     func sendNode(_ path: [String]) async throws {
-        guard let node = getNode(atPath: path) else {
+        guard let node = parameterTree.getNodeByPath(path) else {
             throw KHDeviceError.error("Node not found")
         }
         try await connect()
@@ -122,7 +110,7 @@ class KHDevice: @MainActor Identifiable {
     }
 
     func fetchNode(_ path: [String]) async throws {
-        guard let node = getNode(atPath: path) else {
+        guard let node = parameterTree.getNodeByPath(path) else {
             throw KHDeviceError.error("Node not found")
         }
         try await connect()

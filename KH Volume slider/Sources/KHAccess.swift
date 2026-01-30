@@ -9,6 +9,43 @@ import SwiftUI
 
 typealias KHAccess = KHAccessNative
 
+@MainActor
+protocol KHDeviceProtocol: Identifiable {
+    // more or less common
+    var state: KHState { get }
+    func setup() async throws
+    func send(_ newState: KHState) async throws
+    func fetch() async throws
+    func populateParameters() async throws
+    func sendNode(_: [String]) async throws
+    func fetchNode(_: [String]) async throws
+    func sendParameters() async throws
+    func fetchParameters() async throws
+
+    // specific
+    init(connection connection_: SSCConnection)
+    var connection: SSCConnection { get }
+}
+
+@MainActor
+protocol KHAccessProtocol {
+    // more or less common
+    var state: KHState { get }
+    func setup() async
+    func send() async
+    func fetch() async
+    func populateParameters() async
+    func sendNode(deviceIndex: Int, path: [String]) async
+    func fetchNode(deviceIndex: Int, path: [String]) async
+    func sendParameters() async
+    func fetchParameters() async
+
+    // specific
+    var status: KHAccessStatus { get }
+    var devices: [KHDevice] { get }
+    func scan(seconds: UInt32) async
+}
+
 enum KHAccessStatus: Equatable {
     case clean
     case success
@@ -44,27 +81,11 @@ enum KHAccessError: Error {
     case noSpeakersFoundDuringScan
 }
 
-@MainActor
-protocol KHAccessProtocol: Observable, Identifiable {
-    var state: KHState { get }
-    var devices: [KHDevice] { get }
-    var status: KHAccessStatus { get }
-
-    func scan(seconds: UInt32) async
-    func setup() async
-    func populateParameters() async
-    func send() async
-    func fetch() async
-    func sendNode(deviceIndex: Int, path: [String]) async
-    func fetchNode(deviceIndex: Int, path: [String]) async
-}
-
 @Observable
 final class KHAccessNative: KHAccessProtocol {
     /*
      Fetches, sends and stores data from speakers.
      */
-    // UI state
     var state = KHState()
     var devices: [KHDevice] = []
     var status: KHAccessStatus = .speakersFound(0)
@@ -222,63 +243,5 @@ final class KHAccessNative: KHAccessProtocol {
         } catch {
             status = .otherError(String(describing: error))
         }
-    }
-}
-
-@Observable
-final class KHAccessDummy: KHAccessProtocol {
-    /*
-     Fetches, sends and stores data from speakers.
-     */
-    /// I was wondering whether we should just store a KHJSON instance instead of these values because the whole
-    /// thing seems a bit doubled up. But maybe this is good as an abstraction layer between the json and the GUI.
-
-    // UI state
-    var state = KHState()
-    var devices: [KHDevice] = []
-    var status: KHAccessStatus = .clean
-
-    private func sleepOneSecond() async {
-        do {
-            try await Task.sleep(nanoseconds: 1000_000_000)
-        } catch {
-            status = .otherError("Sleeping failed")
-        }
-    }
-
-    func scan(seconds: UInt32 = 1) async {
-        status = .busy("Scanning...")
-        await sleepOneSecond()
-        status = .speakersFound(2)
-    }
-
-    func setup() async {
-        status = .busy("Setting up...")
-        await sleepOneSecond()
-        status = .success
-    }
-
-    func populateParameters() async {
-        status = .queryingParameters
-        await sleepOneSecond()
-        status = .clean
-    }
-
-    func fetch() async {
-        status = .busy("Fetching...")
-        await sleepOneSecond()
-        status = .success
-    }
-
-    func send() async {
-        status = .clean
-    }
-
-    func sendNode(deviceIndex: Int, path: [String]) async {
-        status = .clean
-    }
-
-    func fetchNode(deviceIndex: Int, path: [String]) async {
-        status = .clean
     }
 }
