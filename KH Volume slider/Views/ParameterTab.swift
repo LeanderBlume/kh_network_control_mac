@@ -366,7 +366,8 @@ struct DeviceBrowser: View {
                 }
 
                 // This spacer can cause an EXC_BAD_ACCESS on the macOS build. Super weird.
-                Spacer()
+                // Actually it doesn't cause it, but not having it reduces occurences and also maybe it looks better.
+                // Spacer()
 
                 switch node.value {
                 case .unknown, .unknownValue, .unknownChildren:

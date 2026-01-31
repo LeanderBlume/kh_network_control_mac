@@ -18,6 +18,7 @@ final class KHDevice: @MainActor KHDeviceProtocol {
         let serial: String
     }
 
+    typealias ID = KHDeviceID
     var id: KHDeviceID { .init(name: state.name, serial: state.serial) }
 
     enum KHDeviceError: Error {
@@ -75,12 +76,12 @@ final class KHDevice: @MainActor KHDeviceProtocol {
         let schemaCache = SchemaCache()
         if let cachedSchema = try schemaCache.getSchema(for: self) {
             rootNode.populate(jsonDataCodable: cachedSchema)
-            return
+        } else {
+            try await connect()
+            try await rootNode.populate(connection: connection, recursive: true)
+            await disconnect()
+            try schemaCache.saveSchema(rootNode, for: self)
         }
-        try await connect()
-        try await rootNode.populate(connection: connection, recursive: true)
-        await disconnect()
-        try schemaCache.saveSchema(of: self)
         parameterTree = rootNode
     }
 

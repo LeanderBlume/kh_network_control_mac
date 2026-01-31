@@ -44,6 +44,8 @@ protocol KHAccessProtocol {
     var status: KHAccessStatus { get }
     var devices: [KHDevice] { get }
     func scan(seconds: UInt32) async
+    func getDeviceByID(_ id: KHDevice.ID) -> KHDevice?
+    func getNodeByID(_ id: SSCNode.ID) -> SSCNode?
 }
 
 enum KHAccessStatus: Equatable {
@@ -107,6 +109,16 @@ final class KHAccessNative: KHAccessProtocol {
         }
         devices = connections.map { KHDevice(connection: $0) }
         status = .speakersFound(devices.count)
+    }
+
+    func getDeviceByID(_ id: KHDevice.ID) -> KHDevice? {
+        return devices.first(where: { $0.id == id })
+    }
+
+    func getNodeByID(_ id: SSCNode.ID) -> SSCNode? {
+        guard let owner = getDeviceByID(id.deviceID) else { return nil }
+        guard let rootNode = owner.parameterTree else { return nil }
+        return rootNode.first(where: { $0.id == id })
     }
 
     func setup() async {

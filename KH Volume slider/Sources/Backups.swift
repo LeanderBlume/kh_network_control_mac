@@ -85,7 +85,7 @@ protocol SchemaCacheProtocol {
     associatedtype FileSchema: Codable
 
     func getSchema(for device: KHDevice) throws -> JSONDataCodable?
-    func saveSchema(of device: KHDevice) throws
+    func saveSchema(_: SSCNode, for device: KHDevice) throws
 }
 
 struct SchemaCache: SchemaCacheProtocol {
@@ -131,8 +131,7 @@ struct SchemaCache: SchemaCacheProtocol {
         return schemaList[DeviceModelID(device.state)]
     }
 
-    func saveSchema(of device: KHDevice) throws {
-        guard let rootNode = device.parameterTree else { return }
+    func saveSchema(_ rootNode: SSCNode, for device: KHDevice) throws {
         let jdc = JSONDataCodable(fromNodeTree: rootNode)
         var schemaList = try getSchemaList()
         schemaList[DeviceModelID(device.state)] = jdc
