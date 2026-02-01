@@ -11,6 +11,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
+    @State private var showError: Bool = false
 
     @ViewBuilder
     var macOSButtonBar: some View {
@@ -39,24 +40,60 @@ struct ContentView: View {
     var standardToolbar: some ToolbarContent {
         #if os(iOS)
             ToolbarItem(placement: .topBarLeading) {
-                StatusDisplayCompact(status: khAccess.status)
+                Button {
+                    showError.toggle()
+                } label: {
+                    StatusDisplayCompact(status: khAccess.status)
+                        .popover(
+                            isPresented: $showError,
+                            attachmentAnchor: .point(.bottom)
+                        ) {
+                            StatusDisplayText(status: khAccess.status)
+                                .padding(.horizontal)
+                                .presentationCompactAdaptation(.popover)
+                        }
+                }
             }
         #endif
-        ToolbarItemGroup {
-            HStack {
-                Button("Rescan") {
-                    Task {
-                        await khAccess.scan()
-                        await khAccess.setup()
-                    }
+        ToolbarItemGroup(placement: .secondaryAction) {
+            Button("Rescan", systemImage: "bonjour") {
+                Task {
+                    await khAccess.scan()
+                    await khAccess.setup()
                 }
-                Divider()
-                Button("Fetch", systemImage: "arrow.clockwise") {
-                    Task { await khAccess.fetch() }
-                }
-                .disabled(khAccess.devices.isEmpty)
             }
             .disabled(khAccess.status.isBusy())
+            Button("Fetch parameters", systemImage: "square.and.arrow.down") {
+                Task { await khAccess.fetchParameters() }
+            }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button("Fetch", systemImage: "arrow.clockwise") {
+                Task { await khAccess.fetch() }
+            }
+            .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
+        }
+    }
+
+    @ToolbarContentBuilder
+    var standardToolbarMacOS: some ToolbarContent {
+        ToolbarItem(placement: .status) {
+            StatusDisplayCompact(status: khAccess.status).frame(width: 37)
+        }
+        ToolbarItem {
+            Button("Rescan", systemImage: "bonjour") {
+                Task {
+                    await khAccess.scan()
+                    await khAccess.setup()
+                }
+            }
+            .disabled(khAccess.status.isBusy())
+        }
+        ToolbarItem {
+            Button("Fetch", systemImage: "arrow.clockwise") {
+                Task { await khAccess.fetch() }
+            }
+            .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
         }
     }
 
@@ -105,31 +142,26 @@ struct ContentView: View {
                 Tab("Browser", systemImage: "list.bullet.indent") {
                     NavigationStack {
                         ParameterTab()
-                            .toolbar { browserToolbar }
+                            .toolbar { standardToolbar }
                     }
                 }
                 Tab("Backup", systemImage: "heart") {
                     NavigationStack {
                         BackupView()
-                            .toolbar { browserToolbar }
+                            .toolbar { standardToolbar }
                     }
                 }
             }
             .onAppear { Task { await khAccess.setup() } }
         #elseif os(macOS)
             TabView {
-                Tab("Volume", systemImage: "speaker.wave.3") {
-                    VolumeTab()
+                Tab("Main", systemImage: "speaker.wave.3") {
+                    MainTab()
                         .scenePadding()
                         .disabled(!khAccess.status.isClean())
                 }
                 Tab("DSP", systemImage: "slider.vertical.3") {
                     EqTab()
-                        .scenePadding()
-                        .disabled(!khAccess.status.isClean())
-                }
-                Tab("Hardware", systemImage: "hifispeaker") {
-                    HardwareTab()
                         .scenePadding()
                         .disabled(!khAccess.status.isClean())
                 }
@@ -145,8 +177,9 @@ struct ContentView: View {
             .onAppear { Task { await khAccess.setup() } }
             .scenePadding()
             .frame(minWidth: 450)
+            .toolbar { standardToolbarMacOS }
 
-            macOSButtonBar.scenePadding()
+        // macOSButtonBar.scenePadding()
         #endif
     }
 }

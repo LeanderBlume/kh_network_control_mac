@@ -40,7 +40,7 @@ struct StatusDisplayText: View {
     var body: some View {
         switch status {
         case .clean, .success:
-            EmptyView()
+            Text("Ready")
         case .busy(let s):
             if let s { Text(s) }
         case .queryingParameters:
