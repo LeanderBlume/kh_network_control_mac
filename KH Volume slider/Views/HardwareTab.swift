@@ -10,6 +10,57 @@ import SwiftUI
 struct HardwareTab: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @FocusState private var textFieldFocused: Bool
+    @State private var showError: Bool = false
+
+    @ToolbarContentBuilder
+    var standardToolbarWithDoneButton: some ToolbarContent {
+        #if os(iOS)
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    showError.toggle()
+                } label: {
+                    StatusDisplayCompact(status: khAccess.status)
+                        .popover(
+                            isPresented: $showError,
+                            attachmentAnchor: .point(.bottom)
+                        ) {
+                            StatusDisplayText(status: khAccess.status)
+                                .padding(.horizontal)
+                                .presentationCompactAdaptation(.popover)
+                        }
+                }
+            }
+        #endif
+        ToolbarItemGroup(placement: .secondaryAction) {
+            Button("Rescan", systemImage: "bonjour") {
+                Task {
+                    await khAccess.scan()
+                    await khAccess.setup()
+                }
+            }
+            .disabled(khAccess.status.isBusy())
+            Button("Fetch parameters", systemImage: "square.and.arrow.down") {
+                Task { await khAccess.fetchParameters() }
+            }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button("Fetch", systemImage: "arrow.clockwise") {
+                Task { await khAccess.fetch() }
+            }
+            .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
+        }
+        if textFieldFocused {
+            // ToolbarItemGroup(placement: .keyboard) {
+            ToolbarItemGroup(placement: .confirmationAction) {
+                // Spacer()
+                Button("Done", systemImage: "checkmark") {
+                    Task { await khAccess.send() }
+                    textFieldFocused = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+    }
 
     var body: some View {
         @Bindable var khAccess = khAccess
@@ -26,7 +77,6 @@ struct HardwareTab: View {
                         }
                     }
                 }
-                .disabled(!khAccess.status.isClean())
 
                 TextField(
                     "Logo brightness",
@@ -66,15 +116,8 @@ struct HardwareTab: View {
                     .textFieldStyle(.roundedBorder)
                 }
             }
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") {
-                        Task { await khAccess.send() }
-                        textFieldFocused = false
-                    }
-                }
-            }
+            // .toolbarVisibility(.hidden, for: .tabBar)
+            .toolbar { standardToolbarWithDoneButton }
         #endif
     }
 }

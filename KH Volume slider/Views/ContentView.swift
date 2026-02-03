@@ -114,40 +114,23 @@ struct ContentView: View {
     var body: some View {
         #if os(iOS)
             TabView {
-                Tab("Volume", systemImage: "speaker.wave.3") {
+                Tab("Main", systemImage: "speaker.wave.3") {
                     NavigationStack {
-                        VolumeTab()
-                            .scenePadding()
-                            .disabled(!khAccess.status.isClean())
-                            .toolbar { standardToolbar }
-                    }
-                }
-                Tab("DSP", systemImage: "slider.vertical.3") {
-                    NavigationView {
-                        EqTab()
-                            .scenePadding()
-                            .disabled(!khAccess.status.isClean())
-                            .toolbar { standardToolbar }
-                    }
-                }
-                Tab("Hardware", systemImage: "hifispeaker") {
-                    // .keyboard-placed toolbars don't show up in NavigationStack due to a bug, so we have to fall back to NavigationView.
-                    NavigationView {
-                        HardwareTab()
-                            .scenePadding()
-                            .disabled(!khAccess.status.isClean())
-                            .toolbar { standardToolbar }
+                        MainTab()
+                            .navigationTitle(Text("Main controls"))
                     }
                 }
                 Tab("Browser", systemImage: "list.bullet.indent") {
                     NavigationStack {
                         ParameterTab()
+                            .navigationTitle(Text("Device browser"))
                             .toolbar { standardToolbar }
                     }
                 }
-                Tab("Backup", systemImage: "heart") {
+                Tab("Backup", systemImage: "externaldrive") {
                     NavigationStack {
                         BackupView()
+                            .navigationTitle(Text("Backups"))
                             .toolbar { standardToolbar }
                     }
                 }
@@ -169,7 +152,7 @@ struct ContentView: View {
                     ParameterTab()
                         .scenePadding()
                 }
-                Tab("Backup", systemImage: "heart") {
+                Tab("Backup", systemImage: "externaldrive") {
                     BackupView()
                         .scenePadding()
                 }
@@ -177,7 +160,7 @@ struct ContentView: View {
             .onAppear { Task { await khAccess.setup() } }
             .scenePadding()
             .frame(minWidth: 450)
-            .toolbar { standardToolbarMacOS }
+            // .toolbar { standardToolbarMacOS }
 
         // macOSButtonBar.scenePadding()
         #endif

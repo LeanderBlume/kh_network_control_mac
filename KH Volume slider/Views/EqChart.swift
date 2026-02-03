@@ -95,8 +95,7 @@ struct EqChart: View {
                     .foregroundStyle(colors[i % 2])
                     .symbolSize(300)
                     .annotation(position: .overlay) {
-                        Text(String(j + 1))
-                            .foregroundStyle(.black)
+                        Text(String(j + 1)).foregroundStyle(.black)
                     }
                 }
             }

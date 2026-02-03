@@ -22,26 +22,20 @@ struct VolumeTab: View {
             } maximumValueLabel: {
                 Text("120")
             } onEditingChanged: { editing in
-                if !editing {
+                if !editing { Task { await khAccess.send() } }
+            }
+
+            #if os(iOS)
+                Stepper("+/- 3 db", value: $khAccess.state.volume, in: 0...120, step: 3)
+                {
+                    editing in
+                    if editing {
+                        return
+                    }
                     Task {
                         await khAccess.send()
                     }
                 }
-            }
-            .disabled(!khAccess.status.isClean())
-
-            #if os(iOS)
-            // Text("\(Int(khAccess.volume))")
-
-            Stepper("+/- 3 db", value: $khAccess.state.volume, in: 0...120, step: 3) {
-                editing in
-                if editing {
-                    return
-                }
-                Task {
-                    await khAccess.send()
-                }
-            }
             #endif
 
             Toggle(
@@ -51,11 +45,8 @@ struct VolumeTab: View {
             )
             .toggleStyle(.button)
             .onChange(of: khAccess.state.muted) {
-                Task {
-                    await khAccess.send()
-                }
+                Task { await khAccess.send() }
             }
-            .disabled(!khAccess.status.isClean())
         }
     }
 }
