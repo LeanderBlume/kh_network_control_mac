@@ -11,35 +11,24 @@ struct EqSlidermacOS: View {
     var name: String
     @Binding var value: Double
     var range: ClosedRange<Double>
-    var logarithmic: Bool
+    var logarithmic: Bool = false
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Text(name)
         if logarithmic {
             Slider.withLog2Scale(value: $value, in: range) { editing in
-                if !editing {
-                    Task {
-                        await khAccess.send()
-                    }
-                }
+                if !editing { Task { await khAccess.send() } }
             }
         } else {
             Slider(value: $value, in: range) { editing in
-                if !editing {
-                    Task {
-                        await khAccess.send()
-                    }
-                }
+                if !editing { Task { await khAccess.send() } }
             }
         }
         TextField(name, value: $value, format: .number.precision(.fractionLength(1)))
             .frame(width: 80)
-            .onSubmit {
-                Task {
-                    await khAccess.send()
-                }
-            }
+            .onSubmit { Task { await khAccess.send() } }
+            .labelsHidden()
     }
 }
 
@@ -47,7 +36,7 @@ struct EqSlideriOS: View {
     var name: String
     @Binding var value: Double
     var range: ClosedRange<Double>
-    var logarithmic: Bool
+    var logarithmic: Bool = false
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
@@ -67,35 +56,21 @@ struct EqSlideriOS: View {
 
         if logarithmic {
             Slider.withLog2Scale(value: $value, in: range) { editing in
-                if !editing {
-                    Task {
-                        await khAccess.send()
-                    }
-                }
+                if !editing { Task { await khAccess.send() } }
             }
         } else {
             Slider(value: $value, in: range) { editing in
-                if !editing {
-                    Task {
-                        await khAccess.send()
-                    }
-                }
+                if !editing { Task { await khAccess.send() } }
             }
         }
     }
 }
 
-struct EqBandPaneliOS: View {
-    @Binding var enabled: Bool
+struct EqTypePickeriOS: View {
+    var enabled: Bool
     @Binding var type: String
-    @Binding var frequency: Double
-    @Binding var q: Double
-    @Binding var boost: Double
-    @Binding var gain: Double
-    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        // EQ Type picker
         ZStack(alignment: .leading) {
             Text("Disable to change EQ Type")
                 .opacity(enabled ? 1 : 0)
@@ -106,24 +81,38 @@ struct EqBandPaneliOS: View {
                 }
             }
             .pickerStyle(.menu)
-            .onChange(of: type) { Task { await khAccess.send() } }
             .disabled(enabled)
             .opacity(enabled ? 0 : 1)
         }
+    }
+}
+
+struct EqBandPaneliOS: View {
+    var enabled: Bool
+    @Binding var type: String
+    @Binding var frequency: Double
+    @Binding var q: Double
+    @Binding var boost: Double
+    @Binding var gain: Double
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    var body: some View {
+        EqTypePickeriOS(enabled: enabled, type: $type)
+            .onChange(of: type) { Task { await khAccess.send() } }
 
         Grid(alignment: .leading) {
             EqSlideriOS(
                 name: "Frequency (Hz)",
                 value: $frequency,
                 range: 10...24000,
-                logarithmic: true,
+                logarithmic: true
             )
             Divider()
             EqSlideriOS(
                 name: "Q",
                 value: $q,
                 range: 0.1...16,
-                logarithmic: true,
+                logarithmic: true
             )
             Divider()
             EqSlideriOS(
@@ -143,8 +132,31 @@ struct EqBandPaneliOS: View {
     }
 }
 
+struct EqTypePickermacOS: View {
+    var enabled: Bool
+    @Binding var type: String
+
+    var body: some View {
+        Text("Type")
+
+        if enabled {
+            Text("Disable to change type")
+                .foregroundStyle(.secondary)
+        } else {
+            Picker("Type:", selection: $type) {
+                ForEach(Eq.EqType.allCases) { type in
+                    Text(type.rawValue).tag(type.rawValue)
+                }
+            }
+            .pickerStyle(.menu)
+            .disabled(enabled)
+            .labelsHidden()
+        }
+    }
+}
+
 struct EqBandPanelmacOS: View {
-    @Binding var enabled: Bool
+    var enabled: Bool
     @Binding var type: String
     @Binding var frequency: Double
     @Binding var q: Double
@@ -153,75 +165,52 @@ struct EqBandPanelmacOS: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        VStack(spacing: 20) {
-            // EQ Type picker
-            HStack {
-                Picker(
-                    "Type:",
-                    selection: $type
-                ) {
-                    ForEach(Eq.EqType.allCases) { type in
-                        Text(type.rawValue).tag(type.rawValue)
-                    }
-                }
-                .pickerStyle(.menu)
-                .onChange(of: type) {
-                    Task {
-                        await khAccess.send()
-                    }
-                }
-                .disabled(enabled)
-
-                Spacer()
-
-                if enabled {
-                    Text("Disable to change type")
-                }
+        Grid(alignment: .topLeading) {
+            GridRow {
+                EqTypePickermacOS(enabled: enabled, type: $type)
+                    .onChange(of: type) { Task { await khAccess.send() } }
+                    .padding(.bottom, 5)
             }
+            GridRow {
+                EqSlidermacOS(
+                    name: "Frequency (Hz)",
+                    value: $frequency,
+                    range: 10...24000,
+                    logarithmic: true,
+                )
+            }
+            GridRow {
+                EqSlidermacOS(
+                    name: "Q",
+                    value: $q,
+                    range: 0.1...16,
+                    logarithmic: true,
+                )
+            }
+            GridRow {
+                EqSlidermacOS(
+                    name: "Boost (dB)",
+                    value: $boost,
+                    range: -99...24,
+                    logarithmic: false,
+                )
 
-            Grid(alignment: .topLeading) {
-                GridRow {
-                    EqSlidermacOS(
-                        name: "Frequency (Hz)",
-                        value: $frequency,
-                        range: 10...24000,
-                        logarithmic: true,
-                    )
-                }
-                GridRow {
-                    EqSlidermacOS(
-                        name: "Q",
-                        value: $q,
-                        range: 0.1...16,
-                        logarithmic: true,
-                    )
-                }
-                GridRow {
-                    EqSlidermacOS(
-                        name: "Boost (dB)",
-                        value: $boost,
-                        range: -99...24,
-                        logarithmic: false,
-                    )
-
-                }
-                GridRow {
-                    EqSlidermacOS(
-                        name: "Makeup (dB)",
-                        value: $gain,
-                        range: -99...24,
-                        logarithmic: false,
-                    )
-                }
+            }
+            GridRow {
+                EqSlidermacOS(
+                    name: "Makeup (dB)",
+                    value: $gain,
+                    range: -99...24,
+                    logarithmic: false,
+                )
             }
         }
-
     }
 }
 
 struct EqBandPanel: View {
     // Maybe it would be kind of neat if all this stuff was in an EqBand struct...
-    @Binding var enabled: Bool
+    var enabled: Bool
     @Binding var type: String
     @Binding var frequency: Double
     @Binding var q: Double
@@ -231,7 +220,7 @@ struct EqBandPanel: View {
     var body: some View {
         #if os(macOS)
             EqBandPanelmacOS(
-                enabled: $enabled,
+                enabled: enabled,
                 type: $type,
                 frequency: $frequency,
                 q: $q,
@@ -240,7 +229,7 @@ struct EqBandPanel: View {
             )
         #elseif os(iOS)
             EqBandPaneliOS(
-                enabled: $enabled,
+                enabled: enabled,
                 type: $type,
                 frequency: $frequency,
                 q: $q,
@@ -248,6 +237,21 @@ struct EqBandPanel: View {
                 gain: $gain
             )
         #endif
+    }
+}
+
+struct SingleBandPickerButton: View {
+    var band: Int
+    @Binding var selectedEqBand: Int
+    @Binding var eq: Eq
+
+    var body: some View {
+        VStack(alignment: .center) {
+            Button(String(band + 1)) { selectedEqBand = band }
+                .foregroundStyle(selectedEqBand == band ? .green : .accentColor)
+
+            Toggle("✓", isOn: $eq.enabled[band]).toggleStyle(.button)
+        }
     }
 }
 
@@ -264,33 +268,18 @@ struct EqPanel: View {
             ScrollView(.horizontal) {
                 HStack(alignment: .center) {
                     ForEach((0..<numBands), id: \.self) { i in
-                        VStack(alignment: .center) {
-                            Button(String(i + 1)) {
-                                selectedEqBand = i
-                            }
-                            .foregroundStyle(
-                                selectedEqBand == i ? .green : .accentColor
-                            )
-
-                            Toggle(
-                                "✓",
-                                isOn: $eq.enabled[i]
-                            )
-                            .toggleStyle(.button)
-                        }
+                        SingleBandPickerButton(
+                            band: i,
+                            selectedEqBand: $selectedEqBand,
+                            eq: $eq
+                        )
                         .padding(.bottom, 10)
                     }
                 }
                 .frame(minWidth: geo.size.width)
-                .onChange(
-                    of: eq.enabled
-                ) {
-                    // This also fires when I switch tabs and this stuff hasn't actually
-                    // changed. Well, selectedEq changes, so maybe it does change? Not sure.
-                    Task {
-                        await khAccess.send()
-                    }
-                }
+                // This also fires when I switch tabs and this stuff hasn't actually
+                // changed. Well, selectedEq changes, so maybe it does change? Not sure.
+                .onChange(of: eq.enabled) { Task { await khAccess.send() } }
             }
             .scrollClipDisabled(true)
         }
@@ -299,7 +288,7 @@ struct EqPanel: View {
         .frame(height: 70)
 
         EqBandPanel(
-            enabled: $eq.enabled[selectedEqBand],
+            enabled: eq.enabled[selectedEqBand],
             type: $eq.type[selectedEqBand],
             frequency: $eq.frequency[selectedEqBand],
             q: $eq.q[selectedEqBand],

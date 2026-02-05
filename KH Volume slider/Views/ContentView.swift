@@ -10,31 +10,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
-    @Environment(\.openWindow) private var openWindow
     @State private var showError: Bool = false
-
-    @ViewBuilder
-    var macOSButtonBar: some View {
-        HStack {
-            Button("Fetch") { Task { await khAccess.fetch() } }
-                .disabled(khAccess.status.isBusy())
-
-            Button("Rescan") {
-                Task {
-                    await khAccess.scan()
-                    await khAccess.setup()
-                }
-            }
-            .disabled(khAccess.status.isBusy())
-
-            Button("Browse") { openWindow(id: "tree-viewer") }
-            Spacer()
-            StatusDisplay(status: khAccess.status)
-            #if os(macOS)
-                Button("Quit") { NSApplication.shared.terminate(nil) }
-            #endif
-        }
-    }
 
     @ToolbarContentBuilder
     var standardToolbar: some ToolbarContent {
@@ -101,68 +77,115 @@ struct ContentView: View {
     var browserToolbar: some ToolbarContent {
         #if os(iOS)
             ToolbarItem(placement: .topBarLeading) {
-                StatusDisplayCompact(status: khAccess.status)
+                Button {
+                    showError.toggle()
+                } label: {
+                    StatusDisplayCompact(status: khAccess.status)
+                        .popover(
+                            isPresented: $showError,
+                            attachmentAnchor: .point(.bottom)
+                        ) {
+                            StatusDisplayText(status: khAccess.status)
+                                .padding(.horizontal)
+                                .presentationCompactAdaptation(.popover)
+                        }
+                }
             }
         #endif
-        ToolbarItem {
-            Button("Fetch parameters") {
+        ToolbarItemGroup(placement: .secondaryAction) {
+            Button("Rescan", systemImage: "bonjour") {
+                Task {
+                    await khAccess.scan()
+                    await khAccess.setup()
+                }
+            }
+            .disabled(khAccess.status.isBusy())
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button("Fetch parameters", systemImage: "square.and.arrow.down") {
                 Task { await khAccess.fetchParameters() }
             }
+            .disabled(khAccess.devices.isEmpty)
+        }
+    }
+
+    @ToolbarContentBuilder
+    var browserToolbarmacOS: some ToolbarContent {
+        ToolbarItem(placement: .status) {
+            Button {
+                showError.toggle()
+            } label: {
+                StatusDisplayCompact(status: khAccess.status)
+                    .popover(
+                        isPresented: $showError,
+                        attachmentAnchor: .point(.bottom)
+                    ) {
+                        StatusDisplayText(status: khAccess.status)
+                            .padding(.horizontal)
+                            .presentationCompactAdaptation(.popover)
+                    }
+            }
+        }
+        ToolbarItemGroup(placement: .secondaryAction) {
+            Button("Rescan", systemImage: "bonjour") {
+                Task {
+                    await khAccess.scan()
+                    await khAccess.setup()
+                }
+            }
+            .disabled(khAccess.status.isBusy())
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button("Fetch parameters", systemImage: "square.and.arrow.down") {
+                Task { await khAccess.fetchParameters() }
+            }
+            .disabled(khAccess.devices.isEmpty)
         }
     }
 
     var body: some View {
         #if os(iOS)
             TabView {
-                Tab("Main", systemImage: "speaker.wave.3") {
+                Tab("Controls", systemImage: "speaker.wave.3") {
                     NavigationStack {
-                        MainTab()
-                            .navigationTitle(Text("Main controls"))
+                        MainTabiOS()
+                        // .navigationTitle(Text("Controls"))
                     }
                 }
-                Tab("Browser", systemImage: "list.bullet.indent") {
+                Tab("Devices", systemImage: "list.bullet.indent") {
                     NavigationStack {
                         ParameterTab()
-                            .navigationTitle(Text("Device browser"))
-                            .toolbar { standardToolbar }
+                            // .navigationTitle(Text("Device browser"))
+                            .toolbar { browserToolbar }
                     }
                 }
-                Tab("Backup", systemImage: "externaldrive") {
+                Tab("Backups", systemImage: "externaldrive") {
                     NavigationStack {
                         BackupView()
-                            .navigationTitle(Text("Backups"))
-                            .toolbar { standardToolbar }
+                        // .navigationTitle(Text("Backups"))
+                        // .toolbar { standardToolbar }
                     }
                 }
             }
             .onAppear { Task { await khAccess.setup() } }
         #elseif os(macOS)
             TabView {
-                Tab("Main", systemImage: "speaker.wave.3") {
-                    MainTab()
-                        .scenePadding()
-                        .disabled(!khAccess.status.isClean())
+                Tab("Controls", systemImage: "speaker.wave.3") {
+                    ScrollView {
+                        MainTabmacOS()
+                    }
                 }
-                Tab("DSP", systemImage: "slider.vertical.3") {
-                    EqTab()
-                        .scenePadding()
-                        .disabled(!khAccess.status.isClean())
-                }
-                Tab("Browser", systemImage: "list.bullet.indent") {
+                Tab("Devices", systemImage: "list.bullet.indent") {
                     ParameterTab()
-                        .scenePadding()
+                        .toolbar { browserToolbarmacOS }
                 }
-                Tab("Backup", systemImage: "externaldrive") {
-                    BackupView()
-                        .scenePadding()
+                Tab("Backups", systemImage: "externaldrive") {
+                    BackupViewMacOS()
                 }
             }
             .onAppear { Task { await khAccess.setup() } }
             .scenePadding()
             .frame(minWidth: 450)
-            // .toolbar { standardToolbarMacOS }
-
-        // macOSButtonBar.scenePadding()
         #endif
     }
 }

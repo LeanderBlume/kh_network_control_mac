@@ -17,17 +17,11 @@ struct StatusDisplayCompact: View {
             #endif
         let circ = Image(systemName: "circle.fill")
         switch status {
-        case .clean:
+        case .ready:
             circ.foregroundColor(.green)
-        case .busy, .queryingParameters:
+        case .busy:
             pv
-        case .couldNotConnect:
-            circ.foregroundColor(.red)
-        case .speakersFound(let n):
-            circ.foregroundColor(n > 0 ? .green : .red)
-        case .success:
-            Image(systemName: "checkmark").foregroundColor(.green)
-        case .otherError:
+        case .error:
             Image(systemName: "exclamationmark.circle").foregroundColor(.red)
         }
     }
@@ -39,22 +33,8 @@ struct StatusDisplayText: View {
 
     var body: some View {
         switch status {
-        case .clean, .success:
-            Text("Ready")
-        case .busy(let s):
-            if let s { Text(s) }
-        case .queryingParameters:
-            Text("Querying...")
-        case .couldNotConnect:
-            Text("Could not connect")
-        case .speakersFound(let n):
-            if n == 0 {
-                Text("No speakers found")
-            } else {
-                Text("Discovered \(n) speakers")
-            }
-        case .otherError(let s):
-            Text(s)
+        case .ready: Text("Ready")
+        case .busy(let s), .error(let s): Text(s)
         }
     }
 }
@@ -64,8 +44,8 @@ struct StatusDisplay: View {
 
     var body: some View {
         HStack {
-            StatusDisplayText(status: status)
             StatusDisplayCompact(status: status)
+            StatusDisplayText(status: status)
         }
         .frame(height: 20)
         .frame(minWidth: 33)

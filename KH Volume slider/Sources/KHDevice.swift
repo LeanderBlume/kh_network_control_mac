@@ -27,13 +27,9 @@ final class KHDevice: @MainActor KHDeviceProtocol {
 
     required init(connection: SSCConnection) { self.connection = connection }
 
-    private func connect() async throws {
-        try await connection.open()
-    }
+    private func connect() async throws { try await connection.open() }
 
-    private func disconnect() async {
-        await connection.close()
-    }
+    private func disconnect() async { await connection.close() }
 
     func setup() async throws {
         try await connect()
@@ -108,7 +104,9 @@ final class KHDevice: @MainActor KHDeviceProtocol {
     }
 
     func sendNode(_ path: [String]) async throws {
-        guard let rootNode = parameterTree else { return }
+        guard let rootNode = parameterTree else {
+            throw KHDeviceError.error("Parameters not loaded")
+        }
         guard let node = rootNode.getNodeByPath(path) else {
             throw KHDeviceError.error("Node not found")
         }
@@ -118,7 +116,9 @@ final class KHDevice: @MainActor KHDeviceProtocol {
     }
 
     func fetchNode(_ path: [String]) async throws {
-        guard let rootNode = parameterTree else { return }
+        guard let rootNode = parameterTree else {
+            throw KHDeviceError.error("Parameters not loaded")
+        }
         guard let node = rootNode.getNodeByPath(path) else {
             throw KHDeviceError.error("Node not found")
         }

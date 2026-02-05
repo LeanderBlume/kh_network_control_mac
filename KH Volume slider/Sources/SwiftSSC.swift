@@ -13,7 +13,7 @@ actor SSCConnection {
 
     var service: (String, String, String)? {
         switch self.connection.endpoint {
-        case let .service(name: n, type: t, domain: d, interface: _):
+        case .service(name: let n, type: let t, domain: let d, interface: _):
             return (n, t, d)
         default:
             return nil
@@ -22,10 +22,11 @@ actor SSCConnection {
 
     // Something goes wrong with the connection itself
     enum ConnectionError: Error {
-        case couldNotConnect
+        case connectingTimedOut
         case emptyResponse
         case typeError
-        case error(String)
+        case codingError
+        case impossibleError
     }
 
     // Connection succeeds, but device returns an error
@@ -75,10 +76,8 @@ actor SSCConnection {
 
     func open() async throws {
         switch connection.state {
-        case .ready:
-            return
-        case .preparing:
-            break
+        case .ready: return
+        case .preparing: break
         case .waiting:
             connection.restart()
         case .cancelled, .failed:
@@ -88,21 +87,13 @@ actor SSCConnection {
             connection.start(queue: dispatchQueue)
         }
         let deadline = Date.now.addingTimeInterval(5)
-        var success = false
         while Date.now < deadline {
-            if connection.state == .ready {
-                success = true
-                break
-            }
+            if connection.state == .ready { return }
         }
-        if !success {
-            throw ConnectionError.couldNotConnect
-        }
+        throw ConnectionError.connectingTimedOut
     }
 
-    func close() {
-        connection.cancel()
-    }
+    func close() { connection.cancel() }
 
     static func pathToJSONString<T>(path: [String], value: T) throws -> String
     where T: Encodable {
@@ -118,9 +109,7 @@ actor SSCConnection {
             let sendCompHandler = NWConnection.SendCompletion.contentProcessed {
                 error in
                 if let error {
-                    continuation.resume(
-                        throwing: ConnectionError.error(String(describing: error))
-                    )
+                    continuation.resume(throwing: error)
                     return
                 }
             }
@@ -144,15 +133,13 @@ actor SSCConnection {
                 }
                 if let data {
                     guard let response = String(data: data, encoding: .utf8) else {
-                        continuation.resume(
-                            throwing: ConnectionError.error("Decoding error")
-                        )
+                        continuation.resume(throwing: ConnectionError.codingError)
                         return
                     }
                     continuation.resume(returning: response)
                     return
                 }
-                continuation.resume(throwing: ConnectionError.error("Receive fallback"))
+                continuation.resume(throwing: ConnectionError.impossibleError)
             }
         }
     }

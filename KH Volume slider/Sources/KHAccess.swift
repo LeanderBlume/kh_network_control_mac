@@ -49,28 +49,13 @@ protocol KHAccessProtocol {
 }
 
 enum KHAccessStatus: Equatable {
-    case clean
-    case success
-    case speakersFound(Int)
-    case busy(String?)
-    case queryingParameters
-    case couldNotConnect
-    case otherError(String)
-
-    func isClean() -> Bool {
-        switch self {
-        case .clean, .success:
-            return true
-        case .speakersFound(let n):
-            return n > 0
-        default:
-            return false
-        }
-    }
+    case ready
+    case busy(String)
+    case error(String)
 
     func isBusy() -> Bool {
         switch self {
-        case .busy, .queryingParameters:
+        case .busy:
             return true
         default:
             return false
@@ -90,7 +75,7 @@ final class KHAccessNative: KHAccessProtocol {
      */
     var state = KHState()
     var devices: [KHDevice] = []
-    var status: KHAccessStatus = .speakersFound(0)
+    var status: KHAccessStatus = .error("Not initialized")
 
     func scan(seconds: UInt32 = 1) async {
         /// Scan for devices, replacing current device list.
@@ -108,7 +93,6 @@ final class KHAccessNative: KHAccessProtocol {
             print(error)
         }
         devices = connections.map { KHDevice(connection: $0) }
-        status = .speakersFound(devices.count)
     }
 
     func getDeviceByID(_ id: KHDevice.ID) -> KHDevice? {
@@ -122,32 +106,37 @@ final class KHAccessNative: KHAccessProtocol {
     }
 
     func setup() async {
-        if devices.isEmpty {
-            let connectionCache = ConnectionCache()
-            if let connections = try? connectionCache.getConnections() {
-                if connections.isEmpty {
-                    await scan()
-                } else {
-                    devices = connections.map { KHDevice(connection: $0) }
-                    status = .speakersFound(devices.count)
-                }
-            } else {
-                print("error loading connections")
+        if !devices.isEmpty {
+            await setupDevices()
+            return
+        }
+        let connectionCache = ConnectionCache()
+        do {
+            let connections = try connectionCache.getConnections()
+            if connections.isEmpty {
                 await scan()
+            } else {
+                devices = connections.map { KHDevice(connection: $0) }
             }
-            if status == .speakersFound(0) {
-                return
-            }
+        } catch {
+            print("error loading connections")
+            await scan()
+        }
+        if devices.isEmpty {
+            status = .error("No devices found")
+            return
         }
         await setupDevices()
     }
 
     private func setupDevices() async {
         status = .busy("Setting up...")
+        // We don't want to do this in parallel (naively) because of file system cache
         for d in devices {
-            do { try await d.setup() } catch {
-                print(error)
-                status = .otherError(String(describing: error))
+            do {
+                try await d.setup()
+            } catch {
+                status = .error(String(describing: error))
                 return
             }
         }
@@ -155,23 +144,23 @@ final class KHAccessNative: KHAccessProtocol {
         // await fetchParameters()
         await fetch()
         state = devices[0].state
-        status = .success
+        status = .ready
     }
 
     func populateParameters() async {
-        status = .queryingParameters
+        status = .busy("Querying...")
         await withThrowingTaskGroup { group in
             for d in devices {
                 group.addTask { try await d.populateParameters() }
             }
             do {
                 try await group.waitForAll()
+                status = .ready
             } catch {
-                status = .otherError(String(describing: error))
+                status = .error(String(describing: error))
                 return
             }
         }
-        status = .success
     }
 
     func fetchParameters() async {
@@ -182,12 +171,12 @@ final class KHAccessNative: KHAccessProtocol {
             }
             do {
                 try await group.waitForAll()
+                status = .ready
             } catch {
-                status = .otherError(String(describing: error))
+                status = .error(String(describing: error))
                 return
             }
         }
-        status = .success
     }
 
     func sendParameters() async {
@@ -198,15 +187,18 @@ final class KHAccessNative: KHAccessProtocol {
             }
             do {
                 try await group.waitForAll()
+                status = .ready
             } catch {
-                status = .otherError(String(describing: error))
-                return
+                status = .error(String(describing: error))
             }
         }
-        status = .success
     }
 
     func fetch() async {
+        if devices.isEmpty {
+            status = .error("No devices")
+            return
+        }
         status = .busy("Fetching...")
         await withThrowingTaskGroup { group in
             for d in devices {
@@ -214,12 +206,12 @@ final class KHAccessNative: KHAccessProtocol {
             }
             do {
                 try await group.waitForAll()
+                state = devices.first!.state
+                status = .ready
             } catch {
-                status = .otherError(String(describing: error))
+                status = .error(String(describing: error))
             }
         }
-        state = devices.first!.state
-        status = .success
     }
 
     func send() async {
@@ -230,30 +222,32 @@ final class KHAccessNative: KHAccessProtocol {
             do {
                 try await group.waitForAll()
             } catch {
-                status = .otherError(String(describing: error))
+                status = .error(String(describing: error))
             }
         }
     }
 
     func sendNode(deviceIndex i: Int, path: [String]) async {
         if !devices.indices.contains(i) {
-            status = .otherError("Device does not exist")
+            status = .error("Device \(i + 1) does not exist")
+            return
         }
         do {
             try await devices[i].sendNode(path)
         } catch {
-            status = .otherError(String(describing: error))
+            status = .error(String(describing: error))
         }
     }
 
     func fetchNode(deviceIndex i: Int, path: [String]) async {
         if !devices.indices.contains(i) {
-            status = .otherError("Device does not exist")
+            status = .error("Device \(i + 1) does not exist")
+            return
         }
         do {
             try await devices[i].fetchNode(path)
         } catch {
-            status = .otherError(String(describing: error))
+            status = .error(String(describing: error))
         }
     }
 }

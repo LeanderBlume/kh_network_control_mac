@@ -100,7 +100,7 @@ struct HardwareTab: View {
                             }
                         }
                     }
-                    .disabled(!khAccess.status.isClean())
+                    .disabled(khAccess.status != .ready)
 
                     TextField(
                         "Logo brightness",

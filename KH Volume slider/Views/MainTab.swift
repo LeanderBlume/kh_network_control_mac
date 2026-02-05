@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 
-struct MainTab: View {
+struct MainTabiOS: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @FocusState private var textFieldFocused: Bool
     @State private var showError: Bool = false
@@ -114,11 +114,10 @@ struct MainTab: View {
                     isOn: $khAccess.state.muted
                 )
                 // .toggleStyle(.button)
-                .onChange(of: khAccess.state.muted) {
-                    Task { await khAccess.send() }
-                }
+                .onChange(of: khAccess.state.muted) { Task { await khAccess.send() } }
             }
             .focused($textFieldFocused)
+            .disabled(khAccess.status != .ready)
 
             Section("Logo brightness") {
                 TextField(
@@ -138,13 +137,14 @@ struct MainTab: View {
                 }
             }
             .focused($textFieldFocused)
+            .disabled(khAccess.status != .ready)
 
             Section("EQ") {
                 EqTab()
             }
             .focused($textFieldFocused)
+            .disabled(khAccess.status != .ready)
         }
-        .disabled(!khAccess.status.isClean())
         .toolbar {
             if textFieldFocused {
                 doneAndCancel
@@ -152,5 +152,97 @@ struct MainTab: View {
                 standardToolbar
             }
         }
+    }
+}
+
+struct MainTabmacOS: View {
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+    @State private var showError: Bool = false
+
+    @ToolbarContentBuilder
+    var standardToolbar: some ToolbarContent {
+        ToolbarItem(placement: .status) {
+            Button {
+                showError.toggle()
+            } label: {
+                StatusDisplayCompact(status: khAccess.status)
+                    .popover(
+                        isPresented: $showError,
+                        attachmentAnchor: .point(.top)
+                    ) {
+                        StatusDisplayText(status: khAccess.status).padding()
+                    }
+            }
+        }
+        ToolbarItemGroup(placement: .secondaryAction) {
+            Button("Rescan", systemImage: "bonjour") {
+                Task {
+                    await khAccess.scan()
+                    await khAccess.setup()
+                }
+            }
+            .disabled(khAccess.status.isBusy())
+            Button("Fetch parameters", systemImage: "square.and.arrow.down") {
+                Task { await khAccess.fetchParameters() }
+            }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button("Fetch", systemImage: "arrow.clockwise") {
+                Task { await khAccess.fetch() }
+            }
+            .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
+        }
+    }
+
+    var body: some View {
+        @Bindable var khAccess = khAccess
+
+        VStack(spacing: 20) {
+            // Text("Controls").font(.title)
+            //     .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text("Basic controls").font(.title2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Grid(alignment: .topLeading) {
+                GridRow {
+                    Text("Mute")
+                    Toggle(
+                        "Muted",
+                        systemImage: "speaker.slash.fill",
+                        isOn: $khAccess.state.muted
+                    )
+                    // .toggleStyle(.button)
+                    // .toggleStyle(.switch)
+                    .onChange(of: khAccess.state.muted) {
+                        Task { await khAccess.send() }
+                    }
+                    .disabled(khAccess.status != .ready)
+                    .labelsHidden()
+                    .padding(.bottom, 10)
+                }
+                GridRow {
+                    EqSlidermacOS(
+                        name: "Volume",
+                        value: $khAccess.state.volume,
+                        range: 0...120
+                    )
+                }
+                GridRow {
+                    EqSlidermacOS(
+                        name: "Logo",
+                        value: $khAccess.state.logoBrightness,
+                        range: 0...125
+                    )
+                }
+            }
+
+            Text("EQ").font(.title2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            EqTab()
+        }
+        .disabled(khAccess.status != .ready)
+        .toolbar { standardToolbar }
     }
 }

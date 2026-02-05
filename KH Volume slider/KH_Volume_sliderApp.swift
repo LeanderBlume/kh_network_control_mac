@@ -13,7 +13,7 @@ struct KH_Volume_sliderApp: App {
 
     // decodes to [String: [String]]
     @AppStorage("paths") private var paths: Data = Data()
-    
+
     init() {
         do {
             paths = try JSONEncoder().encode(KHParameters.devicePathDictDefault())
@@ -25,22 +25,13 @@ struct KH_Volume_sliderApp: App {
     var body: some Scene {
         #if os(macOS)
         MenuBarExtra("KH Volume slider", systemImage: "hifispeaker.2") {
-            ContentView()
+            MenuBarView()
                 .environment(khAccess)
         }
         .menuBarExtraStyle(.window)
-        
-        Settings {
-            SettingsView()
-        }
-        #elseif os(iOS)
-        WindowGroup {
-            ContentView()
-                .environment(khAccess)
-        }
         #endif
-        WindowGroup("Parameters", id: "tree-viewer") {
-            ParameterTab()
+        WindowGroup(id: "main-window") {
+            ContentView()
                 .environment(khAccess)
         }
     }

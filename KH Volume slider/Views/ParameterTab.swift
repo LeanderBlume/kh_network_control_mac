@@ -455,11 +455,14 @@ struct iOSDeviceBrowserForm: View {
                     if let rootNode = device.parameterTree {
                         NavigationLink(
                             device.state.name,
-                            destination: DeviceBrowser(rootNode: rootNode, deviceIndex: i)
-                                .navigationTitle(device.state.name)
+                            destination: DeviceBrowser(
+                                rootNode: rootNode,
+                                deviceIndex: i
+                            )
+                            .navigationTitle(device.state.name)
                         )
                     } else {
-                        Text("Parameters not populated.")
+                        Text("Parameters not loaded")
                     }
                 }
             }
@@ -511,8 +514,11 @@ struct macOSDeviceBrowserForm: View {
                     if let rootNode = device.parameterTree {
                         NavigationLink(
                             device.state.name,
-                            destination: DeviceBrowser(rootNode: rootNode, deviceIndex: i)
-                                .navigationTitle(device.state.name)
+                            destination: DeviceBrowser(
+                                rootNode: rootNode,
+                                deviceIndex: i
+                            )
+                            .navigationTitle(device.state.name)
                         )
                     } else {
                         Text("Parameters not populated.")
