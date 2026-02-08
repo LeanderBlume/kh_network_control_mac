@@ -208,28 +208,28 @@ struct MainTabmacOS: View {
                 GridRow {
                     Text("Mute")
                     Toggle(
-                        "Muted",
+                        "Toggle",
                         systemImage: "speaker.slash.fill",
                         isOn: $khAccess.state.muted
                     )
-                    // .toggleStyle(.button)
+                    .toggleStyle(.button)
                     // .toggleStyle(.switch)
                     .onChange(of: khAccess.state.muted) {
                         Task { await khAccess.send() }
                     }
                     .disabled(khAccess.status != .ready)
                     .labelsHidden()
-                    .padding(.bottom, 10)
+                    // .padding(.bottom, 10)
                 }
                 GridRow {
-                    EqSlidermacOS(
+                    LabeledSliderTextField(
                         name: "Volume",
                         value: $khAccess.state.volume,
                         range: 0...120
                     )
                 }
                 GridRow {
-                    EqSlidermacOS(
+                    LabeledSliderTextField(
                         name: "Logo",
                         value: $khAccess.state.logoBrightness,
                         range: 0...125

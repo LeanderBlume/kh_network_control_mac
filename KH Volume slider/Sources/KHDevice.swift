@@ -107,7 +107,7 @@ final class KHDevice: @MainActor KHDeviceProtocol {
         guard let rootNode = parameterTree else {
             throw KHDeviceError.error("Parameters not loaded")
         }
-        guard let node = rootNode.getNodeByPath(path) else {
+        guard let node = rootNode.getAtPath(path) else {
             throw KHDeviceError.error("Node not found")
         }
         try await connect()
@@ -119,7 +119,7 @@ final class KHDevice: @MainActor KHDeviceProtocol {
         guard let rootNode = parameterTree else {
             throw KHDeviceError.error("Parameters not loaded")
         }
-        guard let node = rootNode.getNodeByPath(path) else {
+        guard let node = rootNode.getAtPath(path) else {
             throw KHDeviceError.error("Node not found")
         }
         try await connect()

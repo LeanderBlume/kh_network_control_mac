@@ -56,41 +56,55 @@ struct KHState: Codable, Equatable {
 
     init?(jsonData: JSONData) {
         for parameter in KHParameters.allCases {
-            let devicePath = parameter.getDevicePath()
-            var unwrappedValue = jsonData
-            for p in devicePath {
-                if unwrappedValue[p] == nil {
-                    return nil
-                }
-                unwrappedValue = unwrappedValue[p]!
+            guard let valAtPath = jsonData.getAtPath(parameter.getDevicePath()) else {
+                return nil
             }
-
             let keyPath = parameter.getKeyPath()
+            /*
             switch keyPath {
             case .bool(let p):
-                if case .bool(let v) = unwrappedValue {
+                if case .bool(let v) = valAtPath {
                     self[keyPath: p] = v
                 }
             case .number(let p):
-                if case .number(let v) = unwrappedValue {
+                if case .number(let v) = valAtPath {
                     self[keyPath: p] = v
                 }
             case .string(let p):
-                if case .string(let v) = unwrappedValue {
+                if case .string(let v) = valAtPath {
                     self[keyPath: p] = v
                 }
             case .arrayBool(let p):
-                if let v = unwrappedValue.asArrayBool() {
+                if let v = valAtPath.asArrayBool() {
                     self[keyPath: p] = v
                 }
             case .arrayNumber(let p):
-                if let v = unwrappedValue.asArrayNumber() {
+                if let v = valAtPath.asArrayNumber() {
                     self[keyPath: p] = v
                 }
             case .arrayString(let p):
-                if let v = unwrappedValue.asArrayString() {
+                if let v = valAtPath.asArrayString() {
                     self[keyPath: p] = v
                 }
+            }
+             */
+            switch (keyPath, valAtPath) {
+            case (.bool(let p), .bool(let v)):
+                self[keyPath: p] = v
+            case (.number(let p), .number(let v)):
+                self[keyPath: p] = v
+            case (.string(let p), .string(let v)):
+                self[keyPath: p] = v
+            case (.arrayBool(let p), .array):
+                guard let v = valAtPath.asArrayBool() else { break }
+                self[keyPath: p] = v
+            case (.arrayNumber(let p), .array):
+                guard let v = valAtPath.asArrayNumber() else { break }
+                self[keyPath: p] = v
+            case (.arrayString(let p), .array):
+                guard let v = valAtPath.asArrayString() else { break }
+                self[keyPath: p] = v
+            default: break
             }
         }
     }
@@ -175,10 +189,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
         JSONDataSimple(state: state, keyPath: getKeyPath())
     }
 
-    private func set(
-        value: JSONDataSimple,
-        into state: KHState,
-    ) -> KHState {
+    private func set(value: JSONDataSimple, into state: KHState) -> KHState {
         value.set(into: state, keyPath: getKeyPath())
     }
 
@@ -316,7 +327,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
     static func resetAllDevicePaths() {
         KHParameters.allCases.forEach { $0.resetDevicePath() }
     }
-    
+
     func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {
         var v: JSONDataSimple
         let devicePath = getDevicePath()

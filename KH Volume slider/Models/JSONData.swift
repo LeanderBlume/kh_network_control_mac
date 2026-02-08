@@ -86,49 +86,20 @@ enum JSONDataSimple: Equatable {
         keyPath: KeyPathType<KHState>
     ) -> KHState {
         var newState = state
-        switch self {
-        case .number(let value):
-            switch keyPath {
-            case .number(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .string(let value):
-            switch keyPath {
-            case .string(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .bool(let value):
-            switch keyPath {
-            case .bool(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayNumber(let value):
-            switch keyPath {
-            case .arrayNumber(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayBool(let value):
-            switch keyPath {
-            case .arrayBool(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
-        case .arrayString(let value):
-            switch keyPath {
-            case .arrayString(let keyPath):
-                newState[keyPath: keyPath] = value
-            default:
-                break
-            }
+        switch (self, keyPath) {
+        case (.number(let v), .number(let p)):
+            newState[keyPath: p] = v
+        case (.string(let v), .string(let p)):
+            newState[keyPath: p] = v
+        case (.bool(let v), .bool(let p)):
+            newState[keyPath: p] = v
+        case (.arrayNumber(let v), .arrayNumber(let p)):
+            newState[keyPath: p] = v
+        case (.arrayBool(let v), .arrayBool(let p)):
+            newState[keyPath: p] = v
+        case (.arrayString(let v), .arrayString(let p)):
+            newState[keyPath: p] = v
+        default: break
         }
         return newState
     }
@@ -310,6 +281,15 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
             }
         }
         return self
+    }
+
+    func getAtPath(_ path: [String]) -> JSONData? {
+        var curr: JSONData? = self
+        for p in path {
+            guard let child = self[p] else { return nil }
+            curr = child
+        }
+        return curr
     }
 
     private func asAny() -> Any? {

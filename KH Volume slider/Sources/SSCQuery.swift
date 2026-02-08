@@ -129,7 +129,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
 
     func getPathString() -> String { "/" + pathToNode().joined(separator: "/") }
 
-    func getNodeByPath(_ path: [String]) -> SSCNode? {
+    func getAtPath(_ path: [String]) -> SSCNode? {
         var curr: SSCNode? = self
         for p in path {
             guard let child = self[p] else { return nil }

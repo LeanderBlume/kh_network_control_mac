@@ -66,14 +66,14 @@ struct MenuBarView: View {
                     .labelsHidden()
                 }
                 GridRow {
-                    EqSlidermacOS(
+                    LabeledSliderTextField(
                         name: "Volume",
                         value: $khAccess.state.volume,
                         range: 0...120
                     )
                 }
                 GridRow {
-                    EqSlidermacOS(
+                    LabeledSliderTextField(
                         name: "Logo",
                         value: $khAccess.state.logoBrightness,
                         range: 0...125
