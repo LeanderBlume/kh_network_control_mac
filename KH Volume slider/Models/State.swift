@@ -60,34 +60,6 @@ struct KHState: Codable, Equatable {
                 return nil
             }
             let keyPath = parameter.getKeyPath()
-            /*
-            switch keyPath {
-            case .bool(let p):
-                if case .bool(let v) = valAtPath {
-                    self[keyPath: p] = v
-                }
-            case .number(let p):
-                if case .number(let v) = valAtPath {
-                    self[keyPath: p] = v
-                }
-            case .string(let p):
-                if case .string(let v) = valAtPath {
-                    self[keyPath: p] = v
-                }
-            case .arrayBool(let p):
-                if let v = valAtPath.asArrayBool() {
-                    self[keyPath: p] = v
-                }
-            case .arrayNumber(let p):
-                if let v = valAtPath.asArrayNumber() {
-                    self[keyPath: p] = v
-                }
-            case .arrayString(let p):
-                if let v = valAtPath.asArrayString() {
-                    self[keyPath: p] = v
-                }
-            }
-             */
             switch (keyPath, valAtPath) {
             case (.bool(let p), .bool(let v)):
                 self[keyPath: p] = v
