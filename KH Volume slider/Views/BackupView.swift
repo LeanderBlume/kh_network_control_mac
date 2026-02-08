@@ -53,7 +53,7 @@ struct BackupView: View {
                 Button("Save backup") {
                     Task {
                         // TODO better: Load parameters from state.
-                        await khAccess.fetchParameters()
+                        await khAccess.fetchParameterTree()
                         try backupper.write(name: newName, khAccess: khAccess)
                         selection = newName
                         newName = ""
@@ -105,7 +105,7 @@ struct BackupViewMacOS: View {
             Button("Create") {
                 Task {
                     // TODO better: Load parameters from state.
-                    await khAccess.fetchParameters()
+                    await khAccess.fetchParameterTree()
                     try backupper.write(name: newName, khAccess: khAccess)
                     selection = newName
                     newName = ""

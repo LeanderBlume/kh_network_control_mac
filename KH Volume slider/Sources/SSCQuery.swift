@@ -33,7 +33,7 @@ enum NodeData {
 
     func isLeaf() -> Bool {
         switch self {
-        case .value, .error, .unknownValue:
+        case .value, .error:
             return true
         default:
             return false
@@ -91,7 +91,6 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         let path: [String]
     }
 
-    typealias ID = NodeID
     var id: NodeID { .init(deviceID: deviceID, path: pathToNode()) }
 
     init(
@@ -107,6 +106,8 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         self.parent = parent
         self.limits = limits
     }
+    
+    func isLeaf() -> Bool { value.isLeaf() }
 
     func rootNode() -> SSCNode {
         var curr: SSCNode = self

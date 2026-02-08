@@ -40,7 +40,7 @@ struct HardwareTab: View {
             }
             .disabled(khAccess.status.isBusy())
             Button("Fetch parameters", systemImage: "square.and.arrow.down") {
-                Task { await khAccess.fetchParameters() }
+                Task { await khAccess.fetchParameterTree() }
             }
         }
         ToolbarItem(placement: .primaryAction) {

@@ -9,121 +9,194 @@ import SwiftUI
 
 @Observable
 final class KHDevice: @MainActor KHDeviceProtocol {
-    let connection: SSCConnection
     var state: KHState = KHState()
+    var status: KHAccessStatus = .error("Not initialized")
     var parameterTree: SSCNode? = nil
+
+    private let connection: SSCConnection
 
     struct KHDeviceID: Hashable, Codable {
         let name: String
         let serial: String
     }
 
-    typealias ID = KHDeviceID
     var id: KHDeviceID { .init(name: state.name, serial: state.serial) }
-
-    enum KHDeviceError: Error {
-        case error(String)
-    }
 
     required init(connection: SSCConnection) { self.connection = connection }
 
-    private func connect() async throws { try await connection.open() }
+    private func connect() async {
+        // Too quick to set status, it's too flickery
+        // status = .busy("Connecting...")
+        do {
+            try await connection.open()
+        } catch SSCConnection.ConnectionError.connectingTimedOut {
+            status = .error("Connecting timed out")
+        } catch {
+            status = .error(String(describing: error))
+        }
+        // status = .ready
+    }
 
     private func disconnect() async { await connection.close() }
 
-    func setup() async throws {
-        try await connect()
-        // We need to fetch product and version to identify the schema type.
-        for p in KHParameters.setupParameters {
-            state = try await p.fetch(into: state, connection: connection)
+    private func _fetchParameters(_ parameters: [KHParameters]) async {
+        for p in parameters {
+            do {
+                state = try await p.fetch(into: state, connection: connection)
+            } catch {
+                status = .error(String(describing: error))
+                return
+            }
         }
-        try await populateParameters()
+        status = .ready
+    }
+
+    private func _sendParameters(_ parameters: [KHParameters], newState: KHState) async {
+        for p in parameters {
+            do {
+                try await p.send(
+                    oldState: state,
+                    newState: newState,
+                    connection: connection
+                )
+            } catch {
+                status = .error(String(describing: error))
+                return
+            }
+            state = p.copy(from: newState, into: state)
+        }
+        status = .ready
+    }
+
+    func setup() async {
+        status = .busy("Setting up...")
+        await connect()
+        // We need to fetch product and version to identify the schema type.
+        await _fetchParameters(KHParameters.setupParameters)
+        await populateParameters()
         await disconnect()
         // We do NOT update the state now because that messes up the ID
     }
 
-    func fetch() async throws {
-        try await connect()
-        for p in KHParameters.fetchParameters {
-            state = try await p.fetch(into: state, connection: connection)
-        }
+    func fetch() async {
+        status = .busy("Fetching...")
+        await connect()
+        await _fetchParameters(KHParameters.fetchParameters)
         await disconnect()
     }
 
-    func send(_ newState: KHState) async throws {
+    func send(_ newState: KHState) async {
         if newState == state {
             // don't even connect
             return
         }
-        try await connect()
-        for p in KHParameters.sendParameters {
-            try await p.send(
-                oldState: state,
-                newState: newState,
-                connection: connection
-            )
-            state = p.copy(from: newState, into: state)
-        }
+        await connect()
+        await _sendParameters(KHParameters.sendParameters, newState: newState)
         await disconnect()
     }
 
-    func populateParameters() async throws {
+    func populateParameters() async {
+        status = .busy("Loading parameters...")
         let rootNode = SSCNode(name: "root", deviceID: self.id, parent: nil)
         let schemaCache = SchemaCache()
-        if let cachedSchema = try schemaCache.getSchema(for: self) {
+        var cachedSchema: JSONDataCodable? = nil
+        do {
+            cachedSchema = try schemaCache.getSchema(for: self)
+        } catch {
+            print("Error loading cached schema: \(error)")
+        }
+        if let cachedSchema {
             rootNode.populate(jsonDataCodable: cachedSchema)
         } else {
-            try await connect()
-            try await rootNode.populate(connection: connection, recursive: true)
+            await connect()
+            do {
+                try await rootNode.populate(connection: connection, recursive: true)
+            } catch {
+                status = .error("Failed to load parameter tree: \(error)")
+                return
+            }
             await disconnect()
-            try schemaCache.saveSchema(rootNode, for: self)
+            do {
+                try schemaCache.saveSchema(rootNode, for: self)
+            } catch {
+                print("Error saving schema: \(error)")
+            }
         }
         parameterTree = rootNode
+        status = .ready
     }
-
-    func fetchParameters() async throws {
-        guard let rootNode = parameterTree else { return }
-        try await connect()
-        for node in rootNode {
-            if case .value = node.value {
+    
+    private func _fetchNodes(_ nodes: [SSCNode]) async {
+        for node in nodes {
+            do {
                 try await node.fetch(connection: connection)
+            } catch {
+                status = .error(String(describing: error))
+                return
             }
         }
-        await disconnect()
+        status = .ready
     }
-
-    func sendParameters() async throws {
-        guard let rootNode = parameterTree else { return }
-        try await connect()
-        for node in rootNode {
-            if case .value = node.value {
+    
+    private func _sendNodes(_ nodes: [SSCNode]) async {
+        for node in nodes {
+            do {
                 try await node.send(connection: connection)
+            } catch {
+                status = .error(String(describing: error))
+                return
             }
         }
+        status = .ready
+    }
+
+    func fetchParameterTree() async {
+        status = .busy("Fetching parameters...")
+        guard let rootNode = parameterTree else {
+            status = .error("Parameters not loaded")
+            return
+        }
+        await connect()
+        await _fetchNodes(rootNode.filter({$0.isLeaf()}))
         await disconnect()
     }
 
-    func sendNode(_ path: [String]) async throws {
+    func sendParameterTree() async {
+        status = .busy("Sending parameters...")
         guard let rootNode = parameterTree else {
-            throw KHDeviceError.error("Parameters not loaded")
+            status = .error("Parameters not loaded")
+            return
         }
-        guard let node = rootNode.getAtPath(path) else {
-            throw KHDeviceError.error("Node not found")
-        }
-        try await connect()
-        try await node.send(connection: connection)
+        await connect()
+        await _sendNodes(rootNode.filter({$0.isLeaf()}))
         await disconnect()
     }
 
-    func fetchNode(_ path: [String]) async throws {
+    func sendNode(path: [String]) async {
         guard let rootNode = parameterTree else {
-            throw KHDeviceError.error("Parameters not loaded")
+            status = .error("Parameters not loaded")
+            return
         }
         guard let node = rootNode.getAtPath(path) else {
-            throw KHDeviceError.error("Node not found")
+            status = .error("Node not found")
+            return
         }
-        try await connect()
-        try await node.fetch(connection: connection)
+        await connect()
+        await _sendNodes([node])
+        await disconnect()
+    }
+
+    func fetchNode(path: [String]) async {
+        guard let rootNode = parameterTree else {
+            status = .error("Parameters not loaded")
+            return
+        }
+        guard let node = rootNode.getAtPath(path) else {
+            status = .error("Node not found")
+            return
+        }
+        await connect()
+        await _fetchNodes([node])
         await disconnect()
     }
 

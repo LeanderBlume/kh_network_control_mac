@@ -244,7 +244,7 @@ struct Backupper {
                 device.state = newState
             }
         }
-        await khAccess.sendParameters()
+        await khAccess.sendParameterTree()
         khAccess.state = khAccess.devices.first!.state
     }
 }

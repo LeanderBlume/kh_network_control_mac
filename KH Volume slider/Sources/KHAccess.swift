@@ -10,44 +10,34 @@ import SwiftUI
 typealias KHAccess = KHAccessNative
 
 @MainActor
-protocol KHDeviceProtocol: Identifiable {
-    // more or less common
+protocol KHCommonProtocol {
     var state: KHState { get }
-    func setup() async throws
-    func send(_ newState: KHState) async throws
-    func fetch() async throws
-    func populateParameters() async throws
-    func sendNode(_: [String]) async throws
-    func fetchNode(_: [String]) async throws
-    func sendParameters() async throws
-    func fetchParameters() async throws
-    func getNodeByID(_ id: SSCNode.ID) -> SSCNode?
-
-    // specific
-    init(connection connection_: SSCConnection)
-    var connection: SSCConnection { get }
+    var status: KHAccessStatus { get }
+    func setup() async
+    func fetch() async
+    func populateParameters() async
+    func sendParameterTree() async
+    func fetchParameterTree() async
+    func getNodeByID(_: SSCNode.ID) -> SSCNode?
 }
 
 @MainActor
-protocol KHAccessProtocol {
-    // more or less common
-    var state: KHState { get }
-    func setup() async
-    func send() async
-    func fetch() async
-    func populateParameters() async
-    func sendNode(deviceIndex: Int, path: [String]) async
-    func fetchNode(deviceIndex: Int, path: [String]) async
-    func sendParameters() async
-    func fetchParameters() async
-    func getNodeByID(_ id: SSCNode.ID) -> SSCNode?
+protocol KHDeviceProtocol: KHCommonProtocol, Identifiable {
+    func send(_: KHState) async
 
     // specific
-    var status: KHAccessStatus { get }
-    
+    init(connection: SSCConnection)
+    func sendNode(path: [String]) async
+    func fetchNode(path: [String]) async
+}
+
+@MainActor
+protocol KHAccessProtocol: KHCommonProtocol {
+    func send() async
+
     // Truly specific
     var devices: [KHDevice] { get }
-    func getDeviceByID(_ id: KHDevice.ID) -> KHDevice?
+    func getDeviceByID(_: KHDevice.ID) -> KHDevice?
     func scan(seconds: UInt32) async
 }
 
@@ -64,6 +54,34 @@ enum KHAccessStatus: Equatable {
             return false
         }
     }
+
+    static func aggregate(_ stati: [KHAccessStatus]) -> KHAccessStatus {
+        guard !stati.isEmpty else {
+            return .error("No devices")
+        }
+        return stati.reduce(.ready) { partial, next in
+            switch (partial, next) {
+            case (.ready, .ready):
+                return .ready
+            case (.busy(let msg1), .busy(let msg2)):
+                if msg1 == msg2 {
+                    return .busy(msg1)
+                }
+                return .busy("\(msg1), \(msg2)")
+            case (.error(let msg1), .error(let msg2)):
+                if msg1 == msg2 {
+                    return .error(msg1)
+                }
+                return .error("\(msg1), \(msg2)")
+            case (.ready, .busy(let msg)), (.busy(let msg), .ready):
+                return .busy(msg)
+            case (.ready, .error(let msg)), (.error(let msg), .ready):
+                return .error(msg)
+            case (.error(let E), .busy), (.busy, .error(let E)):
+                return .busy(E)
+            }
+        }
+    }
 }
 
 enum KHAccessError: Error {
@@ -73,16 +91,17 @@ enum KHAccessError: Error {
 
 @Observable
 final class KHAccessNative: KHAccessProtocol {
-    /*
-     Fetches, sends and stores data from speakers.
-     */
     var state = KHState()
+    private var statusOverride: KHAccessStatus? = nil
+    var status: KHAccessStatus {
+        statusOverride ?? KHAccessStatus.aggregate(devices.map(\.status))
+    }
+
     var devices: [KHDevice] = []
-    var status: KHAccessStatus = .error("Not initialized")
 
     func scan(seconds: UInt32 = 1) async {
         /// Scan for devices, replacing current device list.
-        status = .busy("Scanning...")
+        statusOverride = .busy("Scanning...")
         let connectionCache = ConnectionCache()
         do {
             try await connectionCache.clearConnections()
@@ -96,6 +115,7 @@ final class KHAccessNative: KHAccessProtocol {
             print(error)
         }
         devices = connections.map { KHDevice(connection: $0) }
+        statusOverride = nil
     }
 
     func getDeviceByID(_ id: KHDevice.ID) -> KHDevice? {
@@ -122,135 +142,68 @@ final class KHAccessNative: KHAccessProtocol {
                 devices = connections.map { KHDevice(connection: $0) }
             }
         } catch {
-            print("error loading connections")
+            print("error loading connections: \(error)")
             await scan()
         }
-        if devices.isEmpty {
-            status = .error("No devices found")
-            return
-        }
+        guard !devices.isEmpty else { return }
         await setupDevices()
     }
 
     private func setupDevices() async {
-        status = .busy("Setting up...")
         // We don't want to do this in parallel (naively) because of file system cache
         for d in devices {
-            do {
-                try await d.setup()
-            } catch {
-                status = .error(String(describing: error))
-                return
-            }
+            await d.setup()
         }
         // not sure
         // await fetchParameters()
         await fetch()
         state = devices[0].state
-        status = .ready
     }
 
     func populateParameters() async {
-        status = .busy("Querying...")
-        await withThrowingTaskGroup { group in
+        await withTaskGroup { group in
             for d in devices {
-                group.addTask { try await d.populateParameters() }
+                group.addTask { await d.populateParameters() }
             }
-            do {
-                try await group.waitForAll()
-                status = .ready
-            } catch {
-                status = .error(String(describing: error))
-                return
-            }
+            await group.waitForAll()
         }
     }
 
-    func fetchParameters() async {
-        status = .busy("Fetching...")
-        await withThrowingTaskGroup { group in
+    func fetchParameterTree() async {
+        await withTaskGroup { group in
             for d in devices {
-                group.addTask { try await d.fetchParameters() }
+                group.addTask { await d.fetchParameterTree() }
             }
-            do {
-                try await group.waitForAll()
-                status = .ready
-            } catch {
-                status = .error(String(describing: error))
-                return
-            }
+            await group.waitForAll()
         }
     }
 
-    func sendParameters() async {
-        status = .busy("Sending...")
-        await withThrowingTaskGroup { group in
+    func sendParameterTree() async {
+        await withTaskGroup { group in
             for d in devices {
-                group.addTask { try await d.sendParameters() }
+                group.addTask { await d.sendParameterTree() }
             }
-            do {
-                try await group.waitForAll()
-                status = .ready
-            } catch {
-                status = .error(String(describing: error))
-            }
+            await group.waitForAll()
         }
     }
 
     func fetch() async {
-        if devices.isEmpty {
-            status = .error("No devices")
-            return
-        }
-        status = .busy("Fetching...")
-        await withThrowingTaskGroup { group in
+        guard !devices.isEmpty else { return }
+        await withTaskGroup { group in
             for d in devices {
-                group.addTask { try await d.fetch() }
+                group.addTask { await d.fetch() }
             }
-            do {
-                try await group.waitForAll()
-                state = devices.first!.state
-                status = .ready
-            } catch {
-                status = .error(String(describing: error))
-            }
+            await group.waitForAll()
+            state = devices.first!.state
         }
     }
 
     func send() async {
-        await withThrowingTaskGroup { group in
+        await withTaskGroup { group in
             for i in devices.indices {
-                group.addTask { try await self.devices[i].send(self.state) }
+                group.addTask { await self.devices[i].send(self.state) }
             }
-            do {
-                try await group.waitForAll()
-            } catch {
-                status = .error(String(describing: error))
-            }
-        }
-    }
-
-    func sendNode(deviceIndex i: Int, path: [String]) async {
-        if !devices.indices.contains(i) {
-            status = .error("Device \(i + 1) does not exist")
-            return
-        }
-        do {
-            try await devices[i].sendNode(path)
-        } catch {
-            status = .error(String(describing: error))
-        }
-    }
-
-    func fetchNode(deviceIndex i: Int, path: [String]) async {
-        if !devices.indices.contains(i) {
-            status = .error("Device \(i + 1) does not exist")
-            return
-        }
-        do {
-            try await devices[i].fetchNode(path)
-        } catch {
-            status = .error(String(describing: error))
+            await group.waitForAll()
         }
     }
 }

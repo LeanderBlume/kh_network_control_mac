@@ -216,13 +216,16 @@ struct LimitsView: View {
 
 struct NodeValueEditor: View {
     var node: SSCNode
-    var deviceIndex: Int
     @Binding var values: PossibleValues
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     private func sendValue() async {
         values.updateNode(node: node)
-        await khAccess.sendNode(deviceIndex: deviceIndex, path: node.pathToNode())
+        guard let device = khAccess.getDeviceByID(node.id.deviceID) else {
+            print("Device with id \(node.id.deviceID) not found")
+            return
+        }
+        await device.sendNode(path: node.pathToNode())
     }
 
     var body: some View {
@@ -285,21 +288,19 @@ struct NodeValueEditor: View {
 
 struct NodeView: View {
     var node: SSCNode
-    var deviceIndex: Int
     @State var mappedParameter: KHParameters?
     @State var values: PossibleValues
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
-    init(node: SSCNode, deviceIndex: Int) {
+    init(node: SSCNode) {
         self.node = node
-        self.deviceIndex = deviceIndex
         values = .init(fromNode: node)
     }
 
     var body: some View {
         Form {
             Section("Edit value") {
-                NodeValueEditor(node: node, deviceIndex: deviceIndex, values: $values)
+                NodeValueEditor(node: node, values: $values)
             }
             Section("Parameter info (/osc/limits)") {
                 if let limits = node.limits {
@@ -340,7 +341,11 @@ struct NodeView: View {
             }
         }
         .refreshable {
-            await khAccess.fetchNode(deviceIndex: deviceIndex, path: node.pathToNode())
+            guard let device = khAccess.getDeviceByID(node.id.deviceID) else {
+                print("Device with id \(node.id.deviceID) not found")
+                return
+            }
+            await device.fetchNode(path: node.pathToNode())
             values = .init(fromNode: node)
         }
         .navigationTitle(node.getPathString())
@@ -349,7 +354,6 @@ struct NodeView: View {
 
 struct DeviceBrowser: View {
     var rootNode: SSCNode
-    var deviceIndex: Int
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
@@ -357,8 +361,7 @@ struct DeviceBrowser: View {
             rootNode.children ?? [],
             children: \.children,
         ) { node in
-            NavigationLink(destination: NodeView(node: node, deviceIndex: deviceIndex))
-            {
+            NavigationLink(destination: NodeView(node: node)) {
                 if let units = node.limits?.units {
                     Text(node.name + " (\(units))")
                 } else {
@@ -380,7 +383,7 @@ struct DeviceBrowser: View {
                     Text(v.stringify()).foregroundColor(.secondary)
                 }
             }
-        }.refreshable { await khAccess.fetchParameters() }
+        }.refreshable { await khAccess.fetchParameterTree() }
     }
 }
 
@@ -455,11 +458,8 @@ struct iOSDeviceBrowserForm: View {
                     if let rootNode = device.parameterTree {
                         NavigationLink(
                             device.state.name,
-                            destination: DeviceBrowser(
-                                rootNode: rootNode,
-                                deviceIndex: i
-                            )
-                            .navigationTitle(device.state.name)
+                            destination: DeviceBrowser(rootNode: rootNode)
+                                .navigationTitle(device.state.name)
                         )
                     } else {
                         Text("Parameters not loaded")
@@ -514,11 +514,8 @@ struct macOSDeviceBrowserForm: View {
                     if let rootNode = device.parameterTree {
                         NavigationLink(
                             device.state.name,
-                            destination: DeviceBrowser(
-                                rootNode: rootNode,
-                                deviceIndex: i
-                            )
-                            .navigationTitle(device.state.name)
+                            destination: DeviceBrowser(rootNode: rootNode)
+                                .navigationTitle(device.state.name)
                         )
                     } else {
                         Text("Parameters not populated.")

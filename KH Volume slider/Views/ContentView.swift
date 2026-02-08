@@ -40,7 +40,7 @@ struct ContentView: View {
             }
             .disabled(khAccess.status.isBusy())
             Button("Fetch parameters", systemImage: "square.and.arrow.down") {
-                Task { await khAccess.fetchParameters() }
+                Task { await khAccess.fetchParameterTree() }
             }
         }
         ToolbarItem(placement: .primaryAction) {
@@ -103,7 +103,7 @@ struct ContentView: View {
         }
         ToolbarItem(placement: .primaryAction) {
             Button("Fetch parameters", systemImage: "square.and.arrow.down") {
-                Task { await khAccess.fetchParameters() }
+                Task { await khAccess.fetchParameterTree() }
             }
             .disabled(khAccess.devices.isEmpty)
         }
@@ -137,7 +137,7 @@ struct ContentView: View {
         }
         ToolbarItem(placement: .primaryAction) {
             Button("Fetch parameters", systemImage: "square.and.arrow.down") {
-                Task { await khAccess.fetchParameters() }
+                Task { await khAccess.fetchParameterTree() }
             }
             .disabled(khAccess.devices.isEmpty)
         }
