@@ -155,7 +155,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
         .eq1q,
         .eq1type,
     ]
-    static let setupParameters: [KHParameters] = [.serial, .product, .version]
+    static let setupParameters: [KHParameters] = [.name, .serial, .product, .version]
 
     private func get(from state: KHState) -> JSONDataSimple {
         JSONDataSimple(state: state, keyPath: getKeyPath())
