@@ -21,6 +21,7 @@ protocol KHDeviceProtocol: Identifiable {
     func fetchNode(_: [String]) async throws
     func sendParameters() async throws
     func fetchParameters() async throws
+    func getNodeByID(_ id: SSCNode.ID) -> SSCNode?
 
     // specific
     init(connection connection_: SSCConnection)
@@ -39,13 +40,15 @@ protocol KHAccessProtocol {
     func fetchNode(deviceIndex: Int, path: [String]) async
     func sendParameters() async
     func fetchParameters() async
+    func getNodeByID(_ id: SSCNode.ID) -> SSCNode?
 
     // specific
     var status: KHAccessStatus { get }
+    
+    // Truly specific
     var devices: [KHDevice] { get }
-    func scan(seconds: UInt32) async
     func getDeviceByID(_ id: KHDevice.ID) -> KHDevice?
-    func getNodeByID(_ id: SSCNode.ID) -> SSCNode?
+    func scan(seconds: UInt32) async
 }
 
 enum KHAccessStatus: Equatable {
@@ -100,9 +103,9 @@ final class KHAccessNative: KHAccessProtocol {
     }
 
     func getNodeByID(_ id: SSCNode.ID) -> SSCNode? {
+        // devices.compactMap { $0.getNodeByID(id) }.first
         guard let owner = getDeviceByID(id.deviceID) else { return nil }
-        guard let rootNode = owner.parameterTree else { return nil }
-        return rootNode.first(where: { $0.id == id })
+        return owner.getNodeByID(id)
     }
 
     func setup() async {

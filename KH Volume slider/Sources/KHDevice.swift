@@ -126,4 +126,6 @@ final class KHDevice: @MainActor KHDeviceProtocol {
         try await node.fetch(connection: connection)
         await disconnect()
     }
+
+    func getNodeByID(_ id: SSCNode.ID) -> SSCNode? { parameterTree?.getNodeByID(id) }
 }

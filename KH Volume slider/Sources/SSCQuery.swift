@@ -138,6 +138,8 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         return curr
     }
 
+    func getNodeByID(_ id: SSCNode.ID) -> SSCNode? { first(where: { $0.id == id }) }
+
     private func queryAux(connection: SSCConnection, query: [String], path: [String])
         async throws -> [String: Any]
     {
