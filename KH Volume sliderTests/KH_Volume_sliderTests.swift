@@ -110,6 +110,7 @@ struct TestSSC {
 @Suite struct TestSSCNodes {
     // TODO can't run this as a test suite because tests are run concurrently.
     let connection: SSCConnection
+    let deviceID = KHDevice.KHDeviceID(name: "asdf", serial: "jkl")
 
     private enum Errors: Error {
         case noDevicesFound
@@ -124,7 +125,7 @@ struct TestSSC {
     }
 
     @Test func testGetSchema() async throws {
-        let node = SSCNode(name: "root", parent: nil)
+        let node = SSCNode(name: "root", deviceID: deviceID, parent: nil)
         // try await node.connect()
         let result = try await node.getSchema(connection: connection, path: ["audio"])
         #expect(result == ["out": [:], "in2": [:], "in1": [:], "in": [:]])
@@ -146,7 +147,7 @@ struct TestSSC {
     }
 
     @Test func testGetLimits() async throws {
-        let node = SSCNode(name: "root", parent: nil)
+        let node = SSCNode(name: "root", deviceID: deviceID, parent: nil)
         // try await node.connect()
         let result = try await node.getLimits(
             connection: connection,
@@ -171,7 +172,7 @@ struct TestSSC {
     }
 
     @Test func testPopulate() async throws {
-        let node = SSCNode(name: "root", parent: nil)
+        let node = SSCNode(name: "root", deviceID: deviceID, parent: nil)
         try await connection.open()
         #expect(node.pathToNode() == [])
         try await node.populate(connection: connection)
@@ -179,7 +180,7 @@ struct TestSSC {
     }
 
     @Test func testIteration() async throws {
-        let node = SSCNode(name: "root", parent: nil)
+        let node = SSCNode(name: "root", deviceID: deviceID, parent: nil)
         try await connection.open()
         #expect(node.pathToNode() == [])
         try await node.populate(connection: connection)
@@ -195,18 +196,31 @@ struct TestSSC {
     }
 
     @Test func testSend() async throws {
-        let node1 = SSCNode(name: "root", parent: nil)
-        let node2 = SSCNode(name: "device", parent: node1)
-        let leaf = SSCNode(name: "name", parent: node2)
+        let node1 = SSCNode(name: "root", deviceID: deviceID, parent: nil)
+        let node2 = SSCNode(name: "device", deviceID: deviceID, parent: node1)
+        let leaf = SSCNode(name: "name", deviceID: deviceID, parent: node2)
         #expect(leaf.pathToNode() == ["device", "name"])
         leaf.value = NodeData(value: "New name!")
         try await connection.open()
         // try await leaf.sendLeaf(connection: connection)
         await connection.close()
     }
+    
+    @Test func testGetAtPath() async throws {
+        let root = SSCNode(name: "root", deviceID: deviceID, parent: nil)
+        let node2 = SSCNode(name: "device", deviceID: deviceID, parent: root)
+        root.value = .children([node2])
+        let leaf = SSCNode(name: "name", deviceID: deviceID, parent: node2)
+        node2.value = .children([leaf])
+        #expect(leaf.pathToNode() == ["device", "name"])
+        #expect(root.getAtPath([])!.name == "root")
+        #expect(root.getAtPath(["device"])!.name == "device")
+        #expect(root.getAtPath(["device", "name"])!.name == "name")
+        #expect(root.getAtPath(["device", "asf"]) == nil)
+    }
 
     @Test func testDecoding() async throws {
-        let rootNode = SSCNode(name: "root", parent: nil)
+        let rootNode = SSCNode(name: "root", deviceID: deviceID, parent: nil)
         try await connection.open()
         #expect(rootNode.pathToNode() == [])
         try await rootNode.populate(connection: connection)
