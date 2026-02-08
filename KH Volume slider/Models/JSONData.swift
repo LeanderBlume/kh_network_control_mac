@@ -284,9 +284,9 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     }
 
     func getAtPath(_ path: [String]) -> JSONData? {
-        var curr: JSONData? = self
+        var curr = self
         for p in path {
-            guard let child = self[p] else { return nil }
+            guard let child = curr[p] else { return nil }
             curr = child
         }
         return curr

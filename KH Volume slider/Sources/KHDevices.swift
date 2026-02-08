@@ -227,50 +227,50 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     }
 
     func fetchParameterTree() async {
-        status = .busy("Fetching parameters...")
         guard let rootNode = parameterTree else {
             status = .error("Parameters not loaded")
             return
         }
+
+        status = .busy("Fetching parameters...")
         await connect()
         await _fetchNodes(rootNode.filter({ $0.isLeaf() }))
         await disconnect()
     }
 
     func sendParameterTree() async {
-        status = .busy("Sending parameters...")
         guard let rootNode = parameterTree else {
             status = .error("Parameters not loaded")
             return
         }
+
+        status = .busy("Sending parameters...")
         await connect()
         await _sendNodes(rootNode.filter({ $0.isLeaf() }))
         await disconnect()
     }
 
-    func sendNode(path: [String]) async {
+    private func _getNodeAtPath(_ path: [String]) -> SSCNode? {
         guard let rootNode = parameterTree else {
             status = .error("Parameters not loaded")
-            return
+            return nil
         }
         guard let node = rootNode.getAtPath(path) else {
             status = .error("Node not found")
-            return
+            return nil
         }
+        return node
+    }
+
+    func sendNode(path: [String]) async {
+        guard let node = _getNodeAtPath(path) else { return }
         await connect()
         await _sendNodes([node])
         await disconnect()
     }
 
     func fetchNode(path: [String]) async {
-        guard let rootNode = parameterTree else {
-            status = .error("Parameters not loaded")
-            return
-        }
-        guard let node = rootNode.getAtPath(path) else {
-            status = .error("Node not found")
-            return
-        }
+        guard let node = _getNodeAtPath(path) else { return }
         await connect()
         await _fetchNodes([node])
         await disconnect()
@@ -349,7 +349,8 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         // not sure
         // await fetchParameters()
         await fetch()
-        state = devices[0].state
+        guard !devices.isEmpty else { return }
+        state = devices.first!.state
     }
 
     func populateParameters() async {

@@ -86,10 +86,14 @@ struct BackupViewMacOS: View {
                     Button("Load") {
                         guard let selection else { return }
                         Task {
-                            try await backupper.load(
-                                name: selection,
-                                khAccess: khAccess
-                            )
+                            do {
+                                try await backupper.load(
+                                    name: selection,
+                                    khAccess: khAccess
+                                )
+                            } catch {
+                                print("Error loading backup: \(error)")
+                            }
                         }
                     }
                     Button("Delete", systemImage: "trash") {
