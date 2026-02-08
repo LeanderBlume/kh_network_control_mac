@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct StatusDisplayCompact: View {
-    var status: KHAccessStatus
+    var status: KHDeviceStatus
 
     var body: some View {
         let pv = ProgressView()
@@ -29,7 +29,7 @@ struct StatusDisplayCompact: View {
 
 // This could be a function of Status returning String?
 struct StatusDisplayText: View {
-    var status: KHAccessStatus
+    var status: KHDeviceStatus
 
     var body: some View {
         switch status {
@@ -40,7 +40,7 @@ struct StatusDisplayText: View {
 }
 
 struct StatusDisplay: View {
-    var status: KHAccessStatus
+    var status: KHDeviceStatus
 
     var body: some View {
         HStack {
