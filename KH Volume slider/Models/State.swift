@@ -56,10 +56,10 @@ struct KHState: Codable, Equatable {
 
     init?(jsonData: JSONData) {
         for parameter in KHParameters.allCases {
-            let p = parameter.getPathObject()
-            guard let valAtPath = jsonData.getAtPath(p.devicePath) else {
+            guard let valAtPath = jsonData.getAtPath(parameter.getDevicePath()) else {
                 return nil
             }
+            let p = parameter.getPathObject()
             switch valAtPath {
             case .bool(let v):
                 guard let pn = p as? KHStatePath<Bool> else { return nil }
@@ -92,7 +92,7 @@ struct KHState: Codable, Equatable {
 }
 
 protocol KHStatePathProtocol: Equatable {
-    associatedtype T where T: Equatable, T: Codable, T: Sendable
+    associatedtype T: Equatable, Codable, Sendable
 
     var keyPath: WritableKeyPath<KHState, T> { get }
     var devicePath: [String] { get }
@@ -149,21 +149,21 @@ enum KHParameters: String, CaseIterable, Identifiable {
     case volume = "Volume"
     case muted = "Mute"
     case logoBrightness = "Logo brightness"
-    
+
     case eq0boost = "EQ 1 Boost"
     case eq0enabled = "EQ 1 Enabled"
     case eq0frequency = "EQ 1 Frequency"
     case eq0gain = "EQ 1 Gain"
     case eq0q = "EQ 1 Q"
     case eq0type = "EQ 1 Type"
-    
+
     case eq1boost = "EQ 2 Boost"
     case eq1enabled = "EQ 2 Enabled"
     case eq1frequency = "EQ 2 Frequency"
     case eq1gain = "EQ 2 Gain"
     case eq1q = "EQ 2 Q"
     case eq1type = "EQ 2 Type"
-    
+
     var id: String { self.rawValue }
 
     static let fetchParameters: [KHParameters] = [
@@ -338,7 +338,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
             KHStatePath(keyPath: \.eqs[1].type, devicePath: _getDevicePath())
         }
     }
-
+    
     func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
         return getPathObject().copy(from: sourceState, into: targetState)
     }
@@ -356,7 +356,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
             connection: connection
         )
     }
-    
+
     func getDevicePath() -> [String] { getPathObject().devicePath }
     func getPathString() -> String { "/" + getDevicePath().joined(separator: "/") }
 }
