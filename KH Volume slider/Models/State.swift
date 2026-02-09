@@ -56,7 +56,7 @@ struct KHState: Codable, Equatable {
 
     init?(jsonData: JSONData) {
         for parameter in KHParameters.allCases {
-            let p = parameter.getKeyPath()
+            let p = parameter.getPathObject()
             guard let valAtPath = jsonData.getAtPath(p.devicePath) else {
                 return nil
             }
@@ -294,7 +294,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
         KHParameters.allCases.forEach { $0.resetDevicePath() }
     }
 
-    func getKeyPath() -> any KHStatePathProtocol {
+    func getPathObject() -> any KHStatePathProtocol {
         switch self {
         case .name:
             KHStatePath(keyPath: \.name, devicePath: _getDevicePath())
@@ -340,23 +340,23 @@ enum KHParameters: String, CaseIterable, Identifiable {
     }
 
     func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
-        return getKeyPath().copy(from: sourceState, into: targetState)
+        return getPathObject().copy(from: sourceState, into: targetState)
     }
 
     func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {
-        try await getKeyPath().fetch(into: state, connection: connection)
+        try await getPathObject().fetch(into: state, connection: connection)
     }
 
     func send(oldState: KHState, newState: KHState, connection: SSCConnection)
         async throws
     {
-        try await getKeyPath().send(
+        try await getPathObject().send(
             oldState: oldState,
             newState: newState,
             connection: connection
         )
     }
     
-    func getDevicePath() -> [String] { getKeyPath().devicePath }
+    func getDevicePath() -> [String] { getPathObject().devicePath }
     func getPathString() -> String { "/" + getDevicePath().joined(separator: "/") }
 }

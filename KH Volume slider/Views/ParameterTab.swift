@@ -325,7 +325,7 @@ struct NodeView: View {
                     // Check if this path is already mapped to a parameter.
                     let path = node.pathToNode()
                     KHParameters.allCases.forEach { parameter in
-                        if parameter.getKeyPath().devicePath == path {
+                        if parameter.getDevicePath() == path {
                             mappedParameter = parameter
                             return
                         }
