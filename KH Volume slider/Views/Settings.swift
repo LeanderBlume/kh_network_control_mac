@@ -14,7 +14,8 @@ struct SettingsView: View {
                 Section(header: Text("SSC parameter paths")) {
                     ForEach(KHParameters.allCases) { param in
                         let pathString =
-                            "/" + param.getDevicePath().joined(separator: "/")
+                            "/"
+                            + param.getKeyPath().devicePath.joined(separator: "/")
                         LabeledContent {
                             Text(pathString)
                         } label: {

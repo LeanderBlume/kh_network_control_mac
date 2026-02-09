@@ -56,55 +56,6 @@ enum JSONDataCodable: Equatable, Codable {
     }
 }
 
-enum JSONDataSimple: Equatable {
-    case string(String)
-    case number(Double)
-    case bool(Bool)
-    case arrayString([String])
-    case arrayNumber([Double])
-    case arrayBool([Bool])
-
-    init(state: KHState, keyPath: KeyPathType<KHState>) {
-        switch keyPath {
-        case .number(let keyPath):
-            self = .number(state[keyPath: keyPath])
-        case .bool(let keyPath):
-            self = .bool(state[keyPath: keyPath])
-        case .string(let keyPath):
-            self = .string(state[keyPath: keyPath])
-        case .arrayBool(let keyPath):
-            self = .arrayBool(state[keyPath: keyPath])
-        case .arrayNumber(let keyPath):
-            self = .arrayNumber(state[keyPath: keyPath])
-        case .arrayString(let keyPath):
-            self = .arrayString(state[keyPath: keyPath])
-        }
-    }
-
-    func set(
-        into state: KHState,
-        keyPath: KeyPathType<KHState>
-    ) -> KHState {
-        var newState = state
-        switch (self, keyPath) {
-        case (.number(let v), .number(let p)):
-            newState[keyPath: p] = v
-        case (.string(let v), .string(let p)):
-            newState[keyPath: p] = v
-        case (.bool(let v), .bool(let p)):
-            newState[keyPath: p] = v
-        case (.arrayNumber(let v), .arrayNumber(let p)):
-            newState[keyPath: p] = v
-        case (.arrayBool(let v), .arrayBool(let p)):
-            newState[keyPath: p] = v
-        case (.arrayString(let v), .arrayString(let p)):
-            newState[keyPath: p] = v
-        default: break
-        }
-        return newState
-    }
-}
-
 enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     typealias DecodingConfiguration = JSONData
 
@@ -146,33 +97,13 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
 
     @MainActor
     init?(fromNodeTree rootNode: SSCNode) {
-        switch rootNode.value {
-        case .children(let children):
-            var dict: [String: JSONData] = [:]
-            children.forEach { child in
-                dict[child.name] = .init(fromNodeTree: child)
-            }
-            self = .object(dict)
-        case .value(let value):
-            self = value
-        default:
-            self = .null
+        guard let jdc = JSONDataCodable(fromNodeTree: rootNode) else {
+            return nil
         }
+        self.init(jsonDataCodable: jdc)
     }
 
     init(from decoder: Decoder, configuration: DecodingConfiguration) throws {
-        let currentPath = decoder.codingPath
-        var currentValue: JSONData? = configuration
-        for p in currentPath {
-            currentValue = currentValue![p.stringValue]
-            if currentValue == nil {
-                throw JSONDataError.decodingError("Decoding path not found in schema")
-            }
-        }
-        guard let currentValue else {
-            throw JSONDataError.decodingError("Decoding path not found in schema")
-        }
-
         struct MyStupidKey: CodingKey {
             var intValue: Int?
             var stringValue: String
@@ -180,10 +111,14 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
             init(stringValue: String) { self.stringValue = stringValue }
         }
 
-        var codingKeys: [MyStupidKey] = []
+        let currentPath = decoder.codingPath.map(\.stringValue)
+        guard let currentValue = configuration.getAtPath(currentPath) else {
+            throw JSONDataError.decodingError("Decoding path not found in schema")
+        }
+
         switch currentValue {
         case .object(let children):
-            codingKeys = children.keys.map { MyStupidKey(stringValue: $0) }
+            let codingKeys = children.keys.map { MyStupidKey(stringValue: $0) }
             let container = try decoder.container(keyedBy: MyStupidKey.self)
             var dict = [String: JSONData]()
             for k in codingKeys {
@@ -199,48 +134,42 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
             self = .null
         case .string:
             let svc = try decoder.singleValueContainer()
-            if let decoded = try? svc.decode(String.self) {
-                self = .string(decoded)
-            } else {
+            guard let decoded = try? svc.decode(String.self) else {
                 throw JSONDataError.decodingError("Incorrect schema")
             }
+            self = .string(decoded)
         case .number:
             let svc = try decoder.singleValueContainer()
-            if let decoded = try? svc.decode(Double.self) {
-                self = .number(decoded)
-            } else {
+            guard let decoded = try? svc.decode(Double.self) else {
                 throw JSONDataError.decodingError("Incorrect schema")
             }
+            self = .number(decoded)
         case .bool:
             let svc = try decoder.singleValueContainer()
-            if let decoded = try? svc.decode(Bool.self) {
-                self = .bool(decoded)
-            } else {
+            guard let decoded = try? svc.decode(Bool.self) else {
                 throw JSONDataError.decodingError("Incorrect schema")
             }
+            self = .bool(decoded)
         case .array(let vs):
             let svc = try decoder.singleValueContainer()
             switch vs.first {
             case .none:
                 self = .array([])
             case .string:
-                if let decoded = try? svc.decode([String].self) {
-                    self = .array(decoded.map(JSONData.string))
-                } else {
+                guard let decoded = try? svc.decode([String].self) else {
                     throw JSONDataError.decodingError("Incorrect schema")
                 }
+                self = .array(decoded.map(JSONData.string))
             case .number:
-                if let decoded = try? svc.decode([Double].self) {
-                    self = .array(decoded.map(JSONData.number))
-                } else {
+                guard let decoded = try? svc.decode([Double].self) else {
                     throw JSONDataError.decodingError("Incorrect schema")
                 }
+                self = .array(decoded.map(JSONData.number))
             case .bool:
-                if let decoded = try? svc.decode([Bool].self) {
-                    self = .array(decoded.map(JSONData.bool))
-                } else {
+                guard let decoded = try? svc.decode([Bool].self) else {
                     throw JSONDataError.decodingError("Incorrect schema")
                 }
+                self = .array(decoded.map(JSONData.bool))
             case .array, .object, .null:
                 throw JSONDataError.decodingError(
                     "Nested arrays and null arrays not supported (yet)"
@@ -267,6 +196,49 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
         }
     }
 
+    private func asAny() -> Any? {
+        switch self {
+        case .null: nil
+        case .number(let w): w
+        case .string(let w): w
+        case .bool(let w): w
+        case .array(let w): w
+        case .object(let w): w
+        }
+    }
+
+    private func asArrayAny() -> [Any?]? {
+        if case .array(let vs) = self {
+            return vs.map({ $0.asAny() })
+        }
+        return nil
+    }
+
+    func asArrayNumber() -> [Double]? { asArrayAny() as? [Double] }
+    func asArrayString() -> [String]? { asArrayAny() as? [String] }
+    func asArrayBool() -> [Bool]? { asArrayAny() as? [Bool] }
+
+    func stringify() -> String {
+        switch self {
+        case .string(let v):
+            return "\"" + v + "\""
+        case .number(let v):
+            return String(v)
+        case .bool(let v):
+            return String(v)
+        case .null:
+            return "null"
+        case .array(let vs):
+            return "[" + vs.map({ $0.stringify() }).joined(separator: ", ") + "]"
+        case .object(let vs):
+            var result: [String: String] = [:]
+            for (k, v) in vs {
+                result[k] = v.stringify()
+            }
+            return String(describing: result)
+        }
+    }
+
     func wrap(in path: [String]) -> Self {
         return path.reversed().reduce(self) { (partial, key) in
             .object([key: partial])
@@ -290,55 +262,6 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
             curr = child
         }
         return curr
-    }
-
-    private func asAny() -> Any? {
-        switch self {
-        case .number(let w):
-            return w
-        case .string(let w):
-            return w
-        case .bool(let w):
-            return w
-        case .null:
-            return nil
-        case .array(let w):
-            return w
-        case .object(let w):
-            return w
-        }
-    }
-
-    func asArrayAny() -> [Any?]? {
-        if case .array(let vs) = self {
-            return vs.map({ $0.asAny() })
-        }
-        return nil
-    }
-
-    func asArrayNumber() -> [Double]? { return asArrayAny() as? [Double] }
-    func asArrayString() -> [String]? { return asArrayAny() as? [String] }
-    func asArrayBool() -> [Bool]? { return asArrayAny() as? [Bool] }
-
-    func stringify() -> String {
-        switch self {
-        case .string(let v):
-            return "\"" + v + "\""
-        case .number(let v):
-            return String(v)
-        case .bool(let v):
-            return String(v)
-        case .null:
-            return "null"
-        case .array(let vs):
-            return "[" + vs.map({ $0.stringify() }).joined(separator: ", ") + "]"
-        case .object(let vs):
-            var result: [String: String] = [:]
-            for (k, v) in vs {
-                result[k] = v.stringify()
-            }
-            return String(describing: result)
-        }
     }
 
     subscript(index: String) -> JSONData? {
