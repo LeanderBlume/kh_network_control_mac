@@ -15,7 +15,7 @@ enum JSONDataCodable: Equatable, Codable {
     case null
     case object([String: JSONDataCodable])
 
-    init(jsonData: JSONData, limits: OSCLimits? = nil) {
+    init(from jsonData: JSONData, limits: OSCLimits? = nil) {
         switch jsonData {
         case .null:
             self = .null
@@ -26,21 +26,21 @@ enum JSONDataCodable: Equatable, Codable {
         case .bool(let bool):
             self = .bool(bool, limits: limits)
         case .array(let array):
-            self = .array(array.map({ .init(jsonData: $0) }), limits: limits)
+            self = .array(array.map({ .init(from: $0) }), limits: limits)
         case .object(let object):
-            self = .object(object.mapValues({ .init(jsonData: $0) }))
+            self = .object(object.mapValues({ .init(from: $0) }))
         }
     }
 
     @MainActor
-    init?(fromNodeTree rootNode: SSCNode) {
+    init?(from rootNode: SSCNode) {
         switch rootNode.value {
         case .value(let value):
-            self.init(jsonData: value, limits: rootNode.limits)
+            self.init(from: value, limits: rootNode.limits)
         case .children(let children):
             var dict: [String: JSONDataCodable] = [:]
             children.forEach { child in
-                dict[child.name] = JSONDataCodable(fromNodeTree: child)
+                dict[child.name] = JSONDataCodable(from: child)
             }
             self = .object(dict)
         default:
@@ -97,7 +97,7 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
 
     @MainActor
     init?(fromNodeTree rootNode: SSCNode) {
-        guard let jdc = JSONDataCodable(fromNodeTree: rootNode) else {
+        guard let jdc = JSONDataCodable(from: rootNode) else {
             return nil
         }
         self.init(jsonDataCodable: jdc)
@@ -196,7 +196,7 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
         }
     }
 
-    private func asAny() -> Any? {
+    func asAny() -> Any? {
         switch self {
         case .null: nil
         case .number(let w): w
@@ -207,7 +207,7 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
         }
     }
 
-    private func asArrayAny() -> [Any?]? {
+    func asArrayAny() -> [Any?]? {
         if case .array(let vs) = self {
             return vs.map({ $0.asAny() })
         }

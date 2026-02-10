@@ -55,34 +55,9 @@ struct KHState: Codable, Equatable {
     init() {}
 
     init?(jsonData: JSONData) {
-        for parameter in KHParameters.allCases {
-            guard let valAtPath = jsonData.getAtPath(parameter.getDevicePath()) else {
-                return nil
-            }
-            let p = parameter.getPathObject()
-            switch valAtPath {
-            case .bool(let v):
-                guard let pn = p as? KHStatePath<Bool> else { return nil }
-                self[keyPath: pn.keyPath] = v
-            case .number(let v):
-                guard let pn = p as? KHStatePath<Double> else { return nil }
-                self[keyPath: pn.keyPath] = v
-            case .string(let v):
-                guard let pn = p as? KHStatePath<String> else { return nil }
-                self[keyPath: pn.keyPath] = v
-            case .array:
-                if let v = valAtPath.asArrayBool() {
-                    guard let pn = p as? KHStatePath<[Bool]> else { return nil }
-                    self[keyPath: pn.keyPath] = v
-                } else if let v = valAtPath.asArrayNumber() {
-                    guard let pn = p as? KHStatePath<[Double]> else { return nil }
-                    self[keyPath: pn.keyPath] = v
-                } else if let v = valAtPath.asArrayString() {
-                    guard let pn = p as? KHStatePath<[String]> else { return nil }
-                    self[keyPath: pn.keyPath] = v
-                }
-            default: return nil
-            }
+        for p in KHParameters.allCases {
+            guard let newState = p.copy(from: jsonData, into: self) else { return nil }
+            self = newState
         }
     }
 
@@ -91,21 +66,21 @@ struct KHState: Codable, Equatable {
     }
 }
 
-protocol KHStatePathProtocol: Equatable {
+private protocol KHStatePathProtocol: Equatable {
     associatedtype T: Equatable, Codable, Sendable
 
     var keyPath: WritableKeyPath<KHState, T> { get }
     var devicePath: [String] { get }
 
-    // func get(from state: KHState) -> T
-    // func set(value: T, into state: KHState) -> KHState
-    func copy(from sourceState: KHState, into targetState: KHState) -> KHState
-    func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState
+    func copy(from: KHState, into: KHState) -> KHState
+    func copy(from: JSONData, into: KHState) -> KHState?
+    func fetch(into: KHState, connection: SSCConnection) async throws -> KHState
     func send(oldState: KHState, newState: KHState, connection: SSCConnection)
         async throws
 }
 
-struct KHStatePath<T>: KHStatePathProtocol where T: Equatable, T: Codable, T: Sendable {
+private struct KHStatePath<T>: KHStatePathProtocol
+where T: Equatable, T: Codable, T: Sendable {
     let keyPath: WritableKeyPath<KHState, T>
     let devicePath: [String]
 
@@ -113,14 +88,33 @@ struct KHStatePath<T>: KHStatePathProtocol where T: Equatable, T: Codable, T: Se
         state[keyPath: keyPath]
     }
 
-    private func set(value: T, into state: KHState) -> KHState {
+    private func get(from jsonData: JSONData) -> T? {
+        switch jsonData {
+        case .array:
+            jsonData.asAny() as? T
+        default:
+            jsonData.asAny() as? T
+        }
+    }
+
+    private func set(_ value: T, into state: KHState) -> KHState {
         var newState = state
         newState[keyPath: keyPath] = value
         return newState
     }
 
+    private func set(_ jsonData: JSONData, into state: KHState) -> KHState? {
+        guard let value = get(from: jsonData) else { return nil }
+        return set(value, into: state)
+    }
+
     func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
-        set(value: get(from: sourceState), into: targetState)
+        set(get(from: sourceState), into: targetState)
+    }
+
+    func copy(from jsonData: JSONData, into targetState: KHState) -> KHState? {
+        guard let value = jsonData.getAtPath(devicePath) else { return nil }
+        return set(value, into: targetState)
     }
 
     func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {
@@ -294,7 +288,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
         KHParameters.allCases.forEach { $0.resetDevicePath() }
     }
 
-    func getPathObject() -> any KHStatePathProtocol {
+    private func getPathObject() -> any KHStatePathProtocol {
         switch self {
         case .name:
             KHStatePath(keyPath: \.name, devicePath: _getDevicePath())
@@ -338,9 +332,13 @@ enum KHParameters: String, CaseIterable, Identifiable {
             KHStatePath(keyPath: \.eqs[1].type, devicePath: _getDevicePath())
         }
     }
-    
+
     func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
-        return getPathObject().copy(from: sourceState, into: targetState)
+        getPathObject().copy(from: sourceState, into: targetState)
+    }
+
+    func copy(from jsonData: JSONData, into targetState: KHState) -> KHState? {
+        getPathObject().copy(from: jsonData, into: targetState)
     }
 
     func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {

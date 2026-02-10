@@ -132,7 +132,7 @@ struct SchemaCache: SchemaCacheProtocol {
     }
 
     func saveSchema(_ rootNode: SSCNode, for device: KHDevice) throws {
-        let jdc = JSONDataCodable(fromNodeTree: rootNode)
+        let jdc = JSONDataCodable(from: rootNode)
         var schemaList = try getSchemaList()
         schemaList[DeviceModelID(device.state)] = jdc
         try writeSchemaList(schemaList)
@@ -221,7 +221,7 @@ struct Backupper {
         khAccess.devices.forEach { device in
             guard let rootNode = device.parameterTree else { return }
             if let jsonData = JSONData(fromNodeTree: rootNode) {
-                newBackup[device.id] = JSONDataCodable(jsonData: jsonData)
+                newBackup[device.id] = JSONDataCodable(from: jsonData)
             }
         }
 
