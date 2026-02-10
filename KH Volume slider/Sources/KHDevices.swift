@@ -58,18 +58,11 @@ enum KHDeviceStatus: Equatable {
             return .error("No devices")
         }
         return stati.reduce(.ready) { partial, next in
+            if next == partial { return partial }
             switch (partial, next) {
-            case (.ready, .ready):
-                return .ready
             case (.busy(let msg1), .busy(let msg2)):
-                if msg1 == msg2 {
-                    return .busy(msg1)
-                }
                 return .busy("\(msg1), \(msg2)")
             case (.error(let msg1), .error(let msg2)):
-                if msg1 == msg2 {
-                    return .error(msg1)
-                }
                 return .error("\(msg1), \(msg2)")
             case (.ready, .busy(let msg)), (.busy(let msg), .ready):
                 return .busy(msg)
@@ -77,6 +70,8 @@ enum KHDeviceStatus: Equatable {
                 return .error(msg)
             case (.error(let E), .busy), (.busy, .error(let E)):
                 return .busy(E)
+            default:
+                return .error("Status aggregation fallback")
             }
         }
     }
