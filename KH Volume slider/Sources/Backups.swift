@@ -220,7 +220,7 @@ struct Backupper {
         var newBackup = Backup()
         khAccess.devices.forEach { device in
             guard let rootNode = device.parameterTree else { return }
-            if let jsonData = JSONData(fromNodeTree: rootNode) {
+            if let jsonData = JSONData(from: rootNode) {
                 newBackup[device.id] = JSONDataCodable(from: jsonData)
             }
         }
@@ -235,7 +235,7 @@ struct Backupper {
         try khAccess.devices.forEach { device in
             if let deviceBackup = backup[device.id] {
                 guard let rootNode = device.parameterTree else { return }
-                try rootNode.load(jsonDataCodable: deviceBackup)
+                try rootNode.load(from: deviceBackup)
                 guard let newState = KHState(jsonDataCodable: deviceBackup) else {
                     throw BackupperErrors.error(
                         "backed up JSONData not compatibe with state."

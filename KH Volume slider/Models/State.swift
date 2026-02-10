@@ -62,7 +62,7 @@ struct KHState: Codable, Equatable {
     }
 
     init?(jsonDataCodable: JSONDataCodable) {
-        self.init(jsonData: JSONData(jsonDataCodable: jsonDataCodable))
+        self.init(jsonData: JSONData(from: jsonDataCodable))
     }
 }
 
@@ -74,8 +74,17 @@ private protocol KHStatePathProtocol: Equatable {
 
     func copy(from: KHState, into: KHState) -> KHState
     func copy(from: JSONData, into: KHState) -> KHState?
-    func fetch(into: KHState, connection: SSCConnection) async throws -> KHState
-    func send(oldState: KHState, newState: KHState, connection: SSCConnection)
+    func copy(from: KHState, into: JSONData) -> JSONData?
+    @MainActor func copy(from: KHState, into: SSCNode)
+
+    func fetch(into: KHState, connection: SSCConnection, parameterTree: SSCNode?)
+        async throws -> KHState
+    func send(
+        oldState: KHState,
+        newState: KHState,
+        connection: SSCConnection,
+        parameterTree: SSCNode?
+    )
         async throws
 }
 
@@ -117,14 +126,96 @@ where T: Equatable, T: Codable, T: Sendable {
         return set(value, into: targetState)
     }
 
-    func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {
+    func copy(from state: KHState, into jsonData: JSONData) -> JSONData? {
+        guard var parent = jsonData.getAtPath(devicePath.dropLast()) else {
+            return nil
+        }
+
+        switch parent[devicePath.last!] {
+        case .bool:
+            guard let v = get(from: state) as? Bool else { return nil }
+            parent[devicePath.last!] = JSONData(singleValue: v)
+        case .number:
+            guard let v = get(from: state) as? Double else { return nil }
+            parent[devicePath.last!] = JSONData(singleValue: v)
+        case .string:
+            guard let v = get(from: state) as? String else { return nil }
+            parent[devicePath.last!] = JSONData(singleValue: v)
+        case .array(let a):
+            switch a.first {
+            case .bool:
+                guard let v = get(from: state) as? [Bool] else { return nil }
+                parent[devicePath.last!] = JSONData(singleValue: v)
+            case .number:
+                guard let v = get(from: state) as? [Double] else { return nil }
+                parent[devicePath.last!] = JSONData(singleValue: v)
+            case .string:
+                guard let v = get(from: state) as? [String] else { return nil }
+                parent[devicePath.last!] = JSONData(singleValue: v)
+            default:
+                return nil
+            }
+        default:
+            return nil
+        }
+        return jsonData
+    }
+
+    @MainActor
+    func copy(from state: KHState, into nodeTree: SSCNode) {
+        guard let leaf = nodeTree.getAtPath(devicePath) else { return }
+        guard case .value(let val) = leaf.value else { return }
+        switch val {
+        case .bool:
+            guard let v = get(from: state) as? Bool else { return }
+            leaf.value = .value(JSONData(singleValue: v))
+        case .number:
+            guard let v = get(from: state) as? Double else { return }
+            leaf.value = .value(JSONData(singleValue: v))
+        case .string:
+            guard let v = get(from: state) as? String else { return }
+            leaf.value = .value(JSONData(singleValue: v))
+        case .array(let a):
+            switch a.first {
+            case .bool:
+                guard let v = get(from: state) as? [Bool] else { return }
+                leaf.value = .value(JSONData(singleValue: v))
+            case .number:
+                guard let v = get(from: state) as? [Double] else { return }
+                leaf.value = .value(JSONData(singleValue: v))
+            case .string:
+                guard let v = get(from: state) as? [String] else { return }
+                leaf.value = .value(JSONData(singleValue: v))
+            default:
+                return
+            }
+        default:
+            return
+        }
+    }
+
+    @MainActor
+    func fetch(
+        into state: KHState,
+        connection: SSCConnection,
+        parameterTree: SSCNode? = nil
+    ) async throws -> KHState {
         let newValue: T = try await connection.fetchSSCValue(path: devicePath)
         var newState = state
         newState[keyPath: keyPath] = newValue
+        if let parameterTree {
+            copy(from: newState, into: parameterTree)
+        }
         return newState
     }
 
-    func send(oldState: KHState, newState: KHState, connection: SSCConnection)
+    @MainActor
+    func send(
+        oldState: KHState,
+        newState: KHState,
+        connection: SSCConnection,
+        parameterTree: SSCNode? = nil
+    )
         async throws
     {
         if oldState[keyPath: keyPath] == newState[keyPath: keyPath] { return }
@@ -132,6 +223,9 @@ where T: Equatable, T: Codable, T: Sendable {
             path: devicePath,
             value: newState[keyPath: keyPath]
         )
+        if let parameterTree {
+            copy(from: newState, into: parameterTree)
+        }
     }
 }
 
@@ -332,6 +426,10 @@ enum KHParameters: String, CaseIterable, Identifiable {
             KHStatePath(keyPath: \.eqs[1].type, devicePath: _getDevicePath())
         }
     }
+    
+    func getDevicePath() -> [String] { getPathObject().devicePath }
+
+    func getPathString() -> String { "/" + getDevicePath().joined(separator: "/") }
 
     func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
         getPathObject().copy(from: sourceState, into: targetState)
@@ -341,20 +439,38 @@ enum KHParameters: String, CaseIterable, Identifiable {
         getPathObject().copy(from: jsonData, into: targetState)
     }
 
-    func fetch(into state: KHState, connection: SSCConnection) async throws -> KHState {
-        try await getPathObject().fetch(into: state, connection: connection)
+    func copy(from state: KHState, into jsonData: JSONData) -> JSONData? {
+        getPathObject().copy(from: state, into: jsonData)
     }
 
-    func send(oldState: KHState, newState: KHState, connection: SSCConnection)
-        async throws
-    {
-        try await getPathObject().send(
-            oldState: oldState,
-            newState: newState,
-            connection: connection
+    @MainActor
+    func copy(from state: KHState, into nodeTree: SSCNode) {
+        getPathObject().copy(from: state, into: nodeTree)
+    }
+
+    func fetch(
+        into state: KHState,
+        connection: SSCConnection,
+        parameterTree: SSCNode? = nil
+    ) async throws -> KHState {
+        try await getPathObject().fetch(
+            into: state,
+            connection: connection,
+            parameterTree: parameterTree
         )
     }
 
-    func getDevicePath() -> [String] { getPathObject().devicePath }
-    func getPathString() -> String { "/" + getDevicePath().joined(separator: "/") }
+    func send(
+        oldState: KHState,
+        newState: KHState,
+        connection: SSCConnection,
+        parameterTree: SSCNode? = nil
+    ) async throws {
+        try await getPathObject().send(
+            oldState: oldState,
+            newState: newState,
+            connection: connection,
+            parameterTree: parameterTree
+        )
+    }
 }

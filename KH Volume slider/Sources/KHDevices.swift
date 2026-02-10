@@ -112,7 +112,11 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     private func _fetchParameters(_ parameters: [KHParameters]) async {
         for p in parameters {
             do {
-                state = try await p.fetch(into: state, connection: connection)
+                state = try await p.fetch(
+                    into: state,
+                    connection: connection,
+                    parameterTree: parameterTree
+                )
             } catch {
                 status = .error(String(describing: error))
                 return
@@ -128,7 +132,8 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
                 try await p.send(
                     oldState: state,
                     newState: newState,
-                    connection: connection
+                    connection: connection,
+                    parameterTree: parameterTree
                 )
             } catch {
                 status = .error(String(describing: error))
@@ -177,7 +182,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
             print("Error loading cached schema: \(error)")
         }
         if let cachedSchema {
-            rootNode.populate(jsonDataCodable: cachedSchema)
+            rootNode.populate(from: cachedSchema)
         } else {
             await connect()
             do {

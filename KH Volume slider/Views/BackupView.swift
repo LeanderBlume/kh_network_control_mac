@@ -27,7 +27,12 @@ struct BackupView: View {
                         }
                     }
                     .pickerStyle(.inline)
-                    Button("Load") {
+                    .labelsHidden()
+                    Button(
+                        "Load",
+                        systemImage:
+                            "clock.arrow.trianglehead.counterclockwise.rotate.90"
+                    ) {
                         if let selection {
                             Task {
                                 try await backupper.load(
@@ -83,7 +88,11 @@ struct BackupViewMacOS: View {
                 }
                 .pickerStyle(.inline)
                 HStack {
-                    Button("Load") {
+                    Button(
+                        "Load",
+                        systemImage:
+                            "clock.arrow.trianglehead.counterclockwise.rotate.90"
+                    ) {
                         guard let selection else { return }
                         Task {
                             do {

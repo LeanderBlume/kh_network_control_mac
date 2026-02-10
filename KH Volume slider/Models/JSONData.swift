@@ -78,7 +78,7 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     init(singleValue: [Double]) { self = .array(singleValue.map({ .number($0) })) }
     init(singleValue: [Bool]) { self = .array(singleValue.map({ .bool($0) })) }
 
-    init(jsonDataCodable: JSONDataCodable) {
+    init(from jsonDataCodable: JSONDataCodable) {
         switch jsonDataCodable {
         case .null:
             self = .null
@@ -96,11 +96,11 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     }
 
     @MainActor
-    init?(fromNodeTree rootNode: SSCNode) {
+    init?(from rootNode: SSCNode) {
         guard let jdc = JSONDataCodable(from: rootNode) else {
             return nil
         }
-        self.init(jsonDataCodable: jdc)
+        self.init(from: jdc)
     }
 
     init(from decoder: Decoder, configuration: DecodingConfiguration) throws {
@@ -265,9 +265,20 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     }
 
     subscript(index: String) -> JSONData? {
-        if case .object(let dict) = self {
-            return dict[index]
+        get {
+            if case .object(let dict) = self {
+                return dict[index]
+            }
+            return nil
         }
-        return nil
+        set(value) {
+            if case .object(let dict) = self {
+                var newDict = dict
+                newDict[index] = value
+                self = .object(newDict)
+                return
+            }
+            assert(false)
+        }
     }
 }

@@ -300,18 +300,18 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         }
     }
 
-    func populate(jsonDataCodable: JSONDataCodable) {
+    func populate(from jsonDataCodable: JSONDataCodable) {
         switch jsonDataCodable {
         case .null:
             value = .error("null")
         case .number(_, let l), .bool(_, let l), .string(_, let l), .array(_, let l):
-            value = .value(JSONData(jsonDataCodable: jsonDataCodable))
+            value = .value(JSONData(from: jsonDataCodable))
             limits = l
         case .object(let dict):
             var children: [SSCNode] = []
             for k in dict.keys {
                 let child = SSCNode(name: k, deviceID: self.id.deviceID, parent: self)
-                child.populate(jsonDataCodable: dict[k]!)
+                child.populate(from: dict[k]!)
                 children.append(child)
             }
             value = .children(children)
@@ -360,7 +360,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
     // tree is already populated and that the node tree structure is a subtree of the
     // JSONData tree. Value-bearing Leaf nodes will assign data at path, no
     // questions asked.
-    func load(jsonData: JSONData) throws {
+    func load(from jsonData: JSONData) throws {
         switch value {
         case .unknown, .unknownValue, .unknownChildren:
             throw SSCNodeError.error(
@@ -376,7 +376,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
             }
             try children.forEach({ child in
                 if let subData = dictionary[child.name] {
-                    try child.load(jsonData: subData)
+                    try child.load(from: subData)
                 } else {
                     throw SSCNodeError.error("No value in data for \(child.name)")
                 }
@@ -384,8 +384,13 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         }
     }
 
-    func load(jsonDataCodable: JSONDataCodable) throws {
-        try load(jsonData: JSONData(jsonDataCodable: jsonDataCodable))
+    func load(from jsonDataCodable: JSONDataCodable) throws {
+        try load(from: JSONData(from: jsonDataCodable))
+    }
+    
+    
+    func load(from state: KHState) throws {
+        // TODO
     }
 
     /// Returns list of child nodes, if there are any. This is for SSCTreeView lazy loading. Maybe we don't need this.

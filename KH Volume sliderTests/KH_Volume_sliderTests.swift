@@ -225,10 +225,10 @@ struct TestSSC {
         #expect(rootNode.pathToNode() == [])
         try await rootNode.populate(connection: connection)
         await connection.close()
-        let treeData = JSONData(fromNodeTree: rootNode)!
+        let treeData = JSONData(from: rootNode)!
         let jd = try JSONEncoder().encode(treeData)
         let decoder = JSONDecoder()
-        let schema = JSONData(fromNodeTree: rootNode)
+        let schema = JSONData(from: rootNode)
         // decoder.userInfo[.schemaJSONData] = schema
         let decodedTest = try decoder.decode(
             JSONData.self,
@@ -239,7 +239,7 @@ struct TestSSC {
         encoder.outputFormatting = .prettyPrinted
         let reencoded = try encoder.encode(decodedTest)
         print(String(data: reencoded, encoding: .utf8)!)
-        try rootNode.load(jsonData: treeData)
+        try rootNode.load(from: treeData)
     }
 }
 
