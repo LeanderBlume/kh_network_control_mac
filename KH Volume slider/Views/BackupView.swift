@@ -16,7 +16,22 @@ struct BackupView: View {
 
     var body: some View {
         Form {
-            // Probably not quite right on iOS
+            Section("New backup") {
+                TextField("Name", text: $newName)
+                    .textFieldStyle(.automatic)
+                    .focused($textFieldFocused)
+                Button("Save") {
+                    Task {
+                        // TODO better: Load parameters from state.
+                        await khAccess.fetchParameterTree()
+                        try backupper.write(name: newName, khAccess: khAccess)
+                        selection = newName
+                        newName = ""
+                        textFieldFocused = false
+                    }
+                }
+            }
+            
             Section("Load backup") {
                 if backupper.list().isEmpty {
                     Text("No stored backups").foregroundColor(.secondary)
@@ -28,6 +43,7 @@ struct BackupView: View {
                     }
                     .pickerStyle(.inline)
                     .labelsHidden()
+
                     Button(
                         "Load",
                         systemImage:
@@ -42,28 +58,14 @@ struct BackupView: View {
                             }
                         }
                     }
+
                     Button("Delete", systemImage: "trash") {
                         if let s = selection {
                             do { try backupper.delete(name: s) } catch { print(error) }
                             selection = nil
                         }
                     }
-                }
-            }
 
-            Section("New backup") {
-                TextField("Name", text: $newName)
-                    .textFieldStyle(.automatic)
-                    .focused($textFieldFocused)
-                Button("Save backup") {
-                    Task {
-                        // TODO better: Load parameters from state.
-                        await khAccess.fetchParameterTree()
-                        try backupper.write(name: newName, khAccess: khAccess)
-                        selection = newName
-                        newName = ""
-                        textFieldFocused = false
-                    }
                 }
             }
         }
@@ -78,6 +80,18 @@ struct BackupViewMacOS: View {
 
     var body: some View {
         Form {
+            TextField("New backup", text: $newName)
+
+            Button("Create") {
+                Task {
+                    // TODO better: Load parameters from state.
+                    await khAccess.fetchParameterTree()
+                    try backupper.write(name: newName, khAccess: khAccess)
+                    selection = newName
+                    newName = ""
+                }
+            }
+
             if backupper.list().isEmpty {
                 Text("No stored backups").foregroundColor(.secondary)
             } else {
@@ -110,18 +124,6 @@ struct BackupViewMacOS: View {
                         do { try backupper.delete(name: s) } catch { print(error) }
                         selection = nil
                     }
-                }
-            }
-
-            TextField("New backup", text: $newName)
-
-            Button("Create") {
-                Task {
-                    // TODO better: Load parameters from state.
-                    await khAccess.fetchParameterTree()
-                    try backupper.write(name: newName, khAccess: khAccess)
-                    selection = newName
-                    newName = ""
                 }
             }
         }
