@@ -139,9 +139,8 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
                 status = .error(String(describing: error))
                 return
             }
-            // state = p.copy(from: newState, into: state)
+            state = p.copy(from: newState, into: state)
         }
-        state = newState
         status = .ready
     }
 
