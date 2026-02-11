@@ -112,10 +112,10 @@ actor SSCConnection {
                     continuation.resume(throwing: error)
                     return
                 }
+                continuation.resume(returning: ())
             }
             let TXraw = TXString.appending("\r\n").data(using: .ascii)!
             connection.send(content: TXraw, completion: sendCompHandler)
-            continuation.resume(returning: ())
         }
     }
 
