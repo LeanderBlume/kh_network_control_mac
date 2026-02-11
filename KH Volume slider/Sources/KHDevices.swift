@@ -237,6 +237,15 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         await connect()
         await _fetchNodes(rootNode.filter({ $0.isLeaf() }))
         await disconnect()
+        /// I'm not sure if this actually makes sense. We only store the schema per device type, not per device.
+        /*
+        let sc = SchemaCache()
+        do {
+            try sc.saveSchema(rootNode, for: self)
+        } catch {
+            print("Error saving schema: \(error)")
+        }
+         */
     }
 
     func sendParameterTree() async {
