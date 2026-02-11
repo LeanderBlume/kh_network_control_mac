@@ -74,7 +74,6 @@ private protocol KHStatePathProtocol: Equatable {
 
     func copy(from: KHState, into: KHState) -> KHState
     func copy(from: JSONData, into: KHState) -> KHState?
-    func copy(from: KHState, into: JSONData) -> JSONData?
     @MainActor func copy(from: KHState, into: SSCNode)
 
     func fetch(into: KHState, connection: SSCConnection, parameterTree: SSCNode?)
@@ -100,7 +99,7 @@ where T: Equatable, T: Codable, T: Sendable {
     private func get(from jsonData: JSONData) -> T? {
         switch jsonData {
         case .array:
-            jsonData.asAny() as? T
+            jsonData.asArrayAny() as? T
         default:
             jsonData.asAny() as? T
         }
@@ -124,41 +123,6 @@ where T: Equatable, T: Codable, T: Sendable {
     func copy(from jsonData: JSONData, into targetState: KHState) -> KHState? {
         guard let value = jsonData.getAtPath(devicePath) else { return nil }
         return set(value, into: targetState)
-    }
-
-    func copy(from state: KHState, into jsonData: JSONData) -> JSONData? {
-        guard var parent = jsonData.getAtPath(devicePath.dropLast()) else {
-            return nil
-        }
-
-        switch parent[devicePath.last!] {
-        case .bool:
-            guard let v = get(from: state) as? Bool else { return nil }
-            parent[devicePath.last!] = JSONData(singleValue: v)
-        case .number:
-            guard let v = get(from: state) as? Double else { return nil }
-            parent[devicePath.last!] = JSONData(singleValue: v)
-        case .string:
-            guard let v = get(from: state) as? String else { return nil }
-            parent[devicePath.last!] = JSONData(singleValue: v)
-        case .array(let a):
-            switch a.first {
-            case .bool:
-                guard let v = get(from: state) as? [Bool] else { return nil }
-                parent[devicePath.last!] = JSONData(singleValue: v)
-            case .number:
-                guard let v = get(from: state) as? [Double] else { return nil }
-                parent[devicePath.last!] = JSONData(singleValue: v)
-            case .string:
-                guard let v = get(from: state) as? [String] else { return nil }
-                parent[devicePath.last!] = JSONData(singleValue: v)
-            default:
-                return nil
-            }
-        default:
-            return nil
-        }
-        return jsonData
     }
 
     @MainActor
@@ -437,10 +401,6 @@ enum KHParameters: String, CaseIterable, Identifiable {
 
     func copy(from jsonData: JSONData, into targetState: KHState) -> KHState? {
         getPathObject().copy(from: jsonData, into: targetState)
-    }
-
-    func copy(from state: KHState, into jsonData: JSONData) -> JSONData? {
-        getPathObject().copy(from: state, into: jsonData)
     }
 
     @MainActor
