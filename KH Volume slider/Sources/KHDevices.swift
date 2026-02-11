@@ -139,6 +139,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
                 status = .error(String(describing: error))
                 return
             }
+            /// We only want to copy these parameters and not update the whole state because we can get a single state with Name etc. from KHDeviceGroup and don't want to overwrite names of devices.
             state = p.copy(from: newState, into: state)
         }
         status = .ready
