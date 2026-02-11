@@ -7,6 +7,35 @@
 
 import SwiftUI
 
+enum EqType: String, CaseIterable, Identifiable {
+    case parametric = "PARAMETRIC"
+    case loshelf = "LOSHELF"
+    case hishelf = "HISHELF"
+    case lowpass = "LOWPASS"
+    case highpass = "HIGHPASS"
+    case bandpass = "BANDPASS"
+    case notch = "NOTCH"
+    case allpass = "ALLPASS"
+    case hi6db = "HI6DB"
+    case lo6db = "LO6DB"
+    case inversion = "INVERSION"
+
+    var id: String { self.rawValue }
+
+    func magnitudeResponse() -> ((Double, Double, Double, Double) -> Double) {
+        switch self {
+        case .parametric:
+            { f, boost, q, f0 in boost / (1 + pow(q * (f / f0 - f0 / f), 2)) }
+        case .loshelf:
+            { f, boost, q, f0 in boost * (1 - (1 / (1 + exp(0.01 * -q * (f - f0))))) }
+        case .hishelf:
+            { f, boost, q, f0 in boost / (1 + exp(0.01 * -q * (f - f0))) }
+        default:
+            { f, boost, q, f0 in 0.0 }
+        }
+    }
+}
+
 struct Eq: Codable, Equatable {
     var desc: String = ""
     var boost: [Double]
@@ -22,23 +51,12 @@ struct Eq: Codable, Equatable {
         frequency = Array(repeating: 100.0, count: numBands)
         gain = Array(repeating: 0.0, count: numBands)
         q = Array(repeating: 0.7, count: numBands)
-        type = Array(repeating: Eq.EqType.parametric.rawValue, count: numBands)
+        type = Array(repeating: EqType.parametric.rawValue, count: numBands)
     }
 
-    enum EqType: String, CaseIterable, Identifiable {
-        case parametric = "PARAMETRIC"
-        case loshelf = "LOSHELF"
-        case hishelf = "HISHELF"
-        case lowpass = "LOWPASS"
-        case highpass = "HIGHPASS"
-        case bandpass = "BANDPASS"
-        case notch = "NOTCH"
-        case allpass = "ALLPASS"
-        case hi6db = "HI6DB"
-        case lo6db = "LO6DB"
-        case inversion = "INVERSION"
-
-        var id: String { self.rawValue }
+    func magnitudeResponse(for band: Int) -> ((Double) -> Double) {
+        let mr = EqType(rawValue: type[band])!.magnitudeResponse()
+        return { f in mr(f, boost[band], q[band], frequency[band]) }
     }
 }
 
@@ -390,7 +408,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
             KHStatePath(keyPath: \.eqs[1].type, devicePath: _getDevicePath())
         }
     }
-    
+
     func getDevicePath() -> [String] { getPathObject().devicePath }
 
     func getPathString() -> String { "/" + getDevicePath().joined(separator: "/") }

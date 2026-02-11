@@ -8,95 +8,46 @@
 import Charts
 import SwiftUI
 
-func magnitudeResponseParametric(
-    f: Double,
-    boost: Double,
-    q: Double,
-    f0: Double
-) -> Double {
-    return boost / (1 + pow(q * (f / f0 - f0 / f), 2))
-}
-
-func magnitudeResponseHishelf(f: Double, boost: Double, q: Double, f0: Double) -> Double
-{
-    return boost / (1 + exp(0.01 * -q * (f - f0)))
-}
-
-func magnitudeResponseLoshelf(f: Double, boost: Double, q: Double, f0: Double) -> Double
-{
-    return boost * (1 - (1 / (1 + exp(0.01 * -q * (f - f0)))))
+private func magnitudeResponse(eqs: [Eq]) -> (@Sendable (Double) -> Double) {
+    let activeBands = eqs.map { eq in
+        eq.enabled.indices.filter { eq.enabled[$0] }
+    }
+    return { f in
+        eqs.indices.reduce(0) { partial, i in
+            partial
+                + activeBands[i].reduce(0) { partial, next in
+                    partial + eqs[i].magnitudeResponse(for: next)(f) + eqs[i].gain[next]
+                }
+        }
+    }
 }
 
 struct EqChart: View {
     var eqs: [Eq]
 
     var body: some View {
-        let activeBands = eqs.map { eq in
-            eq.enabled.indices.filter { eq.enabled[$0] }
-        }
-
         Chart {
-            LinePlot(x: "f", y: "Gain") { f in
-                var result = 0.0
-                // We should loop over bands before looping over frequencies
-                for selectedEq in 0...1 {
-                    let eq = eqs[selectedEq]
-                    for band in activeBands[selectedEq] {
-                        switch eq.type[band] {
-                        case "PARAMETRIC":
-                            result += magnitudeResponseParametric(
-                                f: f,
-                                boost: eq.boost[band],
-                                q: eq.q[band],
-                                f0: eq.frequency[band]
-                            )
-                        // Not implemented ones
-                        case "LOSHELF":
-                            result += magnitudeResponseLoshelf(
-                                f: f,
-                                boost: eq.boost[band],
-                                q: eq.q[band],
-                                f0: eq.frequency[band]
-                            )
-
-                        case "HISHELF":
-                            result += magnitudeResponseHishelf(
-                                f: f,
-                                boost: eq.boost[band],
-                                q: eq.q[band],
-                                f0: eq.frequency[band]
-                            )
-                        case "LOWPASS": break
-                        case "HIGHPASS": break
-                        case "BANDPASS": break
-                        case "NOTCH": break
-                        case "ALLPASS": break
-                        case "HI6DB": break
-                        case "LO6DB": break
-                        case "INVERSION": break
-                        // Above cases are all of them, but need this for switch to be
-                        // exhaustive
-                        default: break
-                        }
-                        result += eq.gain[band]
-                    }
-                }
-                return result
-            }
+            LinePlot(x: "f", y: "Gain", function: magnitudeResponse(eqs: eqs))
 
             let colors = [Color.yellow, Color.orange]
-            ForEach(0..<eqs.count, id: \.self) { i in
+            ForEach(eqs.indices, id: \.self) { i in
                 let eq = eqs[i]
-                ForEach(activeBands[i], id: \.self) { j in
+                ForEach(eq.enabled.indices, id: \.self) { j in
+                    let x = eq.frequency[j]
+                    let y = eq.boost[j]
+                    let sign = y.sign == .minus ? -1.0 : 1.0
                     PointMark(
-                        x: .value("f", eq.frequency[j]),
-                        y: .value("Gain", eq.boost[j] - 6)
+                        x: .value("f", x),
+                        y: .value("Gain", y + sign * 2.0)
                     )
-                    .foregroundStyle(colors[i % 2])
-                    .symbolSize(300)
-                    .annotation(position: .overlay) {
-                        Text(String(j + 1)).foregroundStyle(.black)
+                    .symbolSize(0)
+                    .annotation(position: y.sign == .minus ? .bottom : .top) {
+                        Image(systemName: "\(j + 1).circle")
+                            .foregroundStyle(colors[i])
+                            .opacity(eq.enabled[j] ? 1 : 0)
+                            .scaleEffect(1.5)
                     }
+                    .opacity(eq.enabled[j] ? 1 : 0)
                 }
             }
         }

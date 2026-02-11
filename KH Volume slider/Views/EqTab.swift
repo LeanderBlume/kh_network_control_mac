@@ -18,7 +18,7 @@ private struct EqTypePicker: View {
                 .opacity(bandEnabled ? 1 : 0)
                 .foregroundStyle(.secondary)
             Picker("Type:", selection: $type) {
-                ForEach(Eq.EqType.allCases) { type in
+                ForEach(EqType.allCases) { type in
                     Text(type.rawValue).tag(type.rawValue)
                 }
             }
@@ -34,7 +34,7 @@ private struct EqTypePicker: View {
 
         HStack {
             Picker("Type:", selection: $type) {
-                ForEach(Eq.EqType.allCases) { type in
+                ForEach(EqType.allCases) { type in
                     Text(type.rawValue).tag(type.rawValue)
                 }
             }
