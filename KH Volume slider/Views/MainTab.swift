@@ -13,65 +13,6 @@ struct MainTabiOS: View {
     @FocusState private var textFieldFocused: Bool
     @State private var showError: Bool = false
 
-    @ToolbarContentBuilder
-    var standardToolbar: some ToolbarContent {
-        #if os(iOS)
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    showError.toggle()
-                } label: {
-                    StatusDisplayCompact(status: khAccess.status)
-                        .popover(
-                            isPresented: $showError,
-                            attachmentAnchor: .point(.bottom)
-                        ) {
-                            StatusDisplayText(status: khAccess.status)
-                                .padding(.horizontal)
-                                .presentationCompactAdaptation(.popover)
-                        }
-                }
-            }
-        #endif
-        ToolbarItemGroup(placement: .secondaryAction) {
-            Button("Rescan", systemImage: "bonjour") {
-                Task {
-                    await khAccess.scan()
-                    await khAccess.setup()
-                }
-            }
-            .disabled(khAccess.status.isBusy())
-            Button("Fetch parameters", systemImage: "square.and.arrow.down") {
-                Task { await khAccess.fetchParameterTree() }
-            }
-        }
-        ToolbarItem(placement: .primaryAction) {
-            Button("Fetch", systemImage: "arrow.clockwise") {
-                Task { await khAccess.fetch() }
-            }
-            .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
-        }
-    }
-
-    @ToolbarContentBuilder
-    var doneAndCancel: some ToolbarContent {
-        // ToolbarItemGroup(placement: .keyboard) {
-        ToolbarItem(placement: .confirmationAction) {
-            // Spacer()
-            Button("Done", systemImage: "checkmark") {
-                Task { await khAccess.send() }
-                textFieldFocused = false
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        ToolbarItem(placement: .cancellationAction) {
-            // Spacer()
-            Button("Cancel", systemImage: "keyboard.chevron.compact.down") {
-                textFieldFocused = false
-            }
-            .buttonStyle(.borderedProminent)
-        }
-    }
-
     var body: some View {
         @Bindable var khAccess = khAccess
 
@@ -145,11 +86,12 @@ struct MainTabiOS: View {
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
         }
+        .toolbar(removing: .title)
         .toolbar {
             if textFieldFocused {
-                doneAndCancel
+                ToolbarDoneAndCancel(textFieldFocused: $textFieldFocused)
             } else {
-                standardToolbar
+                MainToolbar(showError: $showError)
             }
         }
     }
@@ -158,41 +100,6 @@ struct MainTabiOS: View {
 struct MainTabmacOS: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
-
-    @ToolbarContentBuilder
-    var standardToolbar: some ToolbarContent {
-        ToolbarItem(placement: .status) {
-            Button {
-                showError.toggle()
-            } label: {
-                StatusDisplayCompact(status: khAccess.status)
-                    .popover(
-                        isPresented: $showError,
-                        attachmentAnchor: .point(.top)
-                    ) {
-                        StatusDisplayText(status: khAccess.status).padding()
-                    }
-            }
-        }
-        ToolbarItemGroup(placement: .secondaryAction) {
-            Button("Rescan", systemImage: "bonjour") {
-                Task {
-                    await khAccess.scan()
-                    await khAccess.setup()
-                }
-            }
-            .disabled(khAccess.status.isBusy())
-            Button("Fetch parameters", systemImage: "square.and.arrow.down") {
-                Task { await khAccess.fetchParameterTree() }
-            }
-        }
-        ToolbarItem(placement: .primaryAction) {
-            Button("Fetch", systemImage: "arrow.clockwise") {
-                Task { await khAccess.fetch() }
-            }
-            .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
-        }
-    }
 
     var body: some View {
         @Bindable var khAccess = khAccess
@@ -243,6 +150,6 @@ struct MainTabmacOS: View {
             EqTab()
         }
         .disabled(khAccess.status != .ready)
-        .toolbar { standardToolbar }
+        .toolbar { MainToolbar(showError: $showError) }
     }
 }

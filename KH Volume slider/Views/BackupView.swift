@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct BackupView: View {
+struct BackupViewiOS: View {
     @State var newName: String = ""
     @State var selection: String? = nil
     @FocusState private var textFieldFocused: Bool
