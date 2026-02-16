@@ -111,7 +111,7 @@ struct MainTabmacOS: View {
             Text("Basic controls").font(.title2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Grid(alignment: .topLeading) {
+            Grid(alignment: .leading) {
                 GridRow {
                     Text("Mute")
                     Toggle(

@@ -21,7 +21,7 @@ struct KH_Volume_sliderApp: App {
             return
         }
     }
-    
+
     var body: some Scene {
         #if os(macOS)
         MenuBarExtra("KH Volume slider", systemImage: "hifispeaker.2") {

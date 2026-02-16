@@ -16,7 +16,7 @@ struct MenuBarView: View {
                     await khAccess.setup()
                 }
             }
-            
+
             Spacer()
 
             Button("Fetch", systemImage: "arrow.clockwise") {
@@ -30,9 +30,9 @@ struct MenuBarView: View {
     var buttonBarBottom: some View {
         HStack {
             StatusDisplay(status: khAccess.status)
-            
+
             Spacer()
-            
+
             Button("Main window", systemImage: "link") {
                 openWindow(id: "main-window")
             }
@@ -53,11 +53,11 @@ struct MenuBarView: View {
                 GridRow {
                     Text("Mute")
                     Toggle(
-                        "Muted",
+                        "Toggle",
                         systemImage: "speaker.slash.fill",
                         isOn: $khAccess.state.muted
                     )
-                    // .toggleStyle(.button)
+                    .toggleStyle(.button)
                     // .toggleStyle(.switch)
                     .onChange(of: khAccess.state.muted) {
                         Task { await khAccess.send() }

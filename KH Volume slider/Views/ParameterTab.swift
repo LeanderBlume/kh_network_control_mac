@@ -429,7 +429,7 @@ struct ParameterMapper: View {
     }
 }
 
-struct iOSDeviceBrowserForm: View {
+struct DeviceBrowserForm: View {
     var devices: [KHDevice]
     @State private var pathStrings: [String: String] = [:]
 
@@ -439,7 +439,7 @@ struct iOSDeviceBrowserForm: View {
         }
     }
 
-    var body: some View {
+    var bodyiOS: some View {
         List {
             Section("Devices") {
                 ForEach(devices.indices, id: \.self) { i in
@@ -483,19 +483,8 @@ struct iOSDeviceBrowserForm: View {
         }
         .onAppear(perform: updatePathStrings)
     }
-}
 
-struct macOSDeviceBrowserForm: View {
-    var devices: [KHDevice]
-    @State private var pathStrings: [String: String] = [:]
-
-    func updatePathStrings() {
-        for parameter in KHParameters.allCases {
-            pathStrings[parameter.rawValue] = parameter.getPathString()
-        }
-    }
-
-    var body: some View {
+    var bodymacOS: some View {
         List {
             Section("Devices") {
                 ForEach(devices.indices, id: \.self) { i in
@@ -539,6 +528,14 @@ struct macOSDeviceBrowserForm: View {
             .onAppear(perform: updatePathStrings)
         }
     }
+    
+    var body: some View {
+        #if os(iOS)
+            bodyiOS
+        #elseif os(macOS)
+            bodymacOS
+        #endif
+    }
 }
 
 struct ParameterTab: View {
@@ -557,11 +554,7 @@ struct ParameterTab: View {
             if devices.isEmpty {
                 Text("No devices")
             } else {
-                #if os(iOS)
-                    iOSDeviceBrowserForm(devices: khAccess.devices)
-                #elseif os(macOS)
-                    macOSDeviceBrowserForm(devices: khAccess.devices)
-                #endif
+                DeviceBrowserForm(devices: khAccess.devices)
             }
         }
     }
