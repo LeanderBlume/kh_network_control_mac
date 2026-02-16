@@ -161,12 +161,19 @@ private struct SingleBandPickerButton: View {
     @Binding var eq: Eq
 
     var body: some View {
-        VStack(alignment: .center) {
+        let active = band == selectedEqBand
+        VStack(alignment: .center, spacing: 27) {
             Button(String(band + 1)) { selectedEqBand = band }
-                .foregroundStyle(selectedEqBand == band ? .green : .accentColor)
+                .foregroundStyle(active ? .green : .secondary)
+                // .font(active ? .title3 : .caption)
 
-            Toggle("✓", isOn: $eq.enabled[band]).toggleStyle(.button)
+            Toggle("✓", isOn: $eq.enabled[band])
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .rotationEffect(Angle(degrees: -90))
         }
+        .frame(width: 35) // , height: 80)
+        // .background( band == selectedEqBand ? .red : .gray)
     }
 }
 
@@ -185,16 +192,17 @@ private struct BandPicker: View {
                             selectedEqBand: $selectedEqBand,
                             eq: $eq
                         )
-                        .padding(.bottom, 10)
+                        // .padding(.bottom, 10)
                     }
                 }
                 .frame(minWidth: geo.size.width)
+                // .frame(height: 90)
             }
             .scrollClipDisabled(true)
         }
         // This is not ideal but the GeometryReader somehow messes things up so
         // this overlaps with stuff below it.
-        .frame(height: 70)
+        .frame(height: 90)
     }
 }
 
@@ -232,8 +240,10 @@ struct EqTab: View {
         EqChart(eqs: khAccess.state.eqs).frame(height: 150)
 
         Picker("", selection: $selectedEq) {
-            Text("post EQ").tag(0)
-            Text("calibration EQ").tag(1)
+            Text("post EQ")
+                .tag(0)
+            Text("calibration EQ")
+                .tag(1)
         }
         .pickerStyle(.segmented)
 
