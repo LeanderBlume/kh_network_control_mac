@@ -379,16 +379,15 @@ struct DeviceBrowser: View {
 struct ParameterMapper: View {
     var parameter: KHParameters
     var rootNode: SSCNode
-    @Binding var pathStrings: [String: String]
+    @Binding var pathString: String?
     @State var selection: SSCNode.ID? = nil
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     private func setParameter() {
-        guard let node = rootNode.first(where: { $0.id == selection }) else {
-            return
-        }
+        guard let selection else { return }
+        guard let node = khAccess.getNodeByID(selection) else { return }
         parameter.setDevicePath(to: node.pathToNode())
-        pathStrings[parameter.rawValue] = parameter.getPathString()
+        pathString = parameter.getPathString()
     }
 
     var body: some View {
@@ -404,11 +403,11 @@ struct ParameterMapper: View {
         .navigationTitle(Text(parameter.rawValue))
         .overlay(alignment: .bottom) {
             Button(action: setParameter) {
-                if let selection = selection {
+                if let selection {
                     VStack {
-                        Text(pathStrings[parameter.rawValue] ?? "unknown")
+                        Text(pathString ?? "unknown")
                             .strikethrough(true)
-                        if let node = rootNode.first(where: { $0.id == selection }) {
+                        if let node = khAccess.getNodeByID(selection) {
                             Label(
                                 "/" + node.pathToNode().joined(separator: "/"),
                                 systemImage: "arrow.right"
@@ -429,6 +428,56 @@ struct ParameterMapper: View {
     }
 }
 
+struct DeviceBrowserLink: View {
+    var device: KHDevice
+
+    var body: some View {
+        if let rootNode = device.parameterTree {
+            NavigationLink(
+                destination: DeviceBrowser(rootNode: rootNode)
+                    .navigationTitle(device.state.name)
+            ) {
+                Text(device.state.name)
+                if device.status != .ready {
+                    StatusDisplayText(status: device.status)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            LabeledContent {
+                StatusDisplayText(status: device.status)
+            } label: {
+                Text(device.state.name)
+            }
+        }
+    }
+}
+
+struct ParameterMapperLink: View {
+    var parameter: KHParameters
+    var device: KHDevice
+    @Binding var pathString: String?
+
+    var body: some View {
+        LabeledContent {
+            if let rootNode = device.parameterTree {
+                NavigationLink(
+                    pathString ?? "unknown",
+                    destination: ParameterMapper(
+                        parameter: parameter,
+                        rootNode: rootNode,
+                        pathString: $pathString
+                    )
+                )
+            } else {
+                Text(pathString ?? "unknown")
+            }
+        } label: {
+            Text(parameter.rawValue)
+        }
+    }
+}
+
 struct DeviceBrowserForm: View {
     var devices: [KHDevice]
     @State private var pathStrings: [String: String] = [:]
@@ -443,16 +492,7 @@ struct DeviceBrowserForm: View {
         List {
             Section("Devices") {
                 ForEach(devices.indices, id: \.self) { i in
-                    let device = devices[i]
-                    if let rootNode = device.parameterTree {
-                        NavigationLink(
-                            device.state.name,
-                            destination: DeviceBrowser(rootNode: rootNode)
-                                .navigationTitle(device.state.name)
-                        )
-                    } else {
-                        Text("Parameters not loaded")
-                    }
+                    DeviceBrowserLink(device: devices[i])
                 }
             }
 
@@ -462,22 +502,11 @@ struct DeviceBrowserForm: View {
                     updatePathStrings()
                 }
                 ForEach(KHParameters.allCases) { parameter in
-                    LabeledContent {
-                        if let rootNode = devices.first!.parameterTree {
-                            NavigationLink(
-                                pathStrings[parameter.rawValue] ?? "unknown",
-                                destination: ParameterMapper(
-                                    parameter: parameter,
-                                    rootNode: rootNode,
-                                    pathStrings: $pathStrings
-                                )
-                            )
-                        } else {
-                            Text(pathStrings[parameter.rawValue] ?? "unknown")
-                        }
-                    } label: {
-                        Text(parameter.rawValue)
-                    }
+                    ParameterMapperLink(
+                        parameter: parameter,
+                        device: devices.first!,
+                        pathString: $pathStrings[parameter.rawValue]
+                    )
                 }
             }
         }
@@ -488,16 +517,7 @@ struct DeviceBrowserForm: View {
         List {
             Section("Devices") {
                 ForEach(devices.indices, id: \.self) { i in
-                    let device = devices[i]
-                    if let rootNode = device.parameterTree {
-                        NavigationLink(
-                            device.state.name,
-                            destination: DeviceBrowser(rootNode: rootNode)
-                                .navigationTitle(device.state.name)
-                        )
-                    } else {
-                        Text("Parameters not populated.")
-                    }
+                    DeviceBrowserLink(device: devices[i])
                 }
             }
             Section("Map UI Elements") {
@@ -506,29 +526,17 @@ struct DeviceBrowserForm: View {
                     updatePathStrings()
                 }
                 ForEach(KHParameters.allCases) { parameter in
-                    let pathString = pathStrings[parameter.rawValue] ?? "?"
-                    LabeledContent {
-                        if let rootNode = devices.first!.parameterTree {
-                            NavigationLink(
-                                pathString,
-                                destination: ParameterMapper(
-                                    parameter: parameter,
-                                    rootNode: rootNode,
-                                    pathStrings: $pathStrings
-                                )
-                            )
-                        } else {
-                            Text(pathString)
-                        }
-                    } label: {
-                        Text(parameter.rawValue)
-                    }
+                    ParameterMapperLink(
+                        parameter: parameter,
+                        device: devices.first!,
+                        pathString: $pathStrings[parameter.rawValue]
+                    )
                 }
             }
             .onAppear(perform: updatePathStrings)
         }
     }
-    
+
     var body: some View {
         #if os(iOS)
             bodyiOS
@@ -541,12 +549,6 @@ struct DeviceBrowserForm: View {
 struct ParameterTab: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var pathStrings: [String: String] = [:]
-
-    func updatePathStrings() {
-        for parameter in KHParameters.allCases {
-            pathStrings[parameter.rawValue] = parameter.getPathString()
-        }
-    }
 
     var body: some View {
         let devices = khAccess.devices.sorted { $0.state.name < $1.state.name }
