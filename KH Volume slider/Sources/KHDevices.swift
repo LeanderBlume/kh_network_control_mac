@@ -60,16 +60,16 @@ enum KHDeviceStatus: Equatable {
         return stati.reduce(.ready) { partial, next in
             if next == partial { return partial }
             switch (partial, next) {
-            case (.busy(let msg1), .busy(let msg2)):
-                return .busy("\(msg1), \(msg2)")
-            case (.error(let msg1), .error(let msg2)):
-                return .error("\(msg1), \(msg2)")
             case (.ready, .busy(let msg)), (.busy(let msg), .ready):
                 return .busy(msg)
             case (.ready, .error(let msg)), (.error(let msg), .ready):
                 return .error(msg)
-            case (.error(let E), .busy), (.busy, .error(let E)):
-                return .busy(E)
+            case (.busy(let msg1), .busy(let msg2)):
+                return .busy("\(msg1), \(msg2)")
+            case (.error(let msg1), .error(let msg2)):
+                return .error("\(msg1), \(msg2)")
+            case (.error(let E), .busy(let B)), (.busy(let B), .error(let E)):
+                return .busy("\(B), \(E)")
             default:
                 return .error("Status aggregation fallback")
             }

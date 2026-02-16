@@ -11,30 +11,29 @@ struct StatusDisplayCompact: View {
     var status: KHDeviceStatus
 
     var body: some View {
-        let pv = ProgressView()
-            #if os(macOS)
-                .scaleEffect(0.5)
-            #endif
-        let circ = Image(systemName: "circle.fill")
         switch status {
         case .ready:
-            circ.foregroundColor(.green)
+            Image(systemName: "circle.fill").foregroundColor(.green)
         case .busy:
-            pv
+            ProgressView()
+                #if os(macOS)
+                    .scaleEffect(0.5)
+                #endif
         case .error:
             Image(systemName: "exclamationmark.circle").foregroundColor(.red)
         }
     }
 }
 
-// This could be a function of Status returning String?
 struct StatusDisplayText: View {
     var status: KHDeviceStatus
 
     var body: some View {
         switch status {
-        case .ready: Text("Ready")
-        case .busy(let s), .error(let s): Text(s)
+        case .ready:
+            Text("Ready")
+        case .busy(let s),.error(let s):
+            Text(s)
         }
     }
 }
