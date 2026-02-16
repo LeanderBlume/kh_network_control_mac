@@ -146,21 +146,18 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     }
 
     func setup() async {
-        status = .busy("Connecting")
+        status = .busy("Setting up")
         await connect()
-        status = .busy("Fetching")
         // We need to fetch product and version to identify the schema type.
         await _fetchParameters(KHParameters.setupParameters)
-        status = .busy("Loading parameters")
         await populateParameters()
         await disconnect()
         // We do NOT update the state now because that messes up the ID
     }
 
     func fetch() async {
-        status = .busy("Connecting")
-        await connect()
         status = .busy("Fetching")
+        await connect()
         await _fetchParameters(KHParameters.fetchParameters)
         await disconnect()
     }
