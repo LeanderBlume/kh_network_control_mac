@@ -7,15 +7,15 @@
 
 import SwiftUI
 
-enum UILeafNodeType {
+private enum UILeafNodeType {
     case number(Double)
     case bool(Bool)
     case string(String)
-    case arrayNumber([Double])
-    case arrayString([String])
-    case arrayBool([Bool])
+    case arrayNumber([Double], Int)
+    case arrayString([String], Int)
+    case arrayBool([Bool], Int)
     case stringPicker(String, [String])
-    case arrayStringPicker([String], [String])
+    case arrayStringPicker([String], Int, [String])
 
     init?(jsonData: JSONData, limits: OSCLimits?) {
         switch jsonData {
@@ -35,16 +35,16 @@ enum UILeafNodeType {
             switch a.first {
             case .bool:
                 guard let raw = jsonData.asArrayBool() else { return nil }
-                self = .arrayBool(raw)
+                self = .arrayBool(raw, raw.count)
             case .number:
                 guard let raw = jsonData.asArrayNumber() else { return nil }
-                self = .arrayNumber(raw)
+                self = .arrayNumber(raw, raw.count)
             case .string:
                 guard let raw = jsonData.asArrayString() else { return nil }
                 if let options = limits?.option {
-                    self = .arrayStringPicker(raw, options)
+                    self = .arrayStringPicker(raw, raw.count, options)
                 } else {
-                    self = .arrayString(raw)
+                    self = .arrayString(raw, raw.count)
                 }
             case .none, .null, .object, .array:
                 return nil
@@ -55,7 +55,7 @@ enum UILeafNodeType {
 
 // seems like it should be an enum. But maybe not, I don't know how bindings to enum values work.
 @MainActor
-struct PossibleValues {
+private struct PossibleValues {
     var string: String = ""
     var number: Double = 0
     var bool: Bool = false
@@ -74,16 +74,16 @@ struct PossibleValues {
                 number = v
             case .bool(let v):
                 bool = v
-            case .arrayBool(let v):
+            case .arrayBool(let v, _):
                 arrayBool = v
-            case .arrayNumber(let v):
+            case .arrayNumber(let v, _):
                 arrayNumber = v
-            case .arrayString(let v):
+            case .arrayString(let v, _):
                 arrayString = v
             case .stringPicker(let v, let options):
                 string = v
                 pickerOptions = options
-            case .arrayStringPicker(let v, let options):
+            case .arrayStringPicker(let v, _, let options):
                 arrayString = v
                 pickerOptions = options
             case .none:
@@ -119,7 +119,7 @@ struct PossibleValues {
     }
 }
 
-struct LimitsView: View {
+private struct LimitsView: View {
     var limits: OSCLimits
 
     var body: some View {
@@ -127,83 +127,139 @@ struct LimitsView: View {
             LabeledContent {
                 Text(desc)
             } label: {
-                Text("Description")
+                Text("Description:")
             }
         }
         if let type = limits.type {
             LabeledContent {
                 Text(type)
             } label: {
-                Text("Type")
+                Text("Type:")
             }
         }
         if let option = limits.option {
             LabeledContent {
                 Text(option.map({ "\"" + $0 + "\"" }).joined(separator: ", "))
             } label: {
-                Text("Options")
+                Text("Options:")
             }
         }
         if let units = limits.units {
             LabeledContent {
                 Text(units)
             } label: {
-                Text("Units")
+                Text("Units:")
             }
         }
         if let min = limits.min {
             LabeledContent {
                 Text(String(min))
             } label: {
-                Text("Min")
+                Text("Min:")
             }
         }
         if let max = limits.max {
             LabeledContent {
                 Text(String(max))
             } label: {
-                Text("Max")
+                Text("Max:")
             }
         }
         if let inc = limits.inc {
             LabeledContent {
                 Text(String(inc))
             } label: {
-                Text("Increment")
+                Text("Increment:")
             }
         }
         if let subscr = limits.subscr {
             LabeledContent {
                 Text(String(subscr))
             } label: {
-                Text("Subscribeable")
+                Text("Subscribeable:")
             }
         }
         if let const = limits.const {
             LabeledContent {
                 Text(String(const))
             } label: {
-                Text("Constant")
+                Text("Constant:")
             }
         }
         if let writeable = limits.writeable {
             LabeledContent {
                 Text(String(writeable))
             } label: {
-                Text("Writeable")
+                Text("Writeable:")
             }
         }
         if let count = limits.count {
             LabeledContent {
                 Text(String(count))
             } label: {
-                Text("Count")
+                Text("Count:")
             }
         }
     }
 }
 
-struct NodeValueEditor: View {
+private struct NodeValueEditor: View {
+    var type: UILeafNodeType
+    @Binding var values: PossibleValues
+    var precision: Int
+
+    var body: some View {
+        switch type {
+        /*
+        case .none:
+            Text("Non-leaf node or unknown type")
+         */
+        case .string:
+            TextField("String", text: $values.string)
+        case .number:
+            TextField(
+                "Number",
+                value: $values.number,
+                format: .number.precision(.fractionLength(precision))
+            )
+        case .bool:
+            Toggle("true/false", isOn: $values.bool)
+        case .arrayBool(_, let count):
+            ForEach(values.arrayBool.indices, id: \.self) { i in
+                Toggle("true/false (\(i + 1)/\(count))", isOn: $values.arrayBool[i])
+            }
+        case .arrayNumber(_, let count):
+            ForEach($values.arrayNumber.indices, id: \.self) { i in
+                TextField(
+                    "Number (\(i + 1)/\(count))",
+                    value: $values.arrayNumber[i],
+                    format: .number.precision(.fractionLength(precision))
+                )
+            }
+        case .arrayString(_, let count):
+            ForEach(values.arrayString.indices, id: \.self) { i in
+                TextField("String (\(i + 1)/\(count))", text: $values.arrayString[i])
+            }
+        case .stringPicker:
+            Picker("Option", selection: $values.string) {
+                ForEach(values.pickerOptions, id: \.self) { option in
+                    Text("\"" + option + "\"").tag(option)
+                }
+            }
+        case .arrayStringPicker(_, let count, _):
+            ForEach($values.arrayString.indices, id: \.self) { i in
+                Picker("Option (\(i + 1)/\(count))", selection: $values.arrayString[i])
+                {
+                    ForEach(values.pickerOptions, id: \.self) { option in
+                        Text("\"" + option + "\"").tag(option)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct NodeValueView: View {
     var node: SSCNode
     @Binding var values: PossibleValues
     @Environment(KHAccess.self) private var khAccess: KHAccess
@@ -220,62 +276,24 @@ struct NodeValueEditor: View {
     var body: some View {
         switch node.value {
         case .value(let T):
-            switch UILeafNodeType(jsonData: T, limits: node.limits) {
-            case .string:
-                TextField("Data", text: $values.string)
-            case .number:
+            if let type = UILeafNodeType(jsonData: T, limits: node.limits) {
                 let precision = (node.limits?.inc == 1) ? 0 : 1
-                TextField(
-                    "Data",
-                    value: $values.number,
-                    format: .number.precision(.fractionLength(precision))
-                )
-            case .bool:
-                Toggle("Data", isOn: $values.bool)
-            case .arrayBool:
-                ForEach(values.arrayBool.indices, id: \.self) { i in
-                    Toggle("Entry \(i + 1)", isOn: $values.arrayBool[i])
-                }
-            case .arrayNumber:
-                let precision = (node.limits?.inc == 1) ? 0 : 1
-                ForEach($values.arrayNumber.indices, id: \.self) { i in
-                    TextField(
-                        "Entry \(i + 1)",
-                        value: $values.arrayNumber[i],
-                        format: .number.precision(.fractionLength(precision))
-                    )
-                }
-            case .arrayString:
-                ForEach(values.arrayString.indices, id: \.self) { i in
-                    TextField("Entry \(i + 1)", text: $values.arrayString[i])
-                }
-            case .stringPicker:
-                Picker("Option", selection: $values.string) {
-                    ForEach(values.pickerOptions, id: \.self) { option in
-                        Text("\"" + option + "\"").tag(option)
-                    }
-                }
-            case .arrayStringPicker:
-                ForEach($values.arrayString.indices, id: \.self) { i in
-                    Picker("Entry \(i + 1)", selection: $values.arrayString[i]) {
-                        ForEach(values.pickerOptions, id: \.self) { option in
-                            Text("\"" + option + "\"").tag(option)
-                        }
-                    }
-                }
-            case .none:
+                NodeValueEditor(type: type, values: $values, precision: precision)
+            } else {
                 Text("Non-leaf node or unknown type")
             }
         default:
             Text("Can't edit non-leaf node")
         }
 
-        Button("Send to device") { Task { await sendValue() } }
-            .disabled(node.limits?.isWriteable == false)
+        Button("Send to device", systemImage: "square.and.arrow.up") {
+            Task { await sendValue() }
+        }
+        .disabled(node.limits?.isWriteable == false)
     }
 }
 
-struct NodeView: View {
+private struct NodeView: View {
     var node: SSCNode
     @State var mappedParameter: KHParameters?
     @State var values: PossibleValues
@@ -287,61 +305,69 @@ struct NodeView: View {
     }
 
     var body: some View {
-        Form {
-            Section("Edit value") {
-                NodeValueEditor(node: node, values: $values)
-            }
-            Section("Parameter info (/osc/limits)") {
-                if let limits = node.limits {
-                    LimitsView(limits: limits)
-                } else {
-                    LabeledContent {
-                        Text("Container")
-                    } label: {
-                        Text("Type")
-                    }
+        ScrollView {
+            Form {
+                Section("Edit value(s)") {
+                    NodeValueView(node: node, values: $values)
                 }
-            }
-            // Should this be read-only?
-            Section("UI Mapping") {
-                Picker("UI Element", selection: $mappedParameter) {
-                    Text("None").tag(nil as KHParameters?)
-                    ForEach(KHParameters.allCases) { parameter in
-                        Text(parameter.rawValue).tag(parameter)
-                    }
-                }
-                .onAppear {
-                    // Check if this path is already mapped to a parameter.
-                    let path = node.pathToNode()
-                    KHParameters.allCases.forEach { parameter in
-                        if parameter.getDevicePath() == path {
-                            mappedParameter = parameter
-                            return
+
+                Divider()
+
+                Section("Parameter info (/osc/limits)") {
+                    if let limits = node.limits {
+                        LimitsView(limits: limits)
+                    } else {
+                        LabeledContent {
+                            Text("Container")
+                        } label: {
+                            Text("Type:")
                         }
                     }
                 }
-                .onChange(of: mappedParameter) {
-                    // TODO check type and stuff?
-                    if let mappedParameter {
-                        mappedParameter.setDevicePath(to: node.pathToNode())
+
+                Divider()
+
+                // Should this be read-only?
+                Section("UI Mapping") {
+                    Picker("UI Element", selection: $mappedParameter) {
+                        Text("None").tag(nil as KHParameters?)
+                        ForEach(KHParameters.allCases) { parameter in
+                            Text(parameter.rawValue).tag(parameter)
+                        }
                     }
+                    .onAppear {
+                        // Check if this path is already mapped to a parameter.
+                        let path = node.pathToNode()
+                        KHParameters.allCases.forEach { parameter in
+                            if parameter.getDevicePath() == path {
+                                mappedParameter = parameter
+                                return
+                            }
+                        }
+                    }
+                    .onChange(of: mappedParameter) {
+                        // TODO check type and stuff?
+                        if let mappedParameter {
+                            mappedParameter.setDevicePath(to: node.pathToNode())
+                        }
+                    }
+                    Button("Reset All") { KHParameters.resetAllDevicePaths() }
                 }
-                Button("Reset All") { KHParameters.resetAllDevicePaths() }
             }
-        }
-        .refreshable {
-            guard let device = khAccess.getDeviceByID(node.id.deviceID) else {
-                print("Device with id \(node.id.deviceID) not found")
-                return
+            .refreshable {
+                guard let device = khAccess.getDeviceByID(node.id.deviceID) else {
+                    print("Device with id \(node.id.deviceID) not found")
+                    return
+                }
+                await device.fetchNode(path: node.pathToNode())
+                values = .init(fromNode: node)
             }
-            await device.fetchNode(path: node.pathToNode())
-            values = .init(fromNode: node)
+            .navigationTitle(node.getPathString())
         }
-        .navigationTitle(node.getPathString())
     }
 }
 
-struct DeviceBrowser: View {
+private struct DeviceBrowser: View {
     var rootNode: SSCNode
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
@@ -376,7 +402,7 @@ struct DeviceBrowser: View {
     }
 }
 
-struct ParameterMapper: View {
+private struct ParameterMapper: View {
     var parameter: KHParameters
     var rootNode: SSCNode
     @Binding var pathString: String?
@@ -428,7 +454,7 @@ struct ParameterMapper: View {
     }
 }
 
-struct DeviceBrowserLink: View {
+private struct DeviceBrowserLink: View {
     var device: KHDevice
 
     var body: some View {
@@ -453,7 +479,7 @@ struct DeviceBrowserLink: View {
     }
 }
 
-struct ParameterMapperLink: View {
+private struct ParameterMapperLink: View {
     var parameter: KHParameters
     var device: KHDevice
     @Binding var pathString: String?
@@ -478,7 +504,7 @@ struct ParameterMapperLink: View {
     }
 }
 
-struct DeviceBrowserForm: View {
+private struct DeviceBrowserForm: View {
     var devices: [KHDevice]
     @State private var pathStrings: [String: String] = [:]
 

@@ -91,6 +91,8 @@ struct BackupViewMacOS: View {
                     newName = ""
                 }
             }
+            
+            Divider()
 
             if backupper.list().isEmpty {
                 Text("No stored backups").foregroundColor(.secondary)
