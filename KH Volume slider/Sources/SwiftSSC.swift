@@ -10,6 +10,7 @@ import Network
 actor SSCConnection {
     private var connection: NWConnection
     private let dispatchQueue: DispatchQueue
+    private var timeout: Task<Void, Never>?
 
     var service: (String, String, String)? {
         switch self.connection.endpoint {
@@ -74,26 +75,50 @@ actor SSCConnection {
         return browser.browseResults.map { SSCConnection(endpoint: $0.endpoint) }
     }
 
-    func open() async throws {
+    private func open() async throws {
         switch connection.state {
-        case .ready: return
+        case .ready:
+            // Connection is already established, just restart the timeout.
+            timeoutStart()
+            return
         case .preparing: break
         case .waiting:
             connection.restart()
         case .cancelled, .failed:
             connection = NWConnection(to: connection.endpoint, using: .tcp)
             fallthrough
-        default:
+        case .setup:
             connection.start(queue: dispatchQueue)
+        @unknown default:
+            throw ConnectionError.impossibleError
         }
+
         let deadline = Date.now.addingTimeInterval(5)
         while Date.now < deadline {
-            if connection.state == .ready { return }
+            if connection.state == .ready {
+                timeoutStart()
+                return
+            }
         }
         throw ConnectionError.connectingTimedOut
     }
 
-    func close() { connection.cancel() }
+    private func close() {
+        print("closing connection to \(service?.0 ?? "unknown device")")
+        connection.cancel()
+    }
+
+    private func timeoutStart(seconds: Double = 5) {
+        timeout?.cancel()
+        timeout = Task {
+            do {
+                try await Task.sleep(for: .seconds(seconds))
+            } catch {
+                return
+            }
+            close()
+        }
+    }
 
     static func pathToJSONString<T>(path: [String], value: T) throws -> String
     where T: Encodable {
@@ -105,6 +130,7 @@ actor SSCConnection {
     }
 
     private func sendMessage(_ TXString: String) async throws {
+        try await open()
         return try await withCheckedThrowingContinuation { continuation in
             let sendCompHandler = NWConnection.SendCompletion.contentProcessed {
                 error in
@@ -120,6 +146,7 @@ actor SSCConnection {
     }
 
     private func receiveMessage() async throws -> String {
+        try await open()
         return try await withCheckedThrowingContinuation { continuation in
             connection.receive(minimumIncompleteLength: 1, maximumLength: 512) {
                 (data, context, isComplete, error) in

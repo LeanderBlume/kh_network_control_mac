@@ -94,21 +94,6 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
 
     required init(connection: SSCConnection) { self.connection = connection }
 
-    private func connect() async {
-        // Too quick to set status, it's too flickery
-        // status = .busy("Connecting...")
-        do {
-            try await connection.open()
-        } catch SSCConnection.ConnectionError.connectingTimedOut {
-            status = .error("Connecting timed out")
-        } catch {
-            status = .error(String(describing: error))
-        }
-        // status = .ready
-    }
-
-    private func disconnect() async { await connection.close() }
-
     private func _fetchParameters(_ parameters: [KHParameters]) async {
         for p in parameters {
             do {
@@ -147,29 +132,19 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
 
     func setup() async {
         status = .busy("Setting up")
-        await connect()
         // We need to fetch product and version to identify the schema type.
         await _fetchParameters(KHParameters.setupParameters)
         await populateParameters()
-        await disconnect()
         // We do NOT update the state now because that messes up the ID
     }
 
     func fetch() async {
         status = .busy("Fetching")
-        await connect()
         await _fetchParameters(KHParameters.fetchParameters)
-        await disconnect()
     }
 
     func send(_ newState: KHState) async {
-        if newState == state {
-            // don't even connect
-            return
-        }
-        await connect()
         await _sendParameters(KHParameters.sendParameters, newState: newState)
-        await disconnect()
     }
 
     func populateParameters() async {
@@ -185,14 +160,12 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         if let cachedSchema {
             rootNode.populate(from: cachedSchema)
         } else {
-            await connect()
             do {
                 try await rootNode.populate(connection: connection, recursive: true)
             } catch {
                 status = .error("Failed to load parameter tree: \(error)")
                 return
             }
-            await disconnect()
             do {
                 try schemaCache.saveSchema(rootNode, for: self)
             } catch {
@@ -234,9 +207,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         }
 
         status = .busy("Fetching parameters...")
-        await connect()
         await _fetchNodes(rootNode.filter({ $0.isLeaf() }))
-        await disconnect()
         /// I'm not sure if this actually makes sense. We only store the schema per device type, not per device.
         /*
         let sc = SchemaCache()
@@ -255,9 +226,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         }
 
         status = .busy("Sending parameters...")
-        await connect()
         await _sendNodes(rootNode.filter({ $0.isLeaf() }))
-        await disconnect()
     }
 
     private func _getNodeAtPath(_ path: [String]) -> SSCNode? {
@@ -274,16 +243,12 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
 
     func sendNode(path: [String]) async {
         guard let node = _getNodeAtPath(path) else { return }
-        await connect()
         await _sendNodes([node])
-        await disconnect()
     }
 
     func fetchNode(path: [String]) async {
         guard let node = _getNodeAtPath(path) else { return }
-        await connect()
         await _fetchNodes([node])
-        await disconnect()
     }
 
     func getNodeByID(_ id: SSCNode.ID) -> SSCNode? { parameterTree?.getNodeByID(id) }
