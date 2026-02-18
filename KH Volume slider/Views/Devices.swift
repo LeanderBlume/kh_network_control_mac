@@ -572,7 +572,7 @@ private struct DeviceBrowserForm: View {
     }
 }
 
-struct ParameterTab: View {
+struct DevicesView: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var pathStrings: [String: String] = [:]
 
@@ -590,7 +590,7 @@ struct ParameterTab: View {
 
 #Preview {
     let khAccess = KHAccess()
-    ParameterTab()
+    DevicesView()
         .environment(khAccess)
         .task { await khAccess.setup() }
         .frame(minWidth: 400, minHeight: 800)

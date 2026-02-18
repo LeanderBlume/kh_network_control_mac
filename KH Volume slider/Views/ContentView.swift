@@ -23,7 +23,7 @@ struct ContentView: View {
             }
             Tab("Devices", systemImage: "list.bullet.indent") {
                 NavigationStack {
-                    ParameterTab()
+                    DevicesView()
                         .toolbar { BrowserToolbar(showError: $showError) }
                     // .navigationTitle(Text("Device browser"))
                 }
@@ -47,7 +47,7 @@ struct ContentView: View {
                 }
             }
             Tab("Devices", systemImage: "list.bullet.indent") {
-                ParameterTab()
+                DevicesView()
                     .toolbar { BrowserToolbar(showError: $showError) }
             }
             Tab("Backups", systemImage: "externaldrive") {
