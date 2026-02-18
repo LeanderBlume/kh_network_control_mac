@@ -8,23 +8,23 @@
 import Foundation
 import SwiftUI
 
-struct MainTabiOS: View {
+struct MainTab: View {
+    @State var khState = KHState()
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @FocusState private var textFieldFocused: Bool
     @State private var showError: Bool = false
 
-    var body: some View {
-        @Bindable var khAccess = khAccess
-
+    @ViewBuilder
+    var bodyiOS: some View {
         Form {
             Section("Volume") {
                 LabeledContent {
                     TextField(
                         "",
-                        value: $khAccess.state.volume,
+                        value: $khState.volume,
                         format: .number.precision(.fractionLength(1))
                     )
-                    .onSubmit { Task { await khAccess.send() } }
+                    .onSubmit { Task { await khAccess.send(khState) } }
                     #if os(iOS)
                         .keyboardType(.numberPad)
                     #endif
@@ -32,30 +32,30 @@ struct MainTabiOS: View {
                     Text("dB:").foregroundColor(.secondary)
                 }
 
-                Slider(value: $khAccess.state.volume, in: 0...120) {
+                Slider(value: $khState.volume, in: 0...120) {
                     Text("")
                 } onEditingChanged: { editing in
-                    if !editing { Task { await khAccess.send() } }
+                    if !editing { Task { await khAccess.send(khState) } }
                 }
 
                 Stepper(
                     "+/- 3 db",
-                    value: $khAccess.state.volume,
+                    value: $khState.volume,
                     in: 0...120,
                     step: 3
                 ) {
                     editing in
                     if editing { return }
-                    Task { await khAccess.send() }
+                    Task { await khAccess.send(khState) }
                 }
 
                 Toggle(
                     "Mute",
                     systemImage: "speaker.slash.fill",
-                    isOn: $khAccess.state.muted
+                    isOn: $khState.muted
                 )
                 // .toggleStyle(.button)
-                .onChange(of: khAccess.state.muted) { Task { await khAccess.send() } }
+                .onChange(of: khState.muted) { Task { await khAccess.send(khState) } }
             }
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
@@ -63,18 +63,18 @@ struct MainTabiOS: View {
             Section("Logo brightness") {
                 TextField(
                     "",
-                    value: $khAccess.state.logoBrightness,
+                    value: $khState.logoBrightness,
                     format: .percent.scale(1).precision(.fractionLength(0))
                 )
-                .onSubmit { Task { await khAccess.send() } }
+                .onSubmit { Task { await khAccess.send(khState) } }
                 #if os(iOS)
                     .keyboardType(.numberPad)
                 #endif
 
-                Slider(value: $khAccess.state.logoBrightness, in: 0...125) {
+                Slider(value: $khState.logoBrightness, in: 0...125) {
                     Text("")
                 } onEditingChanged: { editing in
-                    if !editing { Task { await khAccess.send() } }
+                    if !editing { Task { await khAccess.send(khState) } }
                 }
             }
             .focused($textFieldFocused)
@@ -95,15 +95,9 @@ struct MainTabiOS: View {
             }
         }
     }
-}
 
-struct MainTabmacOS: View {
-    @Environment(KHAccess.self) private var khAccess: KHAccess
-    @State private var showError: Bool = false
-
-    var body: some View {
-        @Bindable var khAccess = khAccess
-
+    @ViewBuilder
+    var bodymacOS: some View {
         VStack(spacing: 20) {
             // Text("Controls").font(.title)
             //     .frame(maxWidth: .infinity, alignment: .leading)
@@ -117,12 +111,12 @@ struct MainTabmacOS: View {
                     Toggle(
                         "Toggle",
                         systemImage: "speaker.slash.fill",
-                        isOn: $khAccess.state.muted
+                        isOn: $khState.muted
                     )
                     .toggleStyle(.button)
                     // .toggleStyle(.switch)
-                    .onChange(of: khAccess.state.muted) {
-                        Task { await khAccess.send() }
+                    .onChange(of: khState.muted) {
+                        Task { await khAccess.send(khState) }
                     }
                     .disabled(khAccess.status != .ready)
                     .labelsHidden()
@@ -131,14 +125,14 @@ struct MainTabmacOS: View {
                 GridRow {
                     LabeledSliderTextField(
                         name: "Volume",
-                        value: $khAccess.state.volume,
+                        value: $khState.volume,
                         range: 0...120
                     )
                 }
                 GridRow {
                     LabeledSliderTextField(
                         name: "Logo",
-                        value: $khAccess.state.logoBrightness,
+                        value: $khState.logoBrightness,
                         range: 0...125
                     )
                 }
@@ -151,5 +145,13 @@ struct MainTabmacOS: View {
         }
         .disabled(khAccess.status != .ready)
         .toolbar { MainToolbar(showError: $showError) }
+    }
+
+    var body: some View {
+        #if os(iOS)
+            bodyiOS
+        #elseif os(macOS)
+            bodymacOS
+        #endif
     }
 }

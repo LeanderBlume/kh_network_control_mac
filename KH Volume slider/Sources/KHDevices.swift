@@ -11,10 +11,10 @@ typealias KHAccess = KHDeviceGroup
 
 @MainActor
 protocol KHDevicesProtocol {
-    var state: KHState { get }
     var status: KHDeviceStatus { get }
-    func setup() async
-    func fetch() async
+    func setup() async -> KHState
+    func fetch() async -> KHState
+    func send(_: KHState) async
     func populateParameters() async
     func sendParameterTree() async
     func fetchParameterTree() async
@@ -22,18 +22,12 @@ protocol KHDevicesProtocol {
 }
 
 protocol KHSingleDeviceProtocol: KHDevicesProtocol, Identifiable {
-    func send(_: KHState) async
-
-    // Truly specific
     init(connection: SSCConnection)
     func sendNode(path: [String]) async
     func fetchNode(path: [String]) async
 }
 
 protocol KHDeviceGroupProtocol: KHDevicesProtocol {
-    func send() async
-
-    // Truly specific
     var devices: [KHDevice] { get }
     func getDeviceByID(_: KHDevice.ID) -> KHDevice?
     func scan(seconds: UInt32) async
@@ -79,7 +73,7 @@ enum KHDeviceStatus: Equatable {
 
 @Observable
 final class KHDevice: @MainActor KHSingleDeviceProtocol {
-    var state: KHState = KHState()
+    private var state: KHState = KHState()
     var status: KHDeviceStatus = .error("Not initialized")
     var parameterTree: SSCNode? = nil
 
@@ -130,17 +124,19 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         status = .ready
     }
 
-    func setup() async {
+    func setup() async -> KHState {
         status = .busy("Setting up")
         // We need to fetch product and version to identify the schema type.
         await _fetchParameters(KHParameters.setupParameters)
         await populateParameters()
         // We do NOT update the state now because that messes up the ID
+        return state
     }
 
-    func fetch() async {
+    func fetch() async -> KHState {
         status = .busy("Fetching")
         await _fetchParameters(KHParameters.fetchParameters)
+        return state
     }
 
     func send(_ newState: KHState) async {
@@ -256,7 +252,6 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
 
 @Observable
 final class KHDeviceGroup: KHDeviceGroupProtocol {
-    var state = KHState()
     private var statusOverride: KHDeviceStatus? = nil
     var status: KHDeviceStatus {
         statusOverride ?? KHDeviceStatus.aggregate(devices.map(\.status))
@@ -296,10 +291,9 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         return owner.getNodeByID(id)
     }
 
-    func setup() async {
+    func setup() async -> KHState{
         if !devices.isEmpty {
-            await setupDevices()
-            return
+            return await setupDevices()
         }
         let connectionCache = ConnectionCache()
         do {
@@ -313,19 +307,17 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
             print("error loading connection cache: \(error)")
             await scan()
         }
-        await setupDevices()
+        return await setupDevices()
     }
 
-    private func setupDevices() async {
+    private func setupDevices() async -> KHState {
         // We don't want to do this in parallel (naively) because of file system cache
         for d in devices {
-            await d.setup()
+            _ = await d.setup()
         }
         // not sure
         // await fetchParameters()
-        await fetch()
-        guard !devices.isEmpty else { return }
-        state = devices.first!.state
+        return await fetch()
     }
 
     func populateParameters() async {
@@ -355,22 +347,24 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         }
     }
 
-    func fetch() async {
-        guard !devices.isEmpty else { return }
-
+    func fetch() async -> KHState {
         await withTaskGroup { group in
             for d in devices {
                 group.addTask { await d.fetch() }
             }
-            await group.waitForAll()
-            state = devices.first!.state
+            var results: [KHState] = []
+            for await state in group {
+                results.append(state)
+            }
+            // await group.waitForAll()
+            return results.first ?? KHState()
         }
     }
 
-    func send() async {
+    func send(_ state: KHState) async {
         await withTaskGroup { group in
             for d in devices {
-                group.addTask { await d.send(self.state) }
+                group.addTask { await d.send(state) }
             }
             await group.waitForAll()
         }

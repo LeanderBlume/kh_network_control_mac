@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 
 struct ContentView: View {
+    @State var khState: KHState = .init()
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
 
@@ -16,7 +17,7 @@ struct ContentView: View {
         TabView {
             Tab("Controls", systemImage: "speaker.wave.3") {
                 NavigationStack {
-                    MainTabiOS()
+                    MainTab()
                     // toolbar is handled in Tab view
                     // .navigationTitle(Text("Controls"))
                 }
@@ -43,7 +44,7 @@ struct ContentView: View {
         TabView {
             Tab("Controls", systemImage: "speaker.wave.3") {
                 ScrollView {
-                    MainTabmacOS()
+                    MainTab()
                 }
             }
             Tab("Devices", systemImage: "list.bullet.indent") {
