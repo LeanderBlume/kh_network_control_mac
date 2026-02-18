@@ -32,17 +32,17 @@ struct MainTabiOS: View {
                     Text("dB:").foregroundColor(.secondary)
                 }
 
-                Slider(value: $khAccess.state.volume, in: 0...120) {
+                Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
                     Text("")
                 } onEditingChanged: { editing in
                     if !editing { Task { await khAccess.send() } }
                 }
 
                 Stepper(
-                    "+/- 3 db",
+                    "+/- 1 db",
                     value: $khAccess.state.volume,
                     in: 0...120,
-                    step: 3
+                    step: 1
                 ) {
                     editing in
                     if editing { return }
@@ -71,7 +71,7 @@ struct MainTabiOS: View {
                     .keyboardType(.numberPad)
                 #endif
 
-                Slider(value: $khAccess.state.logoBrightness, in: 0...125) {
+                Slider(value: $khAccess.state.logoBrightness, in: 0...125, step: 5) {
                     Text("")
                 } onEditingChanged: { editing in
                     if !editing { Task { await khAccess.send() } }

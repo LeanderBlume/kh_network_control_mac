@@ -304,66 +304,82 @@ private struct NodeView: View {
         values = .init(fromNode: node)
     }
 
-    var body: some View {
-        ScrollView {
-            Form {
-                Section("Edit value(s)") {
-                    NodeValueView(node: node, values: $values)
-                }
+    var bodyiOS: some View {
+        Form {
+            Section("Edit value(s)") {
+                NodeValueView(node: node, values: $values)
+            }
 
-                Divider()
+            #if os(macOS)
+            Divider()
+            #endif
 
-                Section("Parameter info (/osc/limits)") {
-                    if let limits = node.limits {
-                        LimitsView(limits: limits)
-                    } else {
-                        LabeledContent {
-                            Text("Container")
-                        } label: {
-                            Text("Type:")
-                        }
+            Section("Parameter info (/osc/limits)") {
+                if let limits = node.limits {
+                    LimitsView(limits: limits)
+                } else {
+                    LabeledContent {
+                        Text("Container")
+                    } label: {
+                        Text("Type:")
                     }
-                }
-
-                Divider()
-
-                // Should this be read-only?
-                Section("UI Mapping") {
-                    Picker("UI Element", selection: $mappedParameter) {
-                        Text("None").tag(nil as KHParameters?)
-                        ForEach(KHParameters.allCases) { parameter in
-                            Text(parameter.rawValue).tag(parameter)
-                        }
-                    }
-                    .onAppear {
-                        // Check if this path is already mapped to a parameter.
-                        let path = node.pathToNode()
-                        KHParameters.allCases.forEach { parameter in
-                            if parameter.getDevicePath() == path {
-                                mappedParameter = parameter
-                                return
-                            }
-                        }
-                    }
-                    .onChange(of: mappedParameter) {
-                        // TODO check type and stuff?
-                        if let mappedParameter {
-                            mappedParameter.setDevicePath(to: node.pathToNode())
-                        }
-                    }
-                    Button("Reset All") { KHParameters.resetAllDevicePaths() }
                 }
             }
-            .refreshable {
-                guard let device = khAccess.getDeviceByID(node.id.deviceID) else {
-                    print("Device with id \(node.id.deviceID) not found")
-                    return
+
+            #if os(macOS)
+            Divider()
+            #endif
+
+            // Should this be read-only?
+            Section("UI Mapping") {
+                Picker("UI Element", selection: $mappedParameter) {
+                    Text("None").tag(nil as KHParameters?)
+                    ForEach(KHParameters.allCases) { parameter in
+                        Text(parameter.rawValue).tag(parameter)
+                    }
                 }
-                await device.fetchNode(path: node.pathToNode())
-                values = .init(fromNode: node)
+                .onAppear {
+                    // Check if this path is already mapped to a parameter.
+                    let path = node.pathToNode()
+                    KHParameters.allCases.forEach { parameter in
+                        if parameter.getDevicePath() == path {
+                            mappedParameter = parameter
+                            return
+                        }
+                    }
+                }
+                .onChange(of: mappedParameter) {
+                    // TODO check type and stuff?
+                    if let mappedParameter {
+                        mappedParameter.setDevicePath(to: node.pathToNode())
+                    }
+                }
+                Button("Reset All") { KHParameters.resetAllDevicePaths() }
             }
-            .navigationTitle(node.getPathString())
         }
+        .refreshable {
+            guard let device = khAccess.getDeviceByID(node.id.deviceID) else {
+                print("Device with id \(node.id.deviceID) not found")
+                return
+            }
+            await device.fetchNode(path: node.pathToNode())
+            values = .init(fromNode: node)
+        }
+        .navigationTitle(node.getPathString())
+    }
+
+    var bodymacOS: some View {
+        ScrollView {
+            bodyiOS
+        }
+    }
+
+    var body: some View {
+        #if os(iOS)
+            bodyiOS
+        #elseif os(macOS)
+            bodymacOS
+        #endif
     }
 }
 
