@@ -63,6 +63,8 @@ actor SSCConnection {
         connection = NWConnection(to: endpoint, using: .tcp)
         dispatchQueue = DispatchQueue(label: "KH Speaker connection")
     }
+    
+    deinit { connection.cancel() }
 
     static func scan(seconds: UInt32 = 1) async -> [SSCConnection] {
         let q = DispatchQueue(label: "KH Discovery")
@@ -96,6 +98,7 @@ actor SSCConnection {
         let deadline = Date.now.addingTimeInterval(5)
         while Date.now < deadline {
             if connection.state == .ready {
+                // print("Connected to \(service?.0 ?? "unknown device")")
                 timeoutStart()
                 return
             }
@@ -104,7 +107,7 @@ actor SSCConnection {
     }
 
     private func close() {
-        print("closing connection to \(service?.0 ?? "unknown device")")
+        // print("Closing connection to \(service?.0 ?? "unknown device")")
         connection.cancel()
     }
 
