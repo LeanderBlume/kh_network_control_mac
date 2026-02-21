@@ -22,6 +22,24 @@ enum EqType: String, CaseIterable, Identifiable {
 
     var id: String { self.rawValue }
 
+    private func highpassTransferWithResonance(
+        f: Double,
+        boost: Double,
+        q: Double,
+        f0: Double
+    ) -> Double {
+        let A = -1.0  // Gain?
+        let numer = -A * f * f
+        let denom = -f * f + f0 / q * f + f0 * f0
+        return numer / denom
+    }
+
+    private func highpass01(f: Double, boost: Double, q: Double, f0: Double) -> Double {
+        // let G = 1 / (2 * 3.1415926 * f0 )
+        // return f * G / sqrt(1 + f * f * G * G)
+        return highpassTransferWithResonance(f: f, boost: boost, q: q, f0: f0)
+    }
+
     func magnitudeResponse() -> ((Double, Double, Double, Double) -> Double) {
         switch self {
         case .parametric:
@@ -30,6 +48,10 @@ enum EqType: String, CaseIterable, Identifiable {
             { f, boost, q, f0 in boost * (1 - (1 / (1 + exp(0.01 * -q * (f - f0))))) }
         case .hishelf:
             { f, boost, q, f0 in boost / (1 + exp(0.01 * -q * (f - f0))) }
+        case .lowpass:
+            { f, boost, q, f0 in log(1 - highpass01(f: f, boost: boost, q: q, f0: f0)) }
+        case .highpass:
+            { f, boost, q, f0 in highpass01(f: f, boost: boost, q: q, f0: f0) }
         default:
             { f, boost, q, f0 in 0.0 }
         }
