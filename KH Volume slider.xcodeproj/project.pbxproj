@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		C54AAE192D959C2200A11B2C /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C54AAE182D959C2200A11B2C /* Network.framework */; };
+		C54DA4832F4A720C00FA0C87 /* ComplexModule in Frameworks */ = {isa = PBXBuildFile; productRef = C54DA4822F4A720C00FA0C87 /* ComplexModule */; };
 		C5AEF0602ED8A72A00A73A2D /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = C5AEF05F2ED8A72A00A73A2D /* AppIcon.icon */; };
 /* End PBXBuildFile section */
 
@@ -74,6 +75,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C54AAE192D959C2200A11B2C /* Network.framework in Frameworks */,
+				C54DA4832F4A720C00FA0C87 /* ComplexModule in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -145,6 +147,7 @@
 			);
 			name = "KH Volume slider";
 			packageProductDependencies = (
+				C54DA4822F4A720C00FA0C87 /* ComplexModule */,
 			);
 			productName = "KH Volume slider";
 			productReference = C50DCA5F2D17309900780112 /* KH Volume slider.app */;
@@ -231,6 +234,9 @@
 			);
 			mainGroup = C50DCA562D17309900780112;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C54DA4812F4A720C00FA0C87 /* XCRemoteSwiftPackageReference "swift-numerics" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C50DCA602D17309900780112 /* Products */;
 			projectDirPath = "";
@@ -658,6 +664,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C54DA4812F4A720C00FA0C87 /* XCRemoteSwiftPackageReference "swift-numerics" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-numerics.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C54DA4822F4A720C00FA0C87 /* ComplexModule */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C54DA4812F4A720C00FA0C87 /* XCRemoteSwiftPackageReference "swift-numerics" */;
+			productName = ComplexModule;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C50DCA572D17309900780112 /* Project object */;
 }

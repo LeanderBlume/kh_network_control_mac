@@ -5,54 +5,124 @@
 //  Created by Leander Blume on 14.01.25.
 //
 
+import ComplexModule
 import SwiftUI
 
 enum EqType: String, CaseIterable, Identifiable {
     case parametric = "PARAMETRIC"
-    case loshelf = "LOSHELF"
     case hishelf = "HISHELF"
-    case lowpass = "LOWPASS"
+    case loshelf = "LOSHELF"
     case highpass = "HIGHPASS"
+    case lowpass = "LOWPASS"
+    case hi6db = "HI6DB"
+    case lo6db = "LO6DB"
     case bandpass = "BANDPASS"
     case notch = "NOTCH"
     case allpass = "ALLPASS"
-    case hi6db = "HI6DB"
-    case lo6db = "LO6DB"
     case inversion = "INVERSION"
 
     var id: String { self.rawValue }
 
-    private func highpassTransferWithResonance(
-        f: Double,
-        boost: Double,
-        q: Double,
-        f0: Double
-    ) -> Double {
-        let A = -1.0  // Gain?
-        let numer = -A * f * f
-        let denom = -f * f + f0 / q * f + f0 * f0
-        return numer / denom
+    private typealias TransferFunc = ((Complex<Double>) -> Complex<Double>)
+
+    private static func toDecibel(_ x: Double) -> Double { 20 * log10(x) }
+    private static func fromDecibel(_ x: Double) -> Double { pow(10, x / 20) }
+
+    private static func highshelfTransfer(f0: Double, boost: Double, q: Double)
+        -> TransferFunc
+    {
+        let f0_ = Complex<Double>(f0)
+        let boost_ = Complex<Double>(fromDecibel(boost))
+        let q_ = Complex<Double>(q)
+        return { s in (f0_ + boost_ * s) / (f0_ + s)
+            /*
+            boost_
+            * (boost_ * s * s + sqrt(boost_) / q_ * s + Complex<Double>(1))
+            / (s * s + sqrt(boost_) / q_ * s + boost_)
+             */
+        }
+    }
+    
+    private static func lowshelfTransfer(f0: Double, boost: Double, q: Double)
+        -> TransferFunc
+    {
+        let f0_ = Complex<Double>(f0)
+        let boost_ = Complex<Double>(fromDecibel(boost))
+        let q_ = Complex<Double>(q)
+        return { s in (s + f0_ * boost_) / (f0_ + s)
+            /*
+            boost_
+            * (boost_ * s * s + sqrt(boost_) / q_ * s + Complex<Double>(1))
+            / (s * s + sqrt(boost_) / q_ * s + boost_)
+             */
+        }
     }
 
-    private func highpass01(f: Double, boost: Double, q: Double, f0: Double) -> Double {
-        // let G = 1 / (2 * 3.1415926 * f0 )
-        // return f * G / sqrt(1 + f * f * G * G)
-        return highpassTransferWithResonance(f: f, boost: boost, q: q, f0: f0)
+    private static func highpassTransfer(f0: Double, q: Double) -> TransferFunc {
+        let f0_ = Complex<Double>(f0)
+        let q_ = Complex<Double>(q)
+        return { s in (s * s) / (s * s + f0_ / q_ * s + f0_ * f0_) }
     }
+
+    private static func lowpassTransfer(f0: Double, q: Double) -> TransferFunc {
+        let f0_ = Complex<Double>(f0)
+        let q_ = Complex<Double>(q)
+        return { s in (f0_ * f0_) / (s * s + f0_ / q_ * s + f0_ * f0_) }
+    }
+
+    private static func hi6dbTransfer(f0: Double) -> TransferFunc {
+        let f0_ = Complex<Double>(f0)
+        return { s in (s / f0_) / (Complex<Double>(1) + s / f0_) }
+    }
+
+    private static func lo6dbTransfer(f0: Double) -> TransferFunc {
+        let f0_ = Complex<Double>(f0)
+        return { s in 1 / (Complex<Double>(1) + s / f0_) }
+    }
+
+    private static func magnitudeResponse_(_ H: @escaping TransferFunc) -> (
+        (Double) -> Double
+    ) { { f in toDecibel(H(Complex<Double>(imaginary: f)).length) } }
 
     func magnitudeResponse() -> ((Double, Double, Double, Double) -> Double) {
         switch self {
         case .parametric:
             { f, boost, q, f0 in boost / (1 + pow(q * (f / f0 - f0 / f), 2)) }
-        case .loshelf:
-            { f, boost, q, f0 in boost * (1 - (1 / (1 + exp(0.01 * -q * (f - f0))))) }
         case .hishelf:
-            { f, boost, q, f0 in boost / (1 + exp(0.01 * -q * (f - f0))) }
-        case .lowpass:
-            { f, boost, q, f0 in log(1 - highpass01(f: f, boost: boost, q: q, f0: f0)) }
+            { f, boost, q, f0 in
+                Self.magnitudeResponse_(
+                    Self.highshelfTransfer(f0: f0, boost: boost, q: q)
+                )(f)
+            }
+        case .loshelf:
+            { f, boost, q, f0 in
+                Self.magnitudeResponse_(
+                    Self.lowshelfTransfer(f0: f0, boost: boost, q: q)
+                )(f)
+            }
         case .highpass:
-            { f, boost, q, f0 in highpass01(f: f, boost: boost, q: q, f0: f0) }
-        default:
+            { f, boost, q, f0 in
+                Self.magnitudeResponse_(Self.highpassTransfer(f0: f0, q: q))(f)
+            }
+        case .lowpass:
+            { f, boost, q, f0 in
+                Self.magnitudeResponse_(Self.lowpassTransfer(f0: f0, q: q))(f)
+            }
+        case .hi6db:
+            { f, boost, q, f0 in
+                Self.magnitudeResponse_(Self.hi6dbTransfer(f0: f0))(f)
+            }
+        case .lo6db:
+            { f, boost, q, f0 in
+                Self.magnitudeResponse_(Self.lo6dbTransfer(f0: f0))(f)
+            }
+        case .bandpass:
+            { f, boost, q, f0 in 0.0 }
+        case .notch:
+            { f, boost, q, f0 in 0.0 }
+        case .allpass:
+            { f, boost, q, f0 in 0.0 }
+        case .inversion:
             { f, boost, q, f0 in 0.0 }
         }
     }
