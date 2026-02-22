@@ -120,6 +120,9 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
                     connection: connection,
                     parameterTree: parameterTree
                 )
+            } catch SSCConnection.DeviceError.notAcceptable {
+                status = .error("Value rejected by device")
+                return
             } catch {
                 status = .error(String(describing: error))
                 return

@@ -31,9 +31,10 @@ actor SSCConnection {
     }
 
     // Connection succeeds, but device returns an error
-    enum DeviceError: Error {
-        case addressNotFound(String)
-        case messageNotUnderstood(String)
+    enum DeviceError: Int, CaseIterable, Error {
+        case messageNotUnderstood = 400
+        case addressNotFound = 404
+        case notAcceptable = 406
     }
 
     init?(ip: String, port: Int = 45) {
@@ -178,8 +179,9 @@ actor SSCConnection {
         try await sendMessage(command)
         let RX = try await receiveMessage()
         if RX.starts(with: "{\"osc\":{\"error\"") {
-            if RX.contains("404") { throw DeviceError.addressNotFound(command) }
-            if RX.contains("400") { throw DeviceError.messageNotUnderstood(command) }
+            try DeviceError.allCases.forEach { err in
+                if RX.contains(String(err.rawValue)) { throw err }
+            }
         }
         return RX
     }
