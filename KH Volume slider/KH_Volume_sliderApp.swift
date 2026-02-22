@@ -34,5 +34,6 @@ struct KH_Volume_sliderApp: App {
             ContentView()
                 .environment(khAccess)
         }
+        .defaultSize(width: 400, height: 400)
     }
 }
