@@ -57,7 +57,7 @@ struct ContentView: View {
         }
         .onAppear { Task { await khAccess.setup() } }
         .scenePadding()
-        .frame(minWidth: 450, minHeight: 450)
+        .frame(minWidth: 450, minHeight: 600)
     }
 
     var body: some View {
