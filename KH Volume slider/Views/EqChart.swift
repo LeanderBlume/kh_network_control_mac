@@ -53,6 +53,7 @@ struct EqChart: View {
         }
         .chartXScale(domain: 20...20000, type: .log)
         .chartYScale(domain: -24...24)
+        .clipped()
     }
 }
 
