@@ -28,102 +28,110 @@ enum EqType: String, CaseIterable, Identifiable {
     private static func toDecibel(_ x: Double) -> Double { 20 * log10(x) }
     private static func fromDecibel(_ x: Double) -> Double { pow(10, x / 20) }
 
+    private static func parametricTransfer(f0: Double, boost: Double, q: Double)
+        -> TransferFunc
+    {
+        let F = Complex<Double>(f0)
+        let B = Complex<Double>(fromDecibel(boost))
+        let Q = Complex<Double>(q)
+        return { s in
+            let numer = s * s + B * F / Q * s + F * F
+            let denom = s * s + F / Q * s + F * F
+            return numer / denom
+        }
+    }
+
     private static func highshelfTransfer(f0: Double, boost: Double, q: Double)
         -> TransferFunc
     {
-        let f0_ = Complex<Double>(f0)
-        let boost_ = Complex<Double>(fromDecibel(boost))
-        let q_ = Complex<Double>(q)
-        return { s in (f0_ + boost_ * s) / (f0_ + s)
-            /*
-            boost_
-            * (boost_ * s * s + sqrt(boost_) / q_ * s + Complex<Double>(1))
-            / (s * s + sqrt(boost_) / q_ * s + boost_)
-             */
+        let F = Complex<Double>(f0)
+        let B = Complex<Double>(fromDecibel(boost / 2))
+        let Q = Complex<Double>(q)
+        return { s in
+            let numer = B * s * s + Complex.sqrt(B) / Q * F * s + F * F
+            let denom = s * s + Complex.sqrt(B) / Q * F * s + B * F * F
+            return B * numer / denom
         }
     }
-    
+
     private static func lowshelfTransfer(f0: Double, boost: Double, q: Double)
         -> TransferFunc
     {
-        let f0_ = Complex<Double>(f0)
-        let boost_ = Complex<Double>(fromDecibel(boost))
-        let q_ = Complex<Double>(q)
-        return { s in (s + f0_ * boost_) / (f0_ + s)
-            /*
-            boost_
-            * (boost_ * s * s + sqrt(boost_) / q_ * s + Complex<Double>(1))
-            / (s * s + sqrt(boost_) / q_ * s + boost_)
-             */
+        let F = Complex<Double>(f0)
+        let B = Complex<Double>(fromDecibel(boost / 2))
+        let Q = Complex<Double>(q)
+        return { s in
+            let numer = s * s + Complex.sqrt(B) / Q * F * s + B * F * F
+            let denom = B * s * s + Complex.sqrt(B) / Q * F * s + F * F
+            return B * numer / denom
         }
     }
 
     private static func highpassTransfer(f0: Double, q: Double) -> TransferFunc {
-        let f0_ = Complex<Double>(f0)
-        let q_ = Complex<Double>(q)
-        return { s in (s * s) / (s * s + f0_ / q_ * s + f0_ * f0_) }
+        let F = Complex<Double>(f0)
+        let Q = Complex<Double>(q)
+        return { s in (s * s) / (s * s + F / Q * s + F * F) }
     }
 
     private static func lowpassTransfer(f0: Double, q: Double) -> TransferFunc {
-        let f0_ = Complex<Double>(f0)
-        let q_ = Complex<Double>(q)
-        return { s in (f0_ * f0_) / (s * s + f0_ / q_ * s + f0_ * f0_) }
+        let F = Complex<Double>(f0)
+        let Q = Complex<Double>(q)
+        return { s in (F * F) / (s * s + F / Q * s + F * F) }
     }
 
     private static func hi6dbTransfer(f0: Double) -> TransferFunc {
-        let f0_ = Complex<Double>(f0)
-        return { s in (s / f0_) / (Complex<Double>(1) + s / f0_) }
+        let F = Complex<Double>(f0)
+        return { s in (s / F) / (Complex<Double>(1) + s / F) }
     }
 
     private static func lo6dbTransfer(f0: Double) -> TransferFunc {
-        let f0_ = Complex<Double>(f0)
-        return { s in 1 / (Complex<Double>(1) + s / f0_) }
+        let F = Complex<Double>(f0)
+        return { s in 1 / (Complex<Double>(1) + s / F) }
     }
-
-    private static func magnitudeResponse_(_ H: @escaping TransferFunc) -> (
-        (Double) -> Double
-    ) { { f in toDecibel(H(Complex<Double>(imaginary: f)).length) } }
-
-    func magnitudeResponse() -> ((Double, Double, Double, Double) -> Double) {
+    
+    private static func bandpassTransfer(f0: Double, q: Double) -> TransferFunc {
+        // This is 6db/octave, not sure if that's right.
+        let F = Complex<Double>(f0)
+        let Q = Complex<Double>(q)
+        return { s in (F / Q * s) / (s * s + F / Q * s + F * F) }
+    }
+    
+    private static func notchTransfer(f0: Double, q: Double) -> TransferFunc {
+        let F = Complex<Double>(f0)
+        let Q = Complex<Double>(q)
+        return { s in (s * s + F * F) / (s * s + F / Q * s + F * F) }
+    }
+    
+    private func transferFunction(f0: Double, boost: Double, q: Double) -> TransferFunc {
         switch self {
         case .parametric:
-            { f, boost, q, f0 in boost / (1 + pow(q * (f / f0 - f0 / f), 2)) }
+            Self.parametricTransfer(f0: f0, boost: boost, q: q)
         case .hishelf:
-            { f, boost, q, f0 in
-                Self.magnitudeResponse_(
-                    Self.highshelfTransfer(f0: f0, boost: boost, q: q)
-                )(f)
-            }
+            Self.highshelfTransfer(f0: f0, boost: boost, q: q)
         case .loshelf:
-            { f, boost, q, f0 in
-                Self.magnitudeResponse_(
-                    Self.lowshelfTransfer(f0: f0, boost: boost, q: q)
-                )(f)
-            }
+            Self.lowshelfTransfer(f0: f0, boost: boost, q: q)
         case .highpass:
-            { f, boost, q, f0 in
-                Self.magnitudeResponse_(Self.highpassTransfer(f0: f0, q: q))(f)
-            }
+            Self.highpassTransfer(f0: f0, q: q)
         case .lowpass:
-            { f, boost, q, f0 in
-                Self.magnitudeResponse_(Self.lowpassTransfer(f0: f0, q: q))(f)
-            }
+            Self.lowpassTransfer(f0: f0, q: q)
         case .hi6db:
-            { f, boost, q, f0 in
-                Self.magnitudeResponse_(Self.hi6dbTransfer(f0: f0))(f)
-            }
+            Self.hi6dbTransfer(f0: f0)
         case .lo6db:
-            { f, boost, q, f0 in
-                Self.magnitudeResponse_(Self.lo6dbTransfer(f0: f0))(f)
-            }
+            Self.lo6dbTransfer(f0: f0)
         case .bandpass:
-            { f, boost, q, f0 in 0.0 }
+            Self.bandpassTransfer(f0: f0, q: q)
         case .notch:
-            { f, boost, q, f0 in 0.0 }
-        case .allpass:
-            { f, boost, q, f0 in 0.0 }
-        case .inversion:
-            { f, boost, q, f0 in 0.0 }
+            Self.notchTransfer(f0: f0, q: q)
+        case .allpass, .inversion:
+            { s in Complex<Double>(1) }
+        }
+    }
+
+    func magnitudeResponse() -> ((Double, Double, Double, Double) -> Double) {
+        { f, boost, q, f0 in
+            let H = transferFunction(f0: f0, boost: boost, q: q)
+            let f_ = Complex<Double>(imaginary: f)
+            return Self.toDecibel(H(f_).length)
         }
     }
 }
