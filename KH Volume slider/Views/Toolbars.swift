@@ -27,7 +27,7 @@ struct ToolbarFetchButton: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        Button("Fetch", systemImage: "arrow.clockwise") {
+        Button("Refresh", systemImage: "arrow.clockwise") {
             Task { await khAccess.fetch() }
         }
         .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
@@ -71,8 +71,10 @@ struct MainToolbar: ToolbarContent {
                 ToolbarStatusDisplay(status: khAccess.status, showError: $showError)
             }
         #endif
-        ToolbarItem(placement: .secondaryAction) {
-            ToolbarRescanButton()
+        ToolbarItemGroup(placement: .secondaryAction) {
+                ToolbarFetchButton()
+                ToolbarFetchParametersButton()
+                ToolbarRescanButton()
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchButton()
@@ -85,6 +87,7 @@ struct MainToolbar: ToolbarContent {
             ToolbarStatusDisplay(status: khAccess.status, showError: $showError)
         }
         ToolbarItemGroup(placement: .secondaryAction) {
+            ToolbarFetchParametersButton()
             ToolbarRescanButton()
         }
         ToolbarItem(placement: .primaryAction) {
@@ -112,7 +115,9 @@ struct BrowserToolbar: ToolbarContent {
                 ToolbarStatusDisplay(status: khAccess.status, showError: $showError)
             }
         #endif
-        ToolbarItem(placement: .secondaryAction) {
+        ToolbarItemGroup(placement: .secondaryAction) {
+            ToolbarFetchButton()
+            ToolbarFetchParametersButton()
             ToolbarRescanButton()
         }
         ToolbarItem(placement: .primaryAction) {
@@ -125,7 +130,8 @@ struct BrowserToolbar: ToolbarContent {
         ToolbarItem(placement: .status) {
             ToolbarStatusDisplay(status: khAccess.status, showError: $showError)
         }
-        ToolbarItem(placement: .secondaryAction) {
+        ToolbarItemGroup(placement: .secondaryAction) {
+            ToolbarFetchButton()
             ToolbarRescanButton()
         }
         ToolbarItem(placement: .primaryAction) {
@@ -159,7 +165,6 @@ struct ToolbarDoneAndCancel: ToolbarContent {
             Button("Cancel", systemImage: "keyboard.chevron.compact.down") {
                 textFieldFocused = false
             }
-            // .buttonStyle(.borderedProminent)
         }
     }
 }
