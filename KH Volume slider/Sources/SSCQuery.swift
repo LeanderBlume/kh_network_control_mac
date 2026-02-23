@@ -228,7 +228,14 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         default:
             throw SSCNodeError.unknownTypeFromLimits(limits!.type)
         }
-        let data = try await connection.fetchSSCValueData(path: path)
+        var data: Data? = nil
+        do {
+            data = try await connection.fetchSSCValueData(path: path)
+        } catch SSCConnection.DeviceError.notAcceptable {
+            value = .error("Node cannot be fetched")
+            return
+        }
+        guard let data else { throw SSCNodeError.error("Impossible error") }
         for schema in schemata {
             if let v = try? decoder.decode(
                 JSONData.self,
