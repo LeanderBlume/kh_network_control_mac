@@ -487,7 +487,11 @@ private struct DeviceBrowserLink: View {
             }
         } else {
             LabeledContent {
-                StatusDisplayText(status: device.status)
+                if device.status == .ready {
+                    Text("Parameters not loaded")
+                } else {
+                    StatusDisplayText(status: device.status)
+                }
             } label: {
                 Text(device.state.name)
             }
