@@ -35,6 +35,7 @@ actor SSCConnection {
         case messageNotUnderstood = 400
         case addressNotFound = 404
         case notAcceptable = 406
+        case unknownError = -1
     }
 
     init?(ip: String, port: Int = 45) {
@@ -178,10 +179,14 @@ actor SSCConnection {
     func sendSSCCommand(command: String) async throws -> String {
         try await sendMessage(command)
         let RX = try await receiveMessage()
+        // TODO more robust check with decoding this to JSONData or something
         if RX.starts(with: "{\"osc\":{\"error\"") {
+            // Special case: We asked for it.
+            if command == "{\"osc\":{\"error\":null}}" { return RX }
             try DeviceError.allCases.forEach { err in
                 if RX.contains(String(err.rawValue)) { throw err }
             }
+            throw DeviceError.unknownError
         }
         return RX
     }
