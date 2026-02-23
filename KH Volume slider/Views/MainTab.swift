@@ -128,18 +128,38 @@ struct MainTabmacOS: View {
                     // .padding(.bottom, 10)
                 }
                 GridRow {
-                    LabeledSliderTextField(
-                        name: "Volume",
+                    Text("Volume")
+                    
+                    Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
+                        editing in
+                        if !editing { Task { await khAccess.send() } }
+                    }
+                    
+                    TextField(
+                        "Volume",
                         value: $khAccess.state.volume,
-                        range: 0...120
+                        format: .number.precision(.fractionLength(1))
                     )
+                    .frame(width: 80)
+                    .onSubmit { Task { await khAccess.send() } }
+                    .labelsHidden()
                 }
                 GridRow {
-                    LabeledSliderTextField(
-                        name: "Logo",
+                    Text("Logo")
+                    
+                    Slider(value: $khAccess.state.logoBrightness, in: 0...125, step: 5)
+                    { editing in
+                        if !editing { Task { await khAccess.send() } }
+                    }
+                    
+                    TextField(
+                        "Logo",
                         value: $khAccess.state.logoBrightness,
-                        range: 0...125
+                        format: .percent.scale(1).precision(.fractionLength(0))
                     )
+                    .frame(width: 80)
+                    .onSubmit { Task { await khAccess.send() } }
+                    .labelsHidden()
                 }
             }
 
