@@ -261,3 +261,13 @@ struct TestKHParameter {
         vol.resetDevicePath()
     }
 }
+
+@MainActor
+struct TestBackup {
+    @Test func main() async throws {
+        let kha = KHAccess()
+        await kha.setup()
+        let b = Backupper()
+        try await b.load(name: "TestAnew.json", khAccess: kha)
+    }
+}
