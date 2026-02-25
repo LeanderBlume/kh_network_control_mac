@@ -195,6 +195,10 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         for node in nodes {
             do {
                 try await node.send(connection: connection)
+            } catch SSCConnection.DeviceError.notAcceptable, SSCConnection.DeviceError
+                .methodNotAllowed
+            {
+                continue
             } catch {
                 status = .error(String(describing: error))
                 return

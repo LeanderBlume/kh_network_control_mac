@@ -34,6 +34,7 @@ actor SSCConnection {
     enum DeviceError: Int, CaseIterable, Error {
         case messageNotUnderstood = 400
         case addressNotFound = 404
+        case methodNotAllowed = 405
         case notAcceptable = 406
         case unknownError = -1
     }
@@ -186,6 +187,7 @@ actor SSCConnection {
             try DeviceError.allCases.forEach { err in
                 if RX.contains(String(err.rawValue)) { throw err }
             }
+            print("Unknown error:", RX)
             throw DeviceError.unknownError
         }
         return RX
