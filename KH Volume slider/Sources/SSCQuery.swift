@@ -106,7 +106,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         self.parent = parent
         self.limits = limits
     }
-    
+
     func isLeaf() -> Bool { value.isLeaf() }
 
     func rootNode() -> SSCNode {
@@ -379,14 +379,15 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
             value = .value(jsonData)
         case .children(let children):
             guard case .object(let dictionary) = jsonData else {
-                throw SSCNodeError.error("JSONData structure children/object mismatch")
+                value = .error("Type mismatch: JSON data at path is not an object.")
+                return
             }
             try children.forEach({ child in
-                if let subData = dictionary[child.name] {
-                    try child.load(from: subData)
-                } else {
-                    throw SSCNodeError.error("No value in data for \(child.name)")
+                guard let subData = dictionary[child.name] else {
+                    child.value = .error("Parameter not found in JSON data.")
+                    return
                 }
+                try child.load(from: subData)
             })
         }
     }
@@ -394,8 +395,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
     func load(from jsonDataCodable: JSONDataCodable) throws {
         try load(from: JSONData(from: jsonDataCodable))
     }
-    
-    
+
     func load(from state: KHState) throws {
         // TODO
     }
