@@ -177,7 +177,9 @@ struct Backupper {
         let fm = FileManager.default
         guard
             let backupData = fm.contents(
-                atPath: backupsDir.appending(component: name).path()
+                atPath: backupsDir.appending(component: name).path(
+                    percentEncoded: false
+                )
             )
         else {
             throw BackupperErrors.error("Backup does not exist")
@@ -189,9 +191,9 @@ struct Backupper {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         let backupData = try encoder.encode(backup)
-        let fileManager = FileManager.default
-        fileManager.createFile(
-            atPath: URL(filePath: name + ".json", relativeTo: backupsDir).path(),
+        let url = URL(filePath: name + ".json", relativeTo: backupsDir)
+        FileManager.default.createFile(
+            atPath: url.path(percentEncoded: false),
             contents: backupData
         )
     }
