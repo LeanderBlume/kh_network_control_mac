@@ -140,7 +140,7 @@ struct SchemaCache: SchemaCacheProtocol {
 }
 
 struct Backupper {
-    let backupsDir: URL = URL.documentsDirectory.appending(path: "backups")
+    let backupsDir: URL = URL.documentsDirectory.appending(path: "backups/")
 
     // currently unused, maybe in the future.
     private struct DeviceIdentifier: Codable, Hashable {
