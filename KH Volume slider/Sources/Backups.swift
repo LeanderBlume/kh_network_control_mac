@@ -191,7 +191,7 @@ struct Backupper {
         let backupData = try encoder.encode(backup)
         let fileManager = FileManager.default
         fileManager.createFile(
-            atPath: backupsDir.appending(component: name + ".json").path(),
+            atPath: URL(filePath: name + ".json", relativeTo: backupsDir).path(),
             contents: backupData
         )
     }
