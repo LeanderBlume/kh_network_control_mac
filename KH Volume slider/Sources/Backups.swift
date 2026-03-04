@@ -209,7 +209,9 @@ struct Backupper {
                 includingPropertiesForKeys: nil,
                 options: [.skipsHiddenFiles]
             )
-            return urls.map(\.lastPathComponent)
+            return urls.map {
+                String($0.path(percentEncoded: false).split(separator: "/").last!)
+            }
         } catch {
             return ["Error loading list: " + String(describing: error)]
         }
