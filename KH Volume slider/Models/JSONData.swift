@@ -49,10 +49,8 @@ enum JSONDataCodable: Equatable, Codable {
     }
 
     subscript(index: String) -> JSONDataCodable? {
-        if case .object(let dict) = self {
-            return dict[index]
-        }
-        return nil
+        guard case .object(let dict) = self else { return nil }
+        return dict[index]
     }
 }
 
@@ -266,19 +264,15 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
 
     subscript(index: String) -> JSONData? {
         get {
-            if case .object(let dict) = self {
-                return dict[index]
-            }
-            return nil
+            guard case .object(let dict) = self else { return nil }
+            return dict[index]
         }
         set(value) {
-            if case .object(let dict) = self {
-                var newDict = dict
-                newDict[index] = value
-                self = .object(newDict)
-                return
-            }
-            assert(false)
+            guard case .object(let dict) = self else { assert(false) }
+            var newDict = dict
+            newDict[index] = value
+            self = .object(newDict)
+            return
         }
     }
 }
