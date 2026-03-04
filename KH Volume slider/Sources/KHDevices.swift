@@ -121,7 +121,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
                     parameterTree: parameterTree
                 )
             } catch SSCConnection.DeviceError.notAcceptable {
-                status = .error("Value rejected by device")
+                status = .error("Rejected by device")
                 return
             } catch {
                 status = .error(String(describing: error))
@@ -215,15 +215,6 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
 
         status = .busy("Fetching parameters...")
         await _fetchNodes(rootNode.filter({ $0.isLeaf() }))
-        /// I'm not sure if this actually makes sense. We only store the schema per device type, not per device.
-        /*
-        let sc = SchemaCache()
-        do {
-            try sc.saveSchema(rootNode, for: self)
-        } catch {
-            print("Error saving schema: \(error)")
-        }
-         */
     }
 
     func sendParameterTree() async {
