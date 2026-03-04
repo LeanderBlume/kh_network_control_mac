@@ -122,6 +122,8 @@ struct SchemaCache: SchemaCacheProtocol {
     }
 
     private func writeSchemaList(_ schemaList: FileSchema) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted]
         let data = try JSONEncoder().encode(schemaList)
         try data.write(to: url)
     }
