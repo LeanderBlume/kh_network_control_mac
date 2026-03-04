@@ -218,11 +218,19 @@ struct Backupper {
     @MainActor
     func write(name: String, khAccess: KHAccess) throws {
         var newBackup = Backup()
-        khAccess.devices.forEach { device in
-            guard let rootNode = device.parameterTree else { return }
-            if let jsonData = JSONData(from: rootNode) {
-                newBackup[device.id] = JSONDataCodable(from: jsonData)
+
+        for device in khAccess.devices {
+            guard let rootNode = device.parameterTree else {
+                throw BackupperErrors.error(
+                    "Could not write backup, parameters not loaded."
+                )
             }
+            guard let jsonData = JSONData(from: rootNode) else {
+                throw BackupperErrors.error(
+                    "Could not write backup, JSONData conversion failed."
+                )
+            }
+            newBackup[device.id] = JSONDataCodable(from: jsonData)
         }
 
         try saveBackup(name: name, backup: newBackup)
