@@ -47,6 +47,11 @@ enum DeviceSchema: Equatable, Codable {
             self = .null
         }
     }
+
+    subscript(index: String) -> Self? {
+        guard case .object(let dict) = self else { return nil }
+        return dict[index]
+    }
 }
 
 enum JSONDataCodable: Equatable, Codable {
