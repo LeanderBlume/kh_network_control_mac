@@ -321,6 +321,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
     case volume = "Volume"
     case muted = "Mute"
     case logoBrightness = "Logo brightness"
+    case standbyEnabled = "Enable auto-standby"
 
     case eq0boost = "EQ 1 Boost"
     case eq0enabled = "EQ 1 Enabled"
@@ -335,8 +336,6 @@ enum KHParameters: String, CaseIterable, Identifiable {
     case eq1gain = "EQ 2 Gain"
     case eq1q = "EQ 2 Q"
     case eq1type = "EQ 2 Type"
-    
-    case standbyEnabled = "Enable auto-standby"
 
     var id: String { self.rawValue }
 

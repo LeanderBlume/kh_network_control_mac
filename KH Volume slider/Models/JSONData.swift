@@ -11,7 +11,7 @@ enum DeviceSchema: Equatable, Codable {
     case string(limits: OSCLimits? = nil)
     case number(limits: OSCLimits? = nil)
     case bool(limits: OSCLimits? = nil)
-    case array(limits: OSCLimits? = nil)
+    indirect case array(type: DeviceSchema?, limits: OSCLimits? = nil)
     case null
     case object([String: DeviceSchema])
 
@@ -25,8 +25,12 @@ enum DeviceSchema: Equatable, Codable {
             self = .number(limits: limits)
         case .bool:
             self = .bool(limits: limits)
-        case .array:
-            self = .array(limits: limits)
+        case .array(let vs):
+            var type: DeviceSchema? = nil
+            if let v = vs.first {
+                type = DeviceSchema.init(from: v)
+            }
+            self = .array(type: type, limits: limits)
         case .object(let object):
             self = .object(object.mapValues({ .init(from: $0) }))
         }
@@ -51,6 +55,32 @@ enum DeviceSchema: Equatable, Codable {
     subscript(index: String) -> Self? {
         guard case .object(let dict) = self else { return nil }
         return dict[index]
+    }
+    
+    
+    func getAtPath(_ path: [String]) -> Self? {
+        var curr = self
+        for p in path {
+            guard let child = curr[p] else { return nil }
+            curr = child
+        }
+        return curr
+    }
+    
+    func wrap(in path: [String]) -> Self {
+        return path.reversed().reduce(self) { (partial, key) in
+            .object([key: partial])
+        }
+    }
+
+    // removes layers of single key objects until something else remains.
+    func unwrap() -> Self {
+        if case .object(let v) = self {
+            if v.count == 1 {
+                return v.values.first!.unwrap()
+            }
+        }
+        return self
     }
 }
 
@@ -102,7 +132,7 @@ enum JSONDataCodable: Equatable, Codable {
 }
 
 enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
-    typealias DecodingConfiguration = JSONData
+    typealias DecodingConfiguration = DeviceSchema
 
     case string(String)
     case number(Double)
@@ -212,9 +242,9 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
                 throw JSONDataError.decodingError("Incorrect schema")
             }
             self = .bool(decoded)
-        case .array(let vs):
+        case .array(let type, _):
             let svc = try decoder.singleValueContainer()
-            switch vs.first {
+            switch type {
             case .none:
                 self = .array([])
             case .string:

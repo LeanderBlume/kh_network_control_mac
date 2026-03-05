@@ -208,22 +208,22 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         let path = pathToNode()
         limits = try await getLimits(connection: connection, path: path)
         let decoder = JSONDecoder()
-        var schemata: [JSONData]
+        var schemata: [DeviceSchema]
         switch limits!.type {
         case "Number":
-            schemata = [.number(0), .array([.number(0)])]
+            schemata = [.number(), .array(type: .number())]
         case "String":
-            schemata = [.string(""), .array([.string("")])]
+            schemata = [.string(), .array(type: .string())]
         case "Boolean":
-            schemata = [.bool(false), .array([.bool(false)])]
+            schemata = [.bool(), .array(type: .bool())]
         case .none:
             schemata = [
-                .bool(false),
-                .number(0),
-                .string(""),
-                .array([.bool(false)]),
-                .array([.number(0)]),
-                .array([.string("")]),
+                .bool(),
+                .number(),
+                .string(),
+                .array(type: .bool()),
+                .array(type: .number()),
+                .array(type: .string()),
             ]
         default:
             throw SSCNodeError.unknownTypeFromLimits(limits!.type)
@@ -311,7 +311,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         switch schema {
         case .null:
             value = .error("null")
-        case .number(let l), .bool(let l), .string(let l), .array(let l):
+        case .number(let l), .bool(let l), .string(let l), .array(_, let l):
             value = .value(JSONData(from: schema))
             limits = l
         case .object(let dict):
@@ -355,8 +355,9 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         case .error:
             return
         case .value(let T):
+            let schema = DeviceSchema(from: T)
             value = .value(
-                try await connection.fetchJSONData(path: pathToNode(), schema: T)
+                try await connection.fetchJSONData(path: pathToNode(), schema: schema)
             )
         case .children, .unknown, .unknownChildren, .unknownValue:
             throw SSCNodeError.error("Node is not a populated leaf")
