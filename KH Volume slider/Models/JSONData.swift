@@ -184,9 +184,7 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
 
     @MainActor
     init?(from rootNode: SSCNode) {
-        guard let jdc = JSONDataCodable(from: rootNode) else {
-            return nil
-        }
+        guard let jdc = JSONDataCodable(from: rootNode) else { return nil }
         self.init(from: jdc)
     }
 
