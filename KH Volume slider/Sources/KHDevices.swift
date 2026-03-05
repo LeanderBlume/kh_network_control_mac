@@ -94,8 +94,8 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
 
     required init(connection: SSCConnection) { self.connection = connection }
 
-    private func _fetchParameters(_ parameters: [KHParameters]) async {
-        for p in parameters {
+    private func _fetchParameters(_ parameterGroup: KHParameterGroup) async {
+        for p in parameterGroup.parameters() {
             do {
                 state = try await p.fetch(
                     into: state,
@@ -110,9 +110,9 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         status = .ready
     }
 
-    private func _sendParameters(_ parameters: [KHParameters], newState: KHState) async
+    private func _sendParameters(_ parameterGroup: KHParameterGroup, newState: KHState) async
     {
-        for p in parameters {
+        for p in parameterGroup.parameters() {
             do {
                 try await p.send(
                     oldState: state,
@@ -136,18 +136,18 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     func setup() async {
         status = .busy("Setting up")
         // We need to fetch product and version to identify the schema type.
-        await _fetchParameters(KHParameters.setupParameters)
+        await _fetchParameters(.setup)
         await populateParameters()
         // We do NOT update the state now because that messes up the ID
     }
 
     func fetch() async {
         status = .busy("Fetching")
-        await _fetchParameters(KHParameters.fetchParameters)
+        await _fetchParameters(.fetch)
     }
 
     func send(_ newState: KHState) async {
-        await _sendParameters(KHParameters.sendParameters, newState: newState)
+        await _sendParameters(.send, newState: newState)
     }
 
     private func getCachedSchema() throws -> DeviceSchema? {
@@ -317,7 +317,7 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         statusOverride = .busy("Scanning...")
         do {
             let connectionCache = try ConnectionCache()
-            try await connectionCache.clearConnections()
+            try connectionCache.clear()
         } catch {
             print("Error clearing connection cache:", error)
         }

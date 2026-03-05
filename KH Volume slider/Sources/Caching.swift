@@ -21,6 +21,7 @@ protocol SingleFileAccess {
     static func ensureFileExists() throws
     func getFileContents() throws -> FileSchema
     func writeFile(_ contents: FileSchema, prettyPrinted: Bool) throws
+    func clear() throws
 }
 
 extension SingleFileAccess {
@@ -45,12 +46,15 @@ extension SingleFileAccess {
         let data = try encoder.encode(contents)
         try data.write(to: Self.fileURL)
     }
+    
+    func clear() throws {
+        try writeFile(FileSchema())
+    }
 }
 
 protocol ConnectionCacheProtocol: SingleFileAccess {
     func getConnections() throws -> [SSCConnection]
     func saveConnections(_ connections: [SSCConnection]) async throws
-    func clearConnections() async throws
 }
 
 protocol SchemaCacheProtocol: SingleFileAccess {
@@ -115,8 +119,6 @@ struct ConnectionCache: ConnectionCacheProtocol {
         }
         try writeFile(result)
     }
-
-    func clearConnections() async throws { try await saveConnections([]) }
 }
 
 struct SchemaCache: SchemaCacheProtocol {
@@ -188,7 +190,7 @@ struct StateCache: StateCacheProtocol {
         }
         var contents = try getFileContents()
         contents[device.id] = jdc
-        try writeFile(contents, prettyPrinted: true)
+        try writeFile(contents)
     }
 }
 

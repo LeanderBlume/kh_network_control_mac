@@ -60,6 +60,21 @@ struct ToolbarRescanButton: View {
     }
 }
 
+struct ToolbarClearCacheButton: View {
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    var body: some View {
+        Button("Clear cache", systemImage: "clear") {
+            Task {
+                try SchemaCache().clear()
+                try StateCache().clear()
+                await khAccess.setup()
+            }
+        }
+        .help("Clear device schema and state cache")
+    }
+}
+
 struct MainToolbar: ToolbarContent {
     @Binding var showError: Bool
     @Environment(KHAccess.self) private var khAccess: KHAccess
@@ -72,9 +87,10 @@ struct MainToolbar: ToolbarContent {
             }
         #endif
         ToolbarItemGroup(placement: .secondaryAction) {
-                ToolbarFetchButton()
-                ToolbarFetchParametersButton()
-                ToolbarRescanButton()
+            ToolbarFetchButton()
+            ToolbarFetchParametersButton()
+            ToolbarRescanButton()
+            ToolbarClearCacheButton()
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchButton()
@@ -89,6 +105,7 @@ struct MainToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .secondaryAction) {
             ToolbarFetchParametersButton()
             ToolbarRescanButton()
+            ToolbarClearCacheButton()
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchButton()
@@ -119,6 +136,7 @@ struct BrowserToolbar: ToolbarContent {
             ToolbarFetchButton()
             ToolbarFetchParametersButton()
             ToolbarRescanButton()
+            ToolbarClearCacheButton()
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchParametersButton()
@@ -133,6 +151,7 @@ struct BrowserToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .secondaryAction) {
             ToolbarFetchButton()
             ToolbarRescanButton()
+            ToolbarClearCacheButton()
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchParametersButton()

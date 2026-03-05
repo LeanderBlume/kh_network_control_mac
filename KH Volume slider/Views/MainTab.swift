@@ -85,6 +85,13 @@ struct MainTabiOS: View {
             }
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
+
+            Section("Settings") {
+                Toggle("Enable auto-standby", isOn: $khAccess.state.standbyEnabled)
+                    .onChange(of: khAccess.state.standbyEnabled) {
+                        Task { await khAccess.send() }
+                    }
+            }
         }
         .toolbar(removing: .title)
         .toolbar {
@@ -129,12 +136,12 @@ struct MainTabmacOS: View {
                 }
                 GridRow {
                     Text("Volume")
-                    
+
                     Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
                         editing in
                         if !editing { Task { await khAccess.send() } }
                     }
-                    
+
                     TextField(
                         "Volume",
                         value: $khAccess.state.volume,
@@ -146,12 +153,12 @@ struct MainTabmacOS: View {
                 }
                 GridRow {
                     Text("Logo")
-                    
+
                     Slider(value: $khAccess.state.logoBrightness, in: 0...125, step: 5)
                     { editing in
                         if !editing { Task { await khAccess.send() } }
                     }
-                    
+
                     TextField(
                         "Logo",
                         value: $khAccess.state.logoBrightness,
@@ -167,6 +174,23 @@ struct MainTabmacOS: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             EqTab()
+
+            Text("Settings").font(.title2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Grid(alignment: .leading) {
+                GridRow {
+                    Text("Enable auto-standby")
+
+                    Toggle("Enable auto-standby", isOn: $khAccess.state.standbyEnabled)
+                        .labelsHidden()
+                        .onChange(of: khAccess.state.standbyEnabled) {
+                            Task { await khAccess.send() }
+                        }
+
+                    Spacer()
+                }
+            }
         }
         .disabled(khAccess.status != .ready)
         .toolbar { MainToolbar(showError: $showError) }

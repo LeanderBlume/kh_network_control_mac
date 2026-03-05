@@ -88,21 +88,22 @@ enum EqType: String, CaseIterable, Identifiable {
         let F = Complex<Double>(f0)
         return { s in 1 / (Complex<Double>(1) + s / F) }
     }
-    
+
     private static func bandpassTransfer(f0: Double, q: Double) -> TransferFunc {
         // This is 6db/octave, not sure if that's right.
         let F = Complex<Double>(f0)
         let Q = Complex<Double>(q)
         return { s in (F / Q * s) / (s * s + F / Q * s + F * F) }
     }
-    
+
     private static func notchTransfer(f0: Double, q: Double) -> TransferFunc {
         let F = Complex<Double>(f0)
         let Q = Complex<Double>(q)
         return { s in (s * s + F * F) / (s * s + F / Q * s + F * F) }
     }
-    
-    private func transferFunction(f0: Double, boost: Double, q: Double) -> TransferFunc {
+
+    private func transferFunction(f0: Double, boost: Double, q: Double) -> TransferFunc
+    {
         switch self {
         case .parametric:
             Self.parametricTransfer(f0: f0, boost: boost, q: q)
@@ -169,6 +170,7 @@ struct KHState: Codable, Equatable {
     var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
     var muted = false
     var logoBrightness = 100.0
+    var standbyEnabled = false
 
     init() {}
 
@@ -333,52 +335,10 @@ enum KHParameters: String, CaseIterable, Identifiable {
     case eq1gain = "EQ 2 Gain"
     case eq1q = "EQ 2 Q"
     case eq1type = "EQ 2 Type"
+    
+    case standbyEnabled = "Enable auto-standby"
 
     var id: String { self.rawValue }
-
-    static let fetchParameters: [KHParameters] = [
-        .volume,
-        .muted,
-        .logoBrightness,
-        .eq0boost,
-        .eq0enabled,
-        .eq0frequency,
-        .eq0gain,
-        .eq0q,
-        .eq0type,
-        .eq1boost,
-        .eq1enabled,
-        .eq1frequency,
-        .eq1gain,
-        .eq1q,
-        .eq1type,
-        .name,
-    ]
-
-    static let sendParameters: [KHParameters] = [
-        .volume,
-        .muted,
-        .logoBrightness,
-        .eq0boost,
-        .eq0enabled,
-        .eq0frequency,
-        .eq0gain,
-        .eq0q,
-        .eq0type,
-        .eq1boost,
-        .eq1enabled,
-        .eq1frequency,
-        .eq1gain,
-        .eq1q,
-        .eq1type,
-    ]
-
-    static let setupParameters: [KHParameters] = [
-        .name,
-        .serial,
-        .product,
-        .version,
-    ]
 
     private func getDevicePathFallback() -> [String] {
         switch self {
@@ -422,6 +382,8 @@ enum KHParameters: String, CaseIterable, Identifiable {
             ["audio", "out", "eq3", "q"]
         case .eq1type:
             ["audio", "out", "eq3", "type"]
+        case .standbyEnabled:
+            ["device", "standby", "enabled"]
         }
     }
 
@@ -506,6 +468,9 @@ enum KHParameters: String, CaseIterable, Identifiable {
             KHStatePath(keyPath: \.eqs[1].q, devicePath: _getDevicePath())
         case .eq1type:
             KHStatePath(keyPath: \.eqs[1].type, devicePath: _getDevicePath())
+        
+        case .standbyEnabled:
+            KHStatePath(keyPath: \.standbyEnabled, devicePath: _getDevicePath())
         }
     }
 
@@ -550,5 +515,62 @@ enum KHParameters: String, CaseIterable, Identifiable {
             connection: connection,
             parameterTree: parameterTree
         )
+    }
+}
+
+enum KHParameterGroup {
+    case setup
+    case fetch
+    case send
+
+    func parameters() -> [KHParameters] {
+        switch self {
+        case .fetch:
+            return [
+                .volume,
+                .muted,
+                .logoBrightness,
+                .eq0boost,
+                .eq0enabled,
+                .eq0frequency,
+                .eq0gain,
+                .eq0q,
+                .eq0type,
+                .eq1boost,
+                .eq1enabled,
+                .eq1frequency,
+                .eq1gain,
+                .eq1q,
+                .eq1type,
+                .name,
+                .standbyEnabled
+            ]
+        case .send:
+            return [
+                .volume,
+                .muted,
+                .logoBrightness,
+                .eq0boost,
+                .eq0enabled,
+                .eq0frequency,
+                .eq0gain,
+                .eq0q,
+                .eq0type,
+                .eq1boost,
+                .eq1enabled,
+                .eq1frequency,
+                .eq1gain,
+                .eq1q,
+                .eq1type,
+                .standbyEnabled
+            ]
+        case .setup:
+            return [
+                .name,
+                .serial,
+                .product,
+                .version,
+            ]
+        }
     }
 }
