@@ -355,7 +355,10 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
             return dict[index]
         }
         set(value) {
-            guard case .object(let dict) = self else { return }
+            guard case .object(let dict) = self else {
+                print("Can't set value in non-object via subscript")
+                return
+            }
             var newDict = dict
             newDict[index] = value
             self = .object(newDict)
