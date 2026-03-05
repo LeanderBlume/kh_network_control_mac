@@ -307,12 +307,12 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         }
     }
 
-    func populate(from jsonDataCodable: JSONDataCodable) {
-        switch jsonDataCodable {
+    func populate(from schema: DeviceSchema) {
+        switch schema {
         case .null:
             value = .error("null")
-        case .number(_, let l), .bool(_, let l), .string(_, let l), .array(_, let l):
-            value = .value(JSONData(from: jsonDataCodable))
+        case .number(let l), .bool(let l), .string(let l), .array(let l):
+            value = .value(JSONData(from: schema))
             limits = l
         case .object(let dict):
             var children: [SSCNode] = []

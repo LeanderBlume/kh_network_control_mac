@@ -150,32 +150,78 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         await _sendParameters(KHParameters.sendParameters, newState: newState)
     }
 
+    private func getCachedSchema() throws -> DeviceSchema? {
+        let schemaCache = try SchemaCache()
+        return try schemaCache.getSchema(for: self)
+    }
+
+    private func getCachedState() throws -> (KHState, JSONDataCodable)? {
+        let schemaCache = try StateCache()
+        return try schemaCache.getState(for: self)
+    }
+
+    private func updateCachedState() throws {
+        let stateCache = try StateCache()
+        try stateCache.saveState(for: self)
+    }
+
+    private func populateParametersFromDevice(into rootNode: inout SSCNode) async throws
+    {
+        try await rootNode.populate(connection: connection, recursive: true)
+        let schemaCache = try SchemaCache()
+        try schemaCache.saveSchema(rootNode, for: self)
+    }
+
+    private func loadParametersFromCache(into rootNode: SSCNode) throws -> SSCNode? {
+        let stateCache = try StateCache()
+        guard let cachedState = try stateCache.getState(for: self) else {
+            return nil
+        }
+        try rootNode.load(from: cachedState.1)
+        return rootNode
+    }
+
     func populateParameters() async {
         status = .busy("Loading parameters...")
-        let rootNode = SSCNode(name: "root", deviceID: self.id, parent: nil)
-        let schemaCache = SchemaCache()
-        var cachedSchema: JSONDataCodable? = nil
+        var rootNode = SSCNode(name: "root", deviceID: self.id, parent: nil)
+
+        // Load parameter tree structure without values from cache or device
+        var cachedSchema: DeviceSchema? = nil
         do {
-            cachedSchema = try schemaCache.getSchema(for: self)
+            cachedSchema = try getCachedSchema()
         } catch {
-            print("Error loading cached schema: \(error)")
+            print("Error loading cached schema:", error)
         }
         if let cachedSchema {
             rootNode.populate(from: cachedSchema)
         } else {
             do {
-                try await rootNode.populate(connection: connection, recursive: true)
+                try await populateParametersFromDevice(into: &rootNode)
             } catch {
-                status = .error("Failed to load parameter tree: \(error)")
+                status = .error("Error loading parameters: \(error)")
                 return
             }
-            do {
-                try schemaCache.saveSchema(rootNode, for: self)
-            } catch {
-                print("Error saving schema: \(error)")
-            }
         }
+
         parameterTree = rootNode
+
+        var cachedState: (KHState, JSONDataCodable)? = nil
+        do {
+            cachedState = try getCachedState()
+        } catch {
+            print("Error loading cached state:", error)
+        }
+        if let cachedState {
+            do {
+                try rootNode.load(from: cachedState.1)
+            } catch {
+                print("Error loading from cached state:", error)
+            }
+            state = cachedState.0
+        } else {
+            await fetchParameterTree()
+        }
+
         status = .ready
     }
 
@@ -215,6 +261,11 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
 
         status = .busy("Fetching parameters...")
         await _fetchNodes(rootNode.filter({ $0.isLeaf() }))
+        do {
+            try updateCachedState()
+        } catch {
+            print("Error updating cached state:", error)
+        }
     }
 
     func sendParameterTree() async {
@@ -264,11 +315,11 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
     func scan(seconds: UInt32 = 1) async {
         /// Scan for devices, replacing current device list.
         statusOverride = .busy("Scanning...")
-        let connectionCache = ConnectionCache()
         do {
+            let connectionCache = try ConnectionCache()
             try await connectionCache.clearConnections()
         } catch {
-            print(error)
+            print("Error clearing connection cache:", error)
         }
         let connections = await SSCConnection.scan(seconds: seconds)
         if connections.isEmpty {
@@ -276,9 +327,10 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
             return
         }
         do {
+            let connectionCache = try ConnectionCache()
             try await connectionCache.saveConnections(connections)
         } catch {
-            print(error)
+            print("Error saving connection cache:", error)
         }
         devices = connections.map { KHDevice(connection: $0) }
         statusOverride = nil
@@ -299,17 +351,17 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
             await setupDevices()
             return
         }
-        let connectionCache = ConnectionCache()
+        var connections: [SSCConnection] = []
         do {
-            let connections = try connectionCache.getConnections()
-            if connections.isEmpty {
-                await scan()
-            } else {
-                devices = connections.map { KHDevice(connection: $0) }
-            }
+            let connectionCache = try ConnectionCache()
+            connections = try connectionCache.getConnections()
         } catch {
             print("error loading connection cache: \(error)")
+        }
+        if connections.isEmpty {
             await scan()
+        } else {
+            devices = connections.map { KHDevice(connection: $0) }
         }
         await setupDevices()
     }
@@ -321,7 +373,7 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         }
         // not sure
         // await fetchParameters()
-        await fetch()
+        // await fetch()
         guard !devices.isEmpty else { return }
         state = devices.first!.state
     }

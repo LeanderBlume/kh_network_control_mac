@@ -7,45 +7,86 @@
 
 import Foundation
 
-protocol ConnectionCacheProtocol {
+protocol PlainInitializable {
     init()
+}
 
+extension Array: PlainInitializable {}
+extension Dictionary: PlainInitializable {}
+
+protocol SingleFileAccess {
+    static var fileURL: URL { get }
+    associatedtype FileSchema: Codable, PlainInitializable
+    init() throws
+    static func ensureFileExists() throws
+    func getFileContents() throws -> FileSchema
+    func writeFile(_ contents: FileSchema, prettyPrinted: Bool) throws
+}
+
+extension SingleFileAccess {
+    static func ensureFileExists() throws {
+        let fileManager = FileManager.default
+        if !fileManager.fileExists(atPath: Self.fileURL.path) {
+            let emptyList = try JSONEncoder().encode(FileSchema())
+            fileManager.createFile(atPath: Self.fileURL.path(), contents: emptyList)
+        }
+    }
+
+    func getFileContents() throws -> FileSchema {
+        let data = try Data(contentsOf: Self.fileURL)
+        return try JSONDecoder().decode(FileSchema.self, from: data)
+    }
+
+    func writeFile(_ contents: FileSchema, prettyPrinted: Bool = false) throws {
+        let encoder = JSONEncoder()
+        if prettyPrinted {
+            encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
+        }
+        let data = try encoder.encode(contents)
+        try data.write(to: Self.fileURL)
+    }
+}
+
+protocol ConnectionCacheProtocol: SingleFileAccess {
     func getConnections() throws -> [SSCConnection]
     func saveConnections(_ connections: [SSCConnection]) async throws
+    func clearConnections() async throws
+}
+
+protocol SchemaCacheProtocol: SingleFileAccess {
+    @MainActor func getSchema(for device: KHDevice) throws -> DeviceSchema?
+    @MainActor func saveSchema(_: SSCNode, for device: KHDevice) throws
+}
+
+protocol StateCacheProtocol: SingleFileAccess {
+    @MainActor func getState(for device: KHDevice) throws -> (KHState, JSONDataCodable)?
+    @MainActor func saveState(for device: KHDevice) throws
+}
+
+// This one is different. It manages multiple files.
+protocol BackupperProtocol {
+    func delete(name: String) throws
+    func list() -> [String]
+    @MainActor func write(name: String, khAccess: KHAccess) throws
+    @MainActor func load(name: String, khAccess: KHAccess) async throws
 }
 
 struct ConnectionCache: ConnectionCacheProtocol {
-    let url: URL = URL.documentsDirectory.appending(component: "connections.json")
+    static let fileURL: URL = URL.documentsDirectory.appending(
+        component: "connections.json"
+    )
 
-    private struct BonjourService: Codable {
+    init() throws {
+        try Self.ensureFileExists()
+    }
+
+    struct BonjourService: Codable {
         let name: String
         let type: String
         let domain: String
     }
 
-    private typealias FileSchema = [BonjourService]  // Stores IPv6 addresses
-
-    init() {
-        let fileManager = FileManager.default
-        if !fileManager.fileExists(atPath: url.path) {
-            do {
-                let emptyList = try JSONEncoder().encode(FileSchema())
-                fileManager.createFile(atPath: url.path(), contents: emptyList)
-            } catch {
-                print(error)
-            }
-        }
-    }
-
-    private func getFileContents() throws -> FileSchema {
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(FileSchema.self, from: data)
-    }
-
-    private func writeFile(_ contents: FileSchema) throws {
-        let data = try JSONEncoder().encode(contents)
-        try data.write(to: url)
-    }
+    typealias FileSchema = [BonjourService]
 
     func getConnections() throws -> [SSCConnection] {
         let services = try getFileContents()
@@ -78,20 +119,14 @@ struct ConnectionCache: ConnectionCacheProtocol {
     func clearConnections() async throws { try await saveConnections([]) }
 }
 
-@MainActor
-protocol SchemaCacheProtocol {
-    var url: URL { get }
-    init()
-    associatedtype FileSchema: Codable
-
-    func getSchema(for device: KHDevice) throws -> JSONDataCodable?
-    func saveSchema(_: SSCNode, for device: KHDevice) throws
-}
-
 struct SchemaCache: SchemaCacheProtocol {
-    let url: URL = URL.documentsDirectory.appending(
+    static let fileURL: URL = URL.documentsDirectory.appending(
         component: "device_schemata.json"
     )
+
+    init() throws {
+        try Self.ensureFileExists()
+    }
 
     struct DeviceModelID: Codable, Hashable {
         let product: String
@@ -102,84 +137,95 @@ struct SchemaCache: SchemaCacheProtocol {
             version = state.version
         }
     }
-    typealias FileSchema = [DeviceModelID: JSONDataCodable]
 
-    init() {
-        let fileManager = FileManager.default
-        if !fileManager.fileExists(atPath: url.path) {
-            do {
-                let emptyList = try JSONEncoder().encode(FileSchema())
-                fileManager.createFile(atPath: url.path(), contents: emptyList)
-            } catch {
-                print(error)
-            }
-        }
-    }
+    typealias FileSchema = [DeviceModelID: DeviceSchema]
 
-    private func getSchemaList() throws -> FileSchema {
-        let data = try Data(contentsOf: url)
-        return try JSONDecoder().decode(FileSchema.self, from: data)
-    }
-
-    private func writeSchemaList(_ schemaList: FileSchema) throws {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted]
-        let data = try JSONEncoder().encode(schemaList)
-        try data.write(to: url)
-    }
-
-    func getSchema(for device: KHDevice) throws -> JSONDataCodable? {
-        let schemaList = try getSchemaList()
+    @MainActor
+    func getSchema(for device: KHDevice) throws -> DeviceSchema? {
+        let schemaList = try getFileContents()
         return schemaList[DeviceModelID(device.state)]
     }
 
+    @MainActor
     func saveSchema(_ rootNode: SSCNode, for device: KHDevice) throws {
-        let jdc = JSONDataCodable(from: rootNode)
-        var schemaList = try getSchemaList()
+        let jdc = DeviceSchema(from: rootNode)
+        var schemaList = try getFileContents()
         schemaList[DeviceModelID(device.state)] = jdc
-        try writeSchemaList(schemaList)
+        try writeFile(schemaList, prettyPrinted: true)
     }
 }
 
-struct Backupper {
-    let backupsDir: URL = URL.documentsDirectory.appending(path: "backups/")
+struct StateCache: StateCacheProtocol {
+    static let fileURL = URL.documentsDirectory.appendingPathComponent("cache.json")
 
-    // currently unused, maybe in the future.
-    private struct DeviceIdentifier: Codable, Hashable {
-        let model: String
-        let version: String
-        let serial: String
+    init() throws {
+        try Self.ensureFileExists()
     }
 
-    private typealias Backup = [KHDevice.ID: JSONDataCodable]
+    typealias FileSchema = [KHDevice.ID: JSONDataCodable]
+
+    private enum StateCacheError: Error {
+        case error(String)
+    }
+
+    @MainActor
+    func getState(for device: KHDevice) throws -> (KHState, JSONDataCodable)? {
+        let list = try getFileContents()
+        guard let jdc = list[device.id] else { return nil }
+        guard let state = KHState(jsonDataCodable: jdc) else {
+            throw StateCacheError.error("JSON Data to State conversion error")
+        }
+        return (state, jdc)
+    }
+
+    @MainActor
+    func saveState(for device: KHDevice) throws {
+        guard let rootNode = device.parameterTree else {
+            throw StateCacheError.error("Parameters not populated")
+        }
+        guard let jdc = JSONDataCodable(from: rootNode) else {
+            throw StateCacheError.error("Parameter tree to JSON Conversion failed")
+        }
+        var contents = try getFileContents()
+        contents[device.id] = jdc
+        try writeFile(contents, prettyPrinted: true)
+    }
+}
+
+struct Backupper: BackupperProtocol {
+    private static let backupsDir: URL = URL.documentsDirectory.appending(
+        path: "backups/"
+    )
+
+    static func ensureFileExists() throws {
+        let fileManager = FileManager.default
+        if !fileManager.fileExists(atPath: Self.backupsDir.path) {
+            try fileManager.createDirectory(
+                at: Self.backupsDir,
+                withIntermediateDirectories: false
+            )
+        }
+    }
+
+    init() throws {
+        try Self.ensureFileExists()
+    }
+
+    private typealias FileSchema = [KHDevice.ID: JSONDataCodable]
 
     private enum BackupperErrors: Error {
         case error(String)
     }
 
-    init() {
-        let fileManager = FileManager.default
-        if !fileManager.fileExists(atPath: backupsDir.path) {
-            do {
-                try fileManager.createDirectory(
-                    at: backupsDir,
-                    withIntermediateDirectories: false
-                )
-            } catch {
-                print(error)
-            }
-        }
+    private func decode(from data: Data) throws -> FileSchema {
+        return try JSONDecoder().decode(FileSchema.self, from: data)
     }
 
-    private func decode(from data: Data) throws -> Backup {
-        return try JSONDecoder().decode(Backup.self, from: data)
-    }
-
-    private func getBackup(name: String) throws -> Backup {
+    private func getBackup(name: String) throws -> FileSchema {
         let fm = FileManager.default
         guard
             let backupData = fm.contents(
-                atPath: backupsDir.appending(component: name).path(
+                atPath: Self.backupsDir.appending(component: name).path(
                     percentEncoded: false
                 )
             )
@@ -189,11 +235,11 @@ struct Backupper {
         return try decode(from: backupData)
     }
 
-    private func saveBackup(name: String, backup: Backup) throws {
+    private func saveBackup(name: String, backup: FileSchema) throws {
         let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted]
+        encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
         let backupData = try encoder.encode(backup)
-        let url = URL(filePath: name + ".json", relativeTo: backupsDir)
+        let url = URL(filePath: name + ".json", relativeTo: Self.backupsDir)
         FileManager.default.createFile(
             atPath: url.path(percentEncoded: false),
             contents: backupData
@@ -202,14 +248,17 @@ struct Backupper {
 
     func delete(name: String) throws {
         let fm = FileManager.default
-        try fm.trashItem(at: backupsDir.appending(path: name), resultingItemURL: nil)
+        try fm.trashItem(
+            at: Self.backupsDir.appending(path: name),
+            resultingItemURL: nil
+        )
     }
 
     func list() -> [String] {
         let fm = FileManager.default
         do {
             let urls = try fm.contentsOfDirectory(
-                at: backupsDir,
+                at: Self.backupsDir,
                 includingPropertiesForKeys: nil,
                 options: [.skipsHiddenFiles]
             )
@@ -221,7 +270,7 @@ struct Backupper {
 
     @MainActor
     func write(name: String, khAccess: KHAccess) throws {
-        var newBackup = Backup()
+        var newBackup = FileSchema()
 
         for device in khAccess.devices {
             guard let rootNode = device.parameterTree else {

@@ -30,7 +30,7 @@ struct ContentView: View {
             }
             Tab("Backups", systemImage: "externaldrive") {
                 NavigationStack {
-                    BackupViewiOS()
+                    BackupView()
                         .toolbar { BrowserToolbar(showError: $showError) }
                     // .navigationTitle(Text("Backups"))
                 }
@@ -51,7 +51,7 @@ struct ContentView: View {
                     .toolbar { BrowserToolbar(showError: $showError) }
             }
             Tab("Backups", systemImage: "externaldrive") {
-                BackupViewMacOS()
+                BackupView()
                     .toolbar { BrowserToolbar(showError: $showError) }
             }
         }
