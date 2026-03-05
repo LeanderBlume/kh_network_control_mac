@@ -58,7 +58,7 @@ protocol ConnectionCacheProtocol: SingleFileAccess {
 }
 
 protocol SchemaCacheProtocol: SingleFileAccess {
-    @MainActor func getSchema(for device: KHDevice) throws -> DeviceSchema?
+    @MainActor func getSchema(for device: KHDevice) throws -> JSONSchema?
     @MainActor func saveSchema(_: SSCNode, for device: KHDevice) throws
 }
 
@@ -140,17 +140,17 @@ struct SchemaCache: SchemaCacheProtocol {
         }
     }
 
-    typealias FileSchema = [DeviceModelID: DeviceSchema]
+    typealias FileSchema = [DeviceModelID: JSONSchema]
 
     @MainActor
-    func getSchema(for device: KHDevice) throws -> DeviceSchema? {
+    func getSchema(for device: KHDevice) throws -> JSONSchema? {
         let schemaList = try getFileContents()
         return schemaList[DeviceModelID(device.state)]
     }
 
     @MainActor
     func saveSchema(_ rootNode: SSCNode, for device: KHDevice) throws {
-        let jdc = DeviceSchema(from: rootNode)
+        let jdc = JSONSchema(from: rootNode)
         var schemaList = try getFileContents()
         schemaList[DeviceModelID(device.state)] = jdc
         try writeFile(schemaList, prettyPrinted: true)

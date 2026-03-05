@@ -208,7 +208,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         let path = pathToNode()
         limits = try await getLimits(connection: connection, path: path)
         let decoder = JSONDecoder()
-        var schemata: [DeviceSchema]
+        var schemata: [JSONSchema]
         switch limits!.type {
         case "Number":
             schemata = [.number(), .array(type: .number())]
@@ -307,7 +307,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         }
     }
 
-    func populate(from schema: DeviceSchema) {
+    func populate(from schema: JSONSchema) {
         switch schema {
         case .null:
             value = .error("null")
@@ -355,7 +355,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         case .error:
             return
         case .value(let T):
-            let schema = DeviceSchema(from: T)
+            let schema = JSONSchema(from: T)
             value = .value(
                 try await connection.fetchJSONData(path: pathToNode(), schema: schema)
             )

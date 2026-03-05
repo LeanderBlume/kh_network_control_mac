@@ -148,7 +148,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         await _sendParameterGroup(.send, newState: newState)
     }
 
-    private func getCachedSchema() throws -> DeviceSchema? {
+    private func getCachedSchema() throws -> JSONSchema? {
         let schemaCache = try SchemaCache()
         return try schemaCache.getSchema(for: self)
     }
@@ -184,7 +184,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         var rootNode = SSCNode(name: "root", deviceID: self.id, parent: nil)
         
         // Load parameter tree structure without values from cache or device
-        var cachedSchema: DeviceSchema? = nil
+        var cachedSchema: JSONSchema? = nil
         do {
             cachedSchema = try getCachedSchema()
         } catch {

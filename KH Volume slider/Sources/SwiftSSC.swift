@@ -231,7 +231,7 @@ actor SSCConnection {
         return retval
     }
 
-    func fetchJSONData(path: [String], schema: DeviceSchema) async throws -> JSONData {
+    func fetchJSONData(path: [String], schema: JSONSchema) async throws -> JSONData {
         let data = try await fetchSSCValueData(path: path)
         let decoder = JSONDecoder()
         return try decoder.decode(

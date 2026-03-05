@@ -7,13 +7,13 @@
 
 import Foundation
 
-enum DeviceSchema: Equatable, Codable {
+enum JSONSchema: Codable {
     case string(limits: OSCLimits? = nil)
     case number(limits: OSCLimits? = nil)
     case bool(limits: OSCLimits? = nil)
-    indirect case array(type: DeviceSchema?, limits: OSCLimits? = nil)
+    indirect case array(type: JSONSchema?, limits: OSCLimits? = nil)
     case null
-    case object([String: DeviceSchema])
+    case object([String: JSONSchema])
 
     init(from jsonData: JSONData, limits: OSCLimits? = nil) {
         switch jsonData {
@@ -26,9 +26,9 @@ enum DeviceSchema: Equatable, Codable {
         case .bool:
             self = .bool(limits: limits)
         case .array(let vs):
-            var type: DeviceSchema? = nil
+            var type: JSONSchema? = nil
             if let v = vs.first {
-                type = DeviceSchema.init(from: v)
+                type = JSONSchema.init(from: v)
             }
             self = .array(type: type, limits: limits)
         case .object(let object):
@@ -124,15 +124,10 @@ enum JSONDataCodable: Equatable, Codable {
             self = .null
         }
     }
-
-    subscript(index: String) -> JSONDataCodable? {
-        guard case .object(let dict) = self else { return nil }
-        return dict[index]
-    }
 }
 
 enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
-    typealias DecodingConfiguration = DeviceSchema
+    typealias DecodingConfiguration = JSONSchema
 
     case string(String)
     case number(Double)
@@ -170,7 +165,7 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
         }
     }
     
-    init(from schema: DeviceSchema) {
+    init(from schema: JSONSchema) {
         switch schema {
         case .null:
             self = .null
