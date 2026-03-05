@@ -355,11 +355,10 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
             return dict[index]
         }
         set(value) {
-            guard case .object(let dict) = self else { assert(false) }
+            guard case .object(let dict) = self else { return }
             var newDict = dict
             newDict[index] = value
             self = .object(newDict)
-            return
         }
     }
 }
