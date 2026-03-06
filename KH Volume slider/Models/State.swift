@@ -146,6 +146,15 @@ struct Eq: Codable, Equatable {
     var q: [Double]
     var type: [String]
 
+    var numBands: Int? {
+        let counts = Set([
+            boost.count, enabled.count, frequency.count, gain.count, q.count,
+            type.count,
+        ])
+        guard counts.count == 1 else { return nil }
+        return counts.first!
+    }
+
     init(numBands: Int) {
         boost = Array(repeating: 0.0, count: numBands)
         enabled = Array(repeating: false, count: numBands)
@@ -182,7 +191,7 @@ struct KHState: Codable, Equatable {
     }
 
     init?(jsonDataCodable: JSONDataCodable) {
-        self.init(jsonData: JSONData(from: jsonDataCodable))
+        self.init(jsonData: JSONData(jsonDataCodable: jsonDataCodable))
     }
 }
 
@@ -467,7 +476,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
             KHStatePath(keyPath: \.eqs[1].q, devicePath: _getDevicePath())
         case .eq1type:
             KHStatePath(keyPath: \.eqs[1].type, devicePath: _getDevicePath())
-        
+
         case .standbyEnabled:
             KHStatePath(keyPath: \.standbyEnabled, devicePath: _getDevicePath())
         }
@@ -542,7 +551,7 @@ enum KHParameterGroup {
                 .eq1q,
                 .eq1type,
                 .name,
-                .standbyEnabled
+                .standbyEnabled,
             ]
         case .send:
             return [
@@ -561,7 +570,7 @@ enum KHParameterGroup {
                 .eq1gain,
                 .eq1q,
                 .eq1type,
-                .standbyEnabled
+                .standbyEnabled,
             ]
         case .setup:
             return [
