@@ -175,8 +175,12 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
             self = .number(0)
         case .bool:
             self = .bool(false)
-        case .array:
-            self = .array([])
+        case .array(let type, _):
+            if let type {
+                self = .array([JSONData(from: type)])
+            } else {
+                self = .array([])
+            }
         case .object(let object):
             self = .object(object.mapValues(JSONData.init))
         }
