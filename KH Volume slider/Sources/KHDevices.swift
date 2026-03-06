@@ -149,7 +149,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     }
 
     func fetch() async {
-        status = .busy("Fetching")
+        status = .busy("Fetching...")
         await _fetchParameterGroup(.fetch)
         updateCachedState()
     }
