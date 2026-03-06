@@ -150,7 +150,7 @@ struct SchemaCache: SchemaCacheProtocol {
 
     @MainActor
     func saveSchema(_ rootNode: SSCNode, for device: KHDevice) throws {
-        let jdc = JSONSchema(from: rootNode)
+        let jdc = JSONSchema(rootNode: rootNode)
         var schemaList = try getFileContents()
         schemaList[DeviceModelID(device.state)] = jdc
         try writeFile(schemaList, prettyPrinted: true)
@@ -185,12 +185,12 @@ struct StateCache: StateCacheProtocol {
         guard let rootNode = device.parameterTree else {
             throw StateCacheError.error("Parameters not populated")
         }
-        guard let jdc = JSONDataCodable(from: rootNode) else {
+        guard let jdc = JSONDataCodable(rootNode: rootNode) else {
             throw StateCacheError.error("Parameter tree to JSON Conversion failed")
         }
         var contents = try getFileContents()
         contents[device.id] = jdc
-        try writeFile(contents)
+        try writeFile(contents, prettyPrinted: true)
     }
 }
 
@@ -280,12 +280,12 @@ struct Backupper: BackupperProtocol {
                     "Could not write backup, parameters not loaded."
                 )
             }
-            guard let jsonData = JSONData(from: rootNode) else {
+            guard let jsonData = JSONData(rootNode: rootNode) else {
                 throw BackupperErrors.error(
                     "Could not write backup, JSONData conversion failed."
                 )
             }
-            newBackup[device.id] = JSONDataCodable(from: jsonData)
+            newBackup[device.id] = JSONDataCodable(jsonData: jsonData)
         }
 
         try saveBackup(name: name, backup: newBackup)

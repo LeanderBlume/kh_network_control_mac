@@ -312,7 +312,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         case .null:
             value = .error("null")
         case .number(let l), .bool(let l), .string(let l), .array(_, let l):
-            value = .value(JSONData(from: schema))
+            value = .value(JSONData(schema: schema))
             limits = l
         case .object(let dict):
             var children: [SSCNode] = []
@@ -355,7 +355,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         case .error:
             return
         case .value(let T):
-            let schema = JSONSchema(from: T)
+            let schema = JSONSchema(jsonData: T)
             value = .value(
                 try await connection.fetchJSONData(path: pathToNode(), schema: schema)
             )
@@ -393,7 +393,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
     }
 
     func load(from jsonDataCodable: JSONDataCodable) throws {
-        try load(from: JSONData(from: jsonDataCodable))
+        try load(from: JSONData(jsonDataCodable: jsonDataCodable))
     }
     
     

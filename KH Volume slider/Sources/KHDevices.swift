@@ -93,6 +93,15 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
 
     required init(connection: SSCConnection) { self.connection = connection }
     
+    private func updateCachedState() {
+        do {
+            let stateCache = try StateCache()
+            try stateCache.saveState(for: self)
+        } catch {
+            print("Error updating cache:", error)
+        }
+    }
+    
     private func _fetchParameter(_ parameter: KHParameters) async {
         do {
             state = try await parameter.fetch(
@@ -104,14 +113,6 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
             status = .error(String(describing: error))
         }
     }
-
-    private func _fetchParameterGroup(_ parameterGroup: KHParameterGroup) async {
-        for p in parameterGroup.parameters() {
-            await _fetchParameter(p)
-            if case .error = status { return }
-        }
-        status = .ready
-    }
     
     private func _sendParameter(_ parameter: KHParameters, newState: KHState) async {
         do {
@@ -121,6 +122,8 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
                 connection: connection,
                 parameterTree: parameterTree
             )
+            /// We only want to copy these parameters and not update the whole state because we can get a single state with Name etc. from KHDeviceGroup and don't want to overwrite names of devices.
+            state = parameter.copy(from: newState, into: state)
         } catch SSCConnection.DeviceError.notAcceptable {
             status = .error("Rejected by device")
         } catch {
@@ -128,13 +131,19 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         }
     }
     
+    private func _fetchParameterGroup(_ parameterGroup: KHParameterGroup) async {
+        for p in parameterGroup.parameters() {
+            await _fetchParameter(p)
+            if case .error = status { return }
+        }
+        status = .ready
+    }
+    
     private func _sendParameterGroup(_ parameterGroup: KHParameterGroup, newState: KHState) async
     {
         for p in parameterGroup.parameters() {
             await _sendParameter(p, newState: newState)
             if case .error = status { return }
-            /// We only want to copy these parameters and not update the whole state because we can get a single state with Name etc. from KHDeviceGroup and don't want to overwrite names of devices.
-            state = p.copy(from: newState, into: state)
         }
         status = .ready
     }
@@ -142,84 +151,37 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     func fetch() async {
         status = .busy("Fetching")
         await _fetchParameterGroup(.fetch)
+        updateCachedState()
     }
 
     func send(_ newState: KHState) async {
         await _sendParameterGroup(.send, newState: newState)
     }
 
-    private func getCachedSchema() throws -> JSONSchema? {
-        let schemaCache = try SchemaCache()
-        return try schemaCache.getSchema(for: self)
-    }
-
-    private func getCachedState() throws -> (KHState, JSONDataCodable)? {
-        let schemaCache = try StateCache()
-        return try schemaCache.getState(for: self)
-    }
-
-    private func updateCachedState() throws {
-        let stateCache = try StateCache()
-        try stateCache.saveState(for: self)
-    }
-
-    private func populateParametersFromDevice(into rootNode: inout SSCNode) async throws
-    {
-        try await rootNode.populate(connection: connection, recursive: true)
-        let schemaCache = try SchemaCache()
-        try schemaCache.saveSchema(rootNode, for: self)
-    }
-
-    private func loadParametersFromCache(into rootNode: SSCNode) throws -> SSCNode? {
-        let stateCache = try StateCache()
-        guard let cachedState = try stateCache.getState(for: self) else {
-            return nil
-        }
-        try rootNode.load(from: cachedState.1)
-        return rootNode
-    }
-
-    private func populateParameters() async {
+    private func populateParameters() async throws {
         status = .busy("Loading parameters...")
-        var rootNode = SSCNode(name: "root", deviceID: self.id, parent: nil)
-        
+        let rootNode = SSCNode(name: "root", deviceID: self.id, parent: nil)
+
         // Load parameter tree structure without values from cache or device
-        var cachedSchema: JSONSchema? = nil
-        do {
-            cachedSchema = try getCachedSchema()
-        } catch {
-            print("Error loading cached schema:", error)
-        }
-        if let cachedSchema {
+        let schemaCache = try SchemaCache()
+        if let cachedSchema = try schemaCache.getSchema(for: self) {
             rootNode.populate(from: cachedSchema)
         } else {
-            do {
-                try await populateParametersFromDevice(into: &rootNode)
-            } catch {
-                status = .error("Error loading parameters: \(error)")
-                return
-            }
+            try await rootNode.populate(connection: connection, recursive: true)
+            let schemaCache = try SchemaCache()
+            try schemaCache.saveSchema(rootNode, for: self)
         }
         parameterTree = rootNode
     }
 
-    private func loadParameterValues() async {
+    private func loadParameterValues() async throws  {
         guard let rootNode = parameterTree else {
-            status = .error("Parameters not populated, initial loading failed")
+            status = .error("Initial loading failed: Parameters not populated")
             return
         }
-        var cachedState: (KHState, JSONDataCodable)? = nil
-        do {
-            cachedState = try getCachedState()
-        } catch {
-            print("Error loading cached state:", error)
-        }
-        if let cachedState {
-            do {
-                try rootNode.load(from: cachedState.1)
-            } catch {
-                print("Error loading from cached state:", error)
-            }
+        let stateCache = try StateCache()
+        if let cachedState = try stateCache.getState(for: self) {
+            try rootNode.load(from: cachedState.1)
             state = cachedState.0
         } else {
             await fetchParameterTree()
@@ -231,8 +193,17 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         status = .busy("Setting up")
         // We need to fetch product and version to identify the schema type.
         await _fetchParameterGroup(.setup)
-        await populateParameters()
-        await loadParameterValues()
+        do {
+            try await populateParameters()
+        } catch {
+            status = .error("Error populating parameters: \(error)")
+            return
+        }
+        do {
+            try await loadParameterValues()
+        } catch {
+            status = .error("Error loading parameters: \(error)")
+        }
         // We do NOT update the state now because that messes up the ID
     }
 
@@ -245,6 +216,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
                 return
             }
         }
+        updateCachedState()
         status = .ready
     }
 
@@ -272,11 +244,6 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
 
         status = .busy("Fetching parameters...")
         await _fetchNodes(rootNode.filter({ $0.isLeaf() }))
-        do {
-            try updateCachedState()
-        } catch {
-            print("Error updating cached state:", error)
-        }
     }
 
     func sendParameterTree() async {

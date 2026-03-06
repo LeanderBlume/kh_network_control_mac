@@ -15,7 +15,7 @@ enum JSONSchema: Codable {
     case null
     case object([String: JSONSchema])
 
-    init(from jsonData: JSONData, limits: OSCLimits? = nil) {
+    init(jsonData: JSONData, limits: OSCLimits? = nil) {
         switch jsonData {
         case .null:
             self = .null
@@ -28,23 +28,23 @@ enum JSONSchema: Codable {
         case .array(let vs):
             var type: JSONSchema? = nil
             if let v = vs.first {
-                type = JSONSchema.init(from: v)
+                type = JSONSchema.init(jsonData: v)
             }
             self = .array(type: type, limits: limits)
         case .object(let object):
-            self = .object(object.mapValues({ .init(from: $0) }))
+            self = .object(object.mapValues({ .init(jsonData: $0) }))
         }
     }
 
     @MainActor
-    init?(from rootNode: SSCNode) {
+    init?(rootNode: SSCNode) {
         switch rootNode.value {
         case .value(let value):
-            self.init(from: value, limits: rootNode.limits)
+            self.init(jsonData: value, limits: rootNode.limits)
         case .children(let children):
             var dict = [String: Self]()
             children.forEach { child in
-                dict[child.name] = .init(from: child)
+                dict[child.name] = .init(rootNode: child)
             }
             self = .object(dict)
         default:
@@ -92,7 +92,7 @@ enum JSONDataCodable: Equatable, Codable {
     case null
     case object([String: JSONDataCodable])
 
-    init(from jsonData: JSONData) {
+    init(jsonData: JSONData) {
         switch jsonData {
         case .null:
             self = .null
@@ -103,21 +103,21 @@ enum JSONDataCodable: Equatable, Codable {
         case .bool(let bool):
             self = .bool(bool)
         case .array(let array):
-            self = .array(array.map({ .init(from: $0) }))
+            self = .array(array.map({ .init(jsonData: $0) }))
         case .object(let object):
-            self = .object(object.mapValues({ .init(from: $0) }))
+            self = .object(object.mapValues({ .init(jsonData: $0) }))
         }
     }
 
     @MainActor
-    init?(from rootNode: SSCNode) {
+    init?(rootNode: SSCNode) {
         switch rootNode.value {
         case .value(let value):
-            self.init(from: value)
+            self.init(jsonData: value)
         case .children(let children):
             var dict: [String: JSONDataCodable] = [:]
             children.forEach { child in
-                dict[child.name] = JSONDataCodable(from: child)
+                dict[child.name] = JSONDataCodable(rootNode: child)
             }
             self = .object(dict)
         default:
@@ -148,7 +148,7 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     init(singleValue: [Double]) { self = .array(singleValue.map({ .number($0) })) }
     init(singleValue: [Bool]) { self = .array(singleValue.map({ .bool($0) })) }
 
-    init(from jsonDataCodable: JSONDataCodable) {
+    init(jsonDataCodable: JSONDataCodable) {
         switch jsonDataCodable {
         case .null:
             self = .null
@@ -165,7 +165,7 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
         }
     }
     
-    init(from schema: JSONSchema) {
+    init(schema: JSONSchema) {
         switch schema {
         case .null:
             self = .null
@@ -177,7 +177,7 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
             self = .bool(false)
         case .array(let type, _):
             if let type {
-                self = .array([JSONData(from: type)])
+                self = .array([JSONData(schema: type)])
             } else {
                 self = .array([])
             }
@@ -187,9 +187,9 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     }
 
     @MainActor
-    init?(from rootNode: SSCNode) {
-        guard let jdc = JSONDataCodable(from: rootNode) else { return nil }
-        self.init(from: jdc)
+    init?(rootNode: SSCNode) {
+        guard let jdc = JSONDataCodable(rootNode: rootNode) else { return nil }
+        self.init(jsonDataCodable: jdc)
     }
 
     init(from decoder: Decoder, configuration: DecodingConfiguration) throws {
