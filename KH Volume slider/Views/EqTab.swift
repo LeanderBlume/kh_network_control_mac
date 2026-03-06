@@ -213,19 +213,23 @@ private struct EqPanel: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        BandPicker(numBands: eq.enabled.count, selectedEqBand: $selectedEqBand, eq: $eq)
+        BandPicker(numBands: eq.numBands ?? 0, selectedEqBand: $selectedEqBand, eq: $eq)
             .onChange(of: eq.enabled) {
                 Task { await khAccess.send() }
             }
 
-        EqBandPanel(
-            enabled: eq.enabled[selectedEqBand],
-            type: $eq.type[selectedEqBand],
-            frequency: $eq.frequency[selectedEqBand],
-            q: $eq.q[selectedEqBand],
-            boost: $eq.boost[selectedEqBand],
-            gain: $eq.gain[selectedEqBand]
-        )
+        if selectedEqBand >= eq.numBands ?? -1 {
+            Text("Band index out of range")
+        } else {
+            EqBandPanel(
+                enabled: eq.enabled[selectedEqBand],
+                type: $eq.type[selectedEqBand],
+                frequency: $eq.frequency[selectedEqBand],
+                q: $eq.q[selectedEqBand],
+                boost: $eq.boost[selectedEqBand],
+                gain: $eq.gain[selectedEqBand]
+            )
+        }
     }
 }
 
