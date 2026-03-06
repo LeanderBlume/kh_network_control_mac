@@ -602,7 +602,7 @@ struct DevicesView: View {
             if devices.isEmpty {
                 Text("No devices")
             } else {
-                DeviceBrowserForm(devices: khAccess.devices)
+                DeviceBrowserForm(devices: devices)
             }
         }
     }
