@@ -209,15 +209,15 @@ struct TestSSC {
         let rootNode = SSCNode(name: "root", deviceID: deviceID, parent: nil)
         #expect(rootNode.pathToNode() == [])
         try await rootNode.populate(connection: connection)
-        let treeData = JSONData(from: rootNode)!
+        let treeData = JSONData(rootNode: rootNode)!
         let jd = try JSONEncoder().encode(treeData)
         let decoder = JSONDecoder()
-        let schema = JSONData(from: rootNode)
+        let schema = JSONData(rootNode: rootNode)
         // decoder.userInfo[.schemaJSONData] = schema
         let decodedTest = try decoder.decode(
             JSONData.self,
             from: jd,
-            configuration: schema!
+            configuration: JSONSchema(jsonData: schema!)
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
@@ -267,7 +267,7 @@ struct TestBackup {
     @Test func main() async throws {
         let kha = KHAccess()
         await kha.setup()
-        let b = Backupper()
+        let b = try Backupper()
         try await b.load(name: "TestAnew.json", khAccess: kha)
     }
 }
