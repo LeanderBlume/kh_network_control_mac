@@ -22,15 +22,6 @@ enum NodeData {
     init(value: [Double]) { self = .value(.array(value.map({ .number($0) }))) }
     init(value: [Bool]) { self = .value(.array(value.map({ .bool($0) }))) }
 
-    func isUnknown() -> Bool {
-        switch self {
-        case .unknown, .unknownChildren, .unknownValue:
-            return true
-        default:
-            return false
-        }
-    }
-
     func isLeaf() -> Bool {
         switch self {
         case .value, .error:
@@ -405,8 +396,8 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
     var children: [SSCNode]? {
         if case .children(let c) = value {
             return c.sorted { a, b in
-                if a.value.isLeaf() && !b.value.isLeaf() { return true }
-                if !a.value.isLeaf() && b.value.isLeaf() { return false }
+                if a.isLeaf() && !b.isLeaf() { return true }
+                if !a.isLeaf() && b.isLeaf() { return false }
                 return a.name < b.name
             }
         }
