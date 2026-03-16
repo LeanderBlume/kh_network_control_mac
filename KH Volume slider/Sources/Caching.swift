@@ -89,7 +89,7 @@ struct ConnectionCache: ConnectionCacheProtocol {
         let type: String
         let domain: String
     }
-    
+
     struct DeviceData: Codable {
         let service: BonjourService
         let modelID: DeviceModelID
