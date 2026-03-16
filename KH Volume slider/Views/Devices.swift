@@ -528,20 +528,19 @@ private struct DeviceBrowserForm: View {
     var devices: [KHDevice]
     @State private var pathStrings: [String: String] = [:]
 
-    func updatePathStrings() {
+    private func updatePathStrings() {
         for parameter in KHParameters.allCases {
             pathStrings[parameter.rawValue] = parameter.getPathString()
         }
     }
 
-    var bodyiOS: some View {
+    var body: some View {
         List {
             Section("Devices") {
-                ForEach(devices.indices, id: \.self) { i in
-                    DeviceBrowserLink(device: devices[i])
+                ForEach(devices) { device in
+                    DeviceBrowserLink(device: device)
                 }
             }
-
             Section("Map UI Elements") {
                 Button("Reset all") {
                     KHParameters.resetAllDevicePaths()
@@ -558,38 +557,6 @@ private struct DeviceBrowserForm: View {
         }
         .onAppear(perform: updatePathStrings)
     }
-
-    var bodymacOS: some View {
-        List {
-            Section("Devices") {
-                ForEach(devices.indices, id: \.self) { i in
-                    DeviceBrowserLink(device: devices[i])
-                }
-            }
-            Section("Map UI Elements") {
-                Button("Reset all") {
-                    KHParameters.resetAllDevicePaths()
-                    updatePathStrings()
-                }
-                ForEach(KHParameters.allCases) { parameter in
-                    ParameterMapperLink(
-                        parameter: parameter,
-                        device: devices.first!,
-                        pathString: $pathStrings[parameter.rawValue]
-                    )
-                }
-            }
-            .onAppear(perform: updatePathStrings)
-        }
-    }
-
-    var body: some View {
-        #if os(iOS)
-            bodyiOS
-        #elseif os(macOS)
-            bodymacOS
-        #endif
-    }
 }
 
 struct DevicesView: View {
@@ -602,7 +569,7 @@ struct DevicesView: View {
             if devices.isEmpty {
                 Text("No devices")
             } else {
-                DeviceBrowserForm(devices: khAccess.devices)
+                DeviceBrowserForm(devices: devices)
             }
         }
     }

@@ -90,6 +90,12 @@ struct ConnectionCache: ConnectionCacheProtocol {
         let domain: String
     }
 
+    struct DeviceData: Codable {
+        let service: BonjourService
+        let modelID: DeviceModelID
+        let deviceID: KHDeviceID
+    }
+
     typealias FileSchema = [BonjourService]
 
     func getConnections() throws -> [SSCConnection] {
@@ -128,16 +134,6 @@ struct SchemaCache: SchemaCacheProtocol {
 
     init() throws {
         try Self.ensureFileExists()
-    }
-
-    struct DeviceModelID: Codable, Hashable {
-        let product: String
-        let version: String
-
-        init(_ state: KHState) {
-            product = state.product
-            version = state.version
-        }
     }
 
     typealias FileSchema = [DeviceModelID: JSONSchema]

@@ -66,7 +66,7 @@ actor SSCConnection {
         connection = NWConnection(to: endpoint, using: .tcp)
         dispatchQueue = DispatchQueue(label: "KH Speaker connection")
     }
-    
+
     deinit { connection.cancel() }
 
     static func scan(seconds: UInt32 = 1) async -> [SSCConnection] {
@@ -126,16 +126,7 @@ actor SSCConnection {
         }
     }
 
-    static func pathToJSONString<T>(path: [String], value: T) throws -> String
-    where T: Encodable {
-        let jsonData = try JSONEncoder().encode(value)
-        let jsonPath = String(data: jsonData, encoding: .utf8)!
-        return path.reversed().reduce(jsonPath) { partial, p in
-            "{\"\(p)\":\(partial)}"
-        }
-    }
-
-    private func sendMessage(_ TXString: String) async throws {
+    private func sendDataFireAndForget(_ data: Data) async throws {
         try await open()
         return try await withCheckedThrowingContinuation { continuation in
             let sendCompHandler = NWConnection.SendCompletion.contentProcessed {
@@ -146,12 +137,11 @@ actor SSCConnection {
                 }
                 continuation.resume(returning: ())
             }
-            let TXraw = TXString.appending("\r\n").data(using: .ascii)!
-            connection.send(content: TXraw, completion: sendCompHandler)
+            connection.send(content: data, completion: sendCompHandler)
         }
     }
 
-    private func receiveMessage() async throws -> String {
+    private func receiveData() async throws -> Data {
         try await open()
         return try await withCheckedThrowingContinuation { continuation in
             connection.receive(minimumIncompleteLength: 1, maximumLength: 512) {
@@ -165,11 +155,7 @@ actor SSCConnection {
                     return
                 }
                 if let data {
-                    guard let response = String(data: data, encoding: .utf8) else {
-                        continuation.resume(throwing: ConnectionError.codingError)
-                        return
-                    }
-                    continuation.resume(returning: response)
+                    continuation.resume(returning: data)
                     return
                 }
                 continuation.resume(throwing: ConnectionError.impossibleError)
@@ -177,35 +163,67 @@ actor SSCConnection {
         }
     }
 
-    func sendSSCCommand(command: String) async throws -> String {
-        try await sendMessage(command)
-        let RX = try await receiveMessage()
+    private func sendData(_ content: Data) async throws -> Data {
+        try await sendDataFireAndForget(content)
+        let response = try await receiveData()
         // TODO more robust check with decoding this to JSONData or something
-        if RX.starts(with: "{\"osc\":{\"error\"") {
-            // Special case: We asked for it.
-            if command == "{\"osc\":{\"error\":null}}" { return RX }
-            try DeviceError.allCases.forEach { err in
-                if RX.contains(String(err.rawValue)) { throw err }
+        guard let responseString = String(data: response, encoding: .utf8) else {
+            throw ConnectionError.codingError
+        }
+        if responseString.starts(with: "{\"osc\":{\"error\"") {
+            guard let contentString = String(data: content, encoding: .utf8) else {
+                throw ConnectionError.codingError
             }
-            print("Unknown error:", RX)
+            // Special case: We asked for it.
+            // .starts() because or \r\n.
+            if contentString.starts(with: "{\"osc\":{\"error\":null}}") {
+                return response
+            }
+            try DeviceError.allCases.forEach { err in
+                if responseString.contains(String(err.rawValue)) { throw err }
+            }
+            print("Unknown error", responseString, "in response to", contentString)
             throw DeviceError.unknownError
         }
-        return RX
+        return response
+    }
+
+    func sendSSCCommand(command: String) async throws -> String {
+        guard let TXData = command.appending("\r\n").data(using: .ascii) else {
+            throw ConnectionError.codingError
+        }
+        let RXData = try await sendData(TXData)
+        guard let response = String(data: RXData, encoding: .utf8) else {
+            throw ConnectionError.codingError
+        }
+        return response
+    }
+
+    func sendJSONData(_ jsonData: JSONData) async throws -> JSONData {
+        let data = try JSONEncoder().encode(jsonData)
+        try await sendDataFireAndForget(data)
+        let RXData = try await receiveData()
+        let schema = JSONSchema(jsonData: jsonData)
+        return try JSONDecoder().decode(
+            JSONData.self,
+            from: RXData,
+            configuration: schema
+        )
+    }
+
+    static func pathToJSONString<T>(path: [String], value: T) throws -> String
+    where T: Encodable {
+        let jsonData = try JSONEncoder().encode(value)
+        let jsonPath = String(data: jsonData, encoding: .utf8)!
+        return path.reversed().reduce(jsonPath) { partial, p in
+            "{\"\(p)\":\(partial)}"
+        }
     }
 
     func sendSSCValue<T>(path: [String], value: T) async throws where T: Encodable {
         /// sends the command `{"p1":{"p2":value}}` to the device, if `path=["p1", "p2"]`.
         let jsonPath = try SSCConnection.pathToJSONString(path: path, value: value)
         try await _ = sendSSCCommand(command: jsonPath)
-    }
-
-    func fetchSSCValueData(path: [String]) async throws -> Data {
-        let jsonPath = try SSCConnection.pathToJSONString(
-            path: path,
-            value: nil as Float?
-        )
-        let RX = try await sendSSCCommand(command: jsonPath)
-        return RX.data(using: .utf8)!
     }
 
     private func fetchSSCValueAny(path: [String]) async throws -> Any? {
@@ -221,6 +239,15 @@ actor SSCConnection {
             result = result[p] as! [String: Any]
         }
         return result[lastKey]
+    }
+
+    func fetchSSCValueData(path: [String]) async throws -> Data {
+        let jsonPath = try SSCConnection.pathToJSONString(
+            path: path,
+            value: nil as Float?
+        )
+        let RX = try await sendSSCCommand(command: jsonPath)
+        return RX.data(using: .utf8)!
     }
 
     func fetchSSCValue<T>(path: [String]) async throws -> T where T: Decodable {

@@ -76,22 +76,44 @@ enum KHDeviceStatus: Equatable {
     }
 }
 
+struct KHDeviceID: Hashable, Codable {
+    let name: String
+    let serial: String
+}
+
+struct DeviceModelID: Codable, Hashable {
+    let product: String
+    let version: String
+
+    init(_ state: KHState) {
+        product = state.product
+        version = state.version
+    }
+}
+
 @Observable
 final class KHDevice: @MainActor KHSingleDeviceProtocol {
-    var state: KHState = KHState()
+    var state: KHState
     var status: KHDeviceStatus = .error("Not initialized")
     var parameterTree: SSCNode? = nil
 
     private let connection: SSCConnection
 
-    struct KHDeviceID: Hashable, Codable {
-        let name: String
-        let serial: String
-    }
-
     var id: KHDeviceID { .init(name: state.name, serial: state.serial) }
 
-    required init(connection: SSCConnection) { self.connection = connection }
+    required init(connection: SSCConnection) {
+        state = KHState()
+        self.connection = connection
+    }
+    
+    init(deviceID: KHDevice.ID, modelID: DeviceModelID, connection: SSCConnection) {
+        self.connection = connection
+        state = KHState()
+        state.name = deviceID.name
+        state.serial = deviceID.serial
+        state.product = modelID.product
+        state.version = modelID.version
+    }
     
     private func updateCachedState() {
         do {
@@ -149,7 +171,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     }
 
     func fetch() async {
-        status = .busy("Fetching")
+        status = .busy("Fetching...")
         await _fetchParameterGroup(.fetch)
         updateCachedState()
     }
