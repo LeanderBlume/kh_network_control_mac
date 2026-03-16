@@ -9,17 +9,46 @@ import SwiftUI
 struct ToolbarStatusDisplay: View {
     var status: KHDeviceStatus
     @Binding var showError: Bool
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Button {
             showError.toggle()
         } label: {
-            if showError {
-                StatusDisplay(status: status).padding(.trailing, 7)
-            } else {
-                StatusDisplayCompact(status: status)
-            }
+            StatusDisplayCompact(status: status)
         }
+        .sheet(isPresented: $showError) {
+            VStack {
+                ScrollView {
+                    VStack(alignment: .leading) {
+                        if khAccess.devices.isEmpty {
+                            StatusDisplay(status: status)
+                                .padding(.bottom, 10)
+                        }
+                        
+                        ForEach(khAccess.devices) { device in
+                            let ds = device.status
+                            HStack {
+                                Text("Status of device \"\(device.state.name)\":")
+                                    .font(.title2)
+                                Spacer()
+                                StatusDisplayCompact(status: ds)
+                            }
+                            .padding(.bottom, 5)
+                            
+                            StatusDisplayText(status: ds)
+                                .padding(.bottom, 10)
+                        }
+                    }
+                }
+
+                Button("Dismiss") { showError.toggle() }
+                    .padding(.top, 10)
+            }
+            .scenePadding()
+            .presentationDetents([.medium])
+        }
+        .help("Show status")
     }
 }
 
