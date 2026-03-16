@@ -162,8 +162,8 @@ actor SSCConnection {
             }
         }
     }
-    
-    private func sendData(_ content: Data) async throws  -> Data {
+
+    private func sendData(_ content: Data) async throws -> Data {
         try await sendDataFireAndForget(content)
         let response = try await receiveData()
         // TODO more robust check with decoding this to JSONData or something
@@ -171,15 +171,18 @@ actor SSCConnection {
             throw ConnectionError.codingError
         }
         if responseString.starts(with: "{\"osc\":{\"error\"") {
-            // Special case: We asked for it.
             guard let contentString = String(data: content, encoding: .utf8) else {
                 throw ConnectionError.codingError
             }
-            if contentString == "{\"osc\":{\"error\":null}}" { return response }
+            // Special case: We asked for it.
+            // .starts() because or \r\n.
+            if contentString.starts(with: "{\"osc\":{\"error\":null}}") {
+                return response
+            }
             try DeviceError.allCases.forEach { err in
                 if responseString.contains(String(err.rawValue)) { throw err }
             }
-            print("Unknown error:", responseString)
+            print("Unknown error", responseString, "in response to", contentString)
             throw DeviceError.unknownError
         }
         return response
@@ -195,7 +198,7 @@ actor SSCConnection {
         }
         return response
     }
-    
+
     func sendJSONData(_ jsonData: JSONData) async throws -> JSONData {
         let data = try JSONEncoder().encode(jsonData)
         try await sendDataFireAndForget(data)
