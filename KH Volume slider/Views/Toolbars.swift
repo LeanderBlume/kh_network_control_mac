@@ -25,8 +25,9 @@ struct ToolbarStatusDisplay: View {
                             StatusDisplay(status: status)
                                 .padding(.bottom, 10)
                         }
-                        
-                        ForEach(khAccess.devices) { device in
+                        ForEach(
+                            khAccess.devices.sorted { $0.state.name < $1.state.name }
+                        ) { device in
                             let ds = device.status
                             HStack {
                                 Text("Status of device \"\(device.state.name)\":")
@@ -35,7 +36,7 @@ struct ToolbarStatusDisplay: View {
                                 StatusDisplayCompact(status: ds)
                             }
                             .padding(.bottom, 5)
-                            
+
                             StatusDisplayText(status: ds)
                                 .padding(.bottom, 10)
                         }
