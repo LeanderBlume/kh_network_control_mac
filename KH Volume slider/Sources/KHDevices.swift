@@ -124,6 +124,18 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         }
     }
     
+    private func updateStateFromParameterTree() {
+        guard let rootNode = parameterTree else {
+            print("Parameters not populated, cannot update state")
+            return
+        }
+        guard let newState = KHState(nodeTree: rootNode) else {
+            print("Failed to create KHState from parameter tree")
+            return
+        }
+        state = newState
+    }
+    
     private func _fetchParameter(_ parameter: KHParameters) async {
         do {
             state = try await parameter.fetch(
@@ -238,6 +250,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
                 return
             }
         }
+        updateStateFromParameterTree()
         updateCachedState()
         status = .ready
     }
