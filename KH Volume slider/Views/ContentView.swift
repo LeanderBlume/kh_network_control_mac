@@ -17,7 +17,7 @@ struct ContentView: View {
             Tab("Controls", systemImage: "speaker.wave.3") {
                 NavigationStack {
                     MainTabiOS()
-                    // toolbar is handled in Tab view
+                    /// toolbar is handled in Tab view because of focus state dependency
                     // .navigationTitle(Text("Controls"))
                 }
             }
@@ -36,7 +36,7 @@ struct ContentView: View {
                 }
             }
         }
-        .onAppear { Task { await khAccess.setup() } }
+        // .onAppear { Task { await khAccess.setup() } }
     }
 
     var bodymacOS: some View {
@@ -55,7 +55,7 @@ struct ContentView: View {
                     .toolbar { BrowserToolbar(showError: $showError) }
             }
         }
-        .onAppear { Task { await khAccess.setup() } }
+        // .onAppear { Task { await khAccess.setup() } }
         .scenePadding()
         .frame(minWidth: 450, minHeight: 600)
     }
