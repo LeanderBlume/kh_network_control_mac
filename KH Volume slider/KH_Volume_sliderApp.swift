@@ -24,7 +24,7 @@ struct KH_Volume_sliderApp: App {
 
     var body: some Scene {
         #if os(macOS)
-        MenuBarExtra("KH Volume slider", systemImage: "hifispeaker.2") {
+        MenuBarExtra("SSC Control", systemImage: "hifispeaker.2") {
             MenuBarView()
                 .environment(khAccess)
         }
