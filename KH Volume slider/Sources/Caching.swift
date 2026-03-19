@@ -46,7 +46,7 @@ extension SingleFileAccess {
         let data = try encoder.encode(contents)
         try data.write(to: Self.fileURL)
     }
-    
+
     func clear() throws {
         try writeFile(FileSchema())
     }
@@ -93,7 +93,7 @@ struct ConnectionCache: ConnectionCacheProtocol {
     struct DeviceData: Codable {
         let service: BonjourService
         let modelID: DeviceModelID
-        let deviceID: KHDeviceID
+        let deviceID: KHDevice.ID
     }
 
     typealias FileSchema = [BonjourService]

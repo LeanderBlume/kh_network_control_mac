@@ -24,7 +24,6 @@ protocol KHSingleDeviceProtocol: KHDevicesProtocol, Identifiable {
     func send(_: KHState) async
 
     // Truly specific
-    init(connection: SSCConnection)
     func sendNode(path: [String]) async
     func fetchNode(path: [String]) async
 }
@@ -76,11 +75,6 @@ enum KHDeviceStatus: Equatable {
     }
 }
 
-struct KHDeviceID: Hashable, Codable {
-    let name: String
-    let serial: String
-}
-
 struct DeviceModelID: Codable, Hashable {
     let product: String
     let version: String
@@ -99,22 +93,14 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
 
     private let connection: SSCConnection
 
-    var id: KHDeviceID { .init(name: state.name, serial: state.serial) }
+    let id: String
 
-    required init(connection: SSCConnection) {
+    required init(connection: SSCConnection, id: String) {
         state = KHState()
         self.connection = connection
+        self.id = id
     }
-    
-    init(deviceID: KHDevice.ID, modelID: DeviceModelID, connection: SSCConnection) {
-        self.connection = connection
-        state = KHState()
-        state.name = deviceID.name
-        state.serial = deviceID.serial
-        state.product = modelID.product
-        state.version = modelID.version
-    }
-    
+
     private func updateCachedState() {
         do {
             let stateCache = try StateCache()
@@ -123,7 +109,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
             print("Error updating cache:", error)
         }
     }
-    
+
     private func updateStateFromParameterTree() {
         guard let rootNode = parameterTree else {
             print("Parameters not populated, cannot update state")
@@ -135,7 +121,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         }
         state = newState
     }
-    
+
     private func _fetchParameter(_ parameter: KHParameters) async {
         do {
             state = try await parameter.fetch(
@@ -147,7 +133,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
             status = .error(String(describing: error))
         }
     }
-    
+
     private func _sendParameter(_ parameter: KHParameters, newState: KHState) async {
         do {
             try await parameter.send(
@@ -164,7 +150,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
             status = .error(String(describing: error))
         }
     }
-    
+
     private func _fetchParameterGroup(_ parameterGroup: KHParameterGroup) async {
         for p in parameterGroup.parameters() {
             await _fetchParameter(p)
@@ -172,9 +158,11 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         }
         status = .ready
     }
-    
-    private func _sendParameterGroup(_ parameterGroup: KHParameterGroup, newState: KHState) async
-    {
+
+    private func _sendParameterGroup(
+        _ parameterGroup: KHParameterGroup,
+        newState: KHState
+    ) async {
         for p in parameterGroup.parameters() {
             await _sendParameter(p, newState: newState)
             if case .error = status { return }
@@ -208,7 +196,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         parameterTree = rootNode
     }
 
-    private func loadParameterValues() async throws  {
+    private func loadParameterValues() async throws {
         guard let rootNode = parameterTree else {
             status = .error("Initial loading failed: Parameters not populated")
             return
@@ -222,7 +210,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         }
         status = .ready
     }
-    
+
     func setup() async {
         status = .busy("Setting up")
         // We need to fetch product and version to identify the schema type.
@@ -325,6 +313,22 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
     }
     var devices: [KHDevice] = []
 
+    static private func connectionsToDevices(_ connections: [SSCConnection]) async
+        -> [KHDevice]
+    {
+        var ids: [String] = []
+        for c in connections {
+            guard let s = await c.service else {
+                print("Error getting service from connection")
+                return []
+            }
+            ids.append(s.0)
+        }
+        return zip(connections, ids).map { (c, id) in
+            KHDevice(connection: c, id: id)
+        }
+    }
+
     func scan(seconds: UInt32 = 1) async {
         /// Scan for devices, replacing current device list.
         statusOverride = .busy("Scanning...")
@@ -345,7 +349,7 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         } catch {
             print("Error saving connection cache:", error)
         }
-        devices = connections.map { KHDevice(connection: $0) }
+        devices = await Self.connectionsToDevices(connections)
         statusOverride = nil
     }
 
@@ -374,7 +378,7 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         if connections.isEmpty {
             await scan()
         } else {
-            devices = connections.map { KHDevice(connection: $0) }
+            devices = await Self.connectionsToDevices(connections)
         }
         await setupDevices()
     }
