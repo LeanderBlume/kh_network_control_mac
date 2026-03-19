@@ -1,14 +1,14 @@
-# kh_network_control_mac
+# SSC Control
 
-Mac and iOS app to control Neumann KH series speakers over the network.
+Mac and iOS app to control audio devices over the network using the SSC (Sennheiser Sound Control) v1 protocol. This notably includes some Neumann studio monitors.
 
-# How to test / install
+## How to test / install
 
 You can join the TestFlight beta by clicking this link: https://testflight.apple.com/join/DDQ7wrrS
 
 Core features should be working, but expect bugs, especially in the UI.
 
-# Screenshots (macOS)
+## Screenshots (macOS)
 
 <img width="200" alt="Screenshot 2026-03-19 at 23 19 25" src="https://github.com/user-attachments/assets/9cdb6077-33a4-4ded-986a-7fcbd107823b" />
 
@@ -16,7 +16,7 @@ Core features should be working, but expect bugs, especially in the UI.
 
 <img width="150" alt="Screenshot 2026-03-19 at 23 20 36" src="https://github.com/user-attachments/assets/83dc156b-2b91-4d04-b522-ed539f805888" />
 
-# Screenshots (iOS)
+## Screenshots (iOS)
 
 <img width="250" alt="IMG_4826" src="https://github.com/user-attachments/assets/4901ed84-970f-4312-b7ba-a87e6d653236" />
 
