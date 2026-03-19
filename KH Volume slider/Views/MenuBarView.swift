@@ -4,6 +4,7 @@ import SwiftUI
 struct MenuBarView: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
 
     @ViewBuilder
     var buttonBarTop: some View {
@@ -35,6 +36,7 @@ struct MenuBarView: View {
 
             Button("Main window", systemImage: "link") {
                 openWindow(id: "main-window")
+                dismissWindow()
             }
 
             #if os(macOS)
