@@ -11,17 +11,28 @@ struct MenuBarView: View {
         @Bindable var khAccess = khAccess
 
         HStack {
-            Button("Rescan", systemImage: "bonjour") {
-                Task {
-                    await khAccess.scan()
-                    await khAccess.setup()
-                }
-            }
-
             Spacer()
 
-            Button("Fetch", systemImage: "arrow.clockwise") {
-                Task { await khAccess.fetch() }
+            Menu("Actions") {
+                Button("Fetch", systemImage: "arrow.clockwise") {
+                    Task { await khAccess.fetch() }
+                }
+
+                Button("Rescan", systemImage: "bonjour") {
+                    Task {
+                        await khAccess.scan()
+                        await khAccess.setup()
+                    }
+                }
+
+                Button("Clear cache", systemImage: "clear") {
+                    Task {
+                        try SchemaCache().clear()
+                        try StateCache().clear()
+                        // await khAccess.scan()
+                        await khAccess.setup()
+                    }
+                }
             }
         }
         .disabled(khAccess.status.isBusy())
@@ -69,12 +80,12 @@ struct MenuBarView: View {
                 }
                 GridRow {
                     Text("Volume")
-                    
+
                     Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
                         editing in
                         if !editing { Task { await khAccess.send() } }
                     }
-                    
+
                     TextField(
                         "Volume",
                         value: $khAccess.state.volume,
@@ -86,12 +97,12 @@ struct MenuBarView: View {
                 }
                 GridRow {
                     Text("Logo")
-                    
+
                     Slider(value: $khAccess.state.logoBrightness, in: 0...125, step: 5)
                     { editing in
                         if !editing { Task { await khAccess.send() } }
                     }
-                    
+
                     TextField(
                         "Logo",
                         value: $khAccess.state.logoBrightness,
