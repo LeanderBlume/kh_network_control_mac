@@ -163,8 +163,18 @@ private struct SingleBandPickerButton: View {
     var body: some View {
         let active = band == selectedEqBand
         VStack(alignment: .center, spacing: 27) {
+            /*
             Button(String(band + 1)) { selectedEqBand = band }
                 .foregroundStyle(active ? .green : .secondary)
+                // .font(active ? .title3 : .caption)
+             */
+            if active {
+                Button(String(band + 1)) { selectedEqBand = band }
+                    .foregroundStyle(.green)
+            } else {
+                Button(String(band + 1)) { selectedEqBand = band }
+                    .foregroundStyle(.secondary)
+            }
                 // .font(active ? .title3 : .caption)
 
             Toggle("✓", isOn: $eq.enabled[band])

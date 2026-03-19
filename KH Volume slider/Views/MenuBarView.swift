@@ -60,7 +60,7 @@ struct MenuBarView: View {
                         systemImage: "speaker.slash.fill",
                         isOn: $khAccess.state.muted
                     )
-                    .toggleStyle(.button)
+                    // .toggleStyle(.button)
                     // .toggleStyle(.switch)
                     .onChange(of: khAccess.state.muted) {
                         Task { await khAccess.send() }
