@@ -37,6 +37,7 @@ struct MenuBarView: View {
             Button("Main window", systemImage: "link") {
                 openWindow(id: "main-window")
                 dismissWindow()
+                NSApp.activate()
             }
 
             #if os(macOS)
