@@ -37,7 +37,9 @@ struct MenuBarView: View {
             Button("Main window", systemImage: "link") {
                 openWindow(id: "main-window")
                 dismissWindow()
-                NSApp.activate()
+                #if os(macOS)
+                    NSApp.activate()
+                #endif
             }
 
             #if os(macOS)
@@ -70,12 +72,12 @@ struct MenuBarView: View {
                 }
                 GridRow {
                     Text("Volume")
-                    
+
                     Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
                         editing in
                         if !editing { Task { await khAccess.send() } }
                     }
-                    
+
                     TextField(
                         "Volume",
                         value: $khAccess.state.volume,
@@ -87,12 +89,12 @@ struct MenuBarView: View {
                 }
                 GridRow {
                     Text("Logo")
-                    
+
                     Slider(value: $khAccess.state.logoBrightness, in: 0...125, step: 5)
                     { editing in
                         if !editing { Task { await khAccess.send() } }
                     }
-                    
+
                     TextField(
                         "Logo",
                         value: $khAccess.state.logoBrightness,
