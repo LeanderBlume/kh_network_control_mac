@@ -21,7 +21,6 @@ private func magnitudeResponse(eqs: [Eq]) -> (@Sendable (Double) -> Double) {
     }
 }
 
-@available(macOS 15.0, *)
 struct EqChart: View {
     var eqs: [Eq]
 
@@ -56,4 +55,8 @@ struct EqChart: View {
         .chartYScale(domain: -24...24)
         .clipped()
     }
+}
+
+#Preview {
+    EqChart(eqs: [Eq(numBands: 10)])
 }

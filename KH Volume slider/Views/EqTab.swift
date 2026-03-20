@@ -251,11 +251,7 @@ struct EqTab: View {
     var body: some View {
         @Bindable var khAccess = khAccess
 
-        if #available(macOS 15.0, *) {
-            EqChart(eqs: khAccess.state.eqs).frame(height: 150)
-        } else {
-            Text("EQ Chart is only supported on macOS 15+")
-        }
+        EqChart(eqs: khAccess.state.eqs).frame(height: 150)
 
         Picker("", selection: $selectedEq) {
             Text("post EQ")

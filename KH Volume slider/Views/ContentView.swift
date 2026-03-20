@@ -12,60 +12,48 @@ struct ContentView: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
 
-    @ViewBuilder
     var bodyiOS: some View {
         TabView {
-            NavigationStack {
-                MainTabiOS()
-                /// toolbar is handled in Tab view because of focus state dependency
-                // .navigationTitle(Text("Controls"))
+            Tab("Controls", systemImage: "speaker.wave.3") {
+                NavigationStack {
+                    MainTabiOS()
+                    /// toolbar is handled in Tab view because of focus state dependency
+                    // .navigationTitle(Text("Controls"))
+                }
             }
-            .tabItem {
-                Label("Controls", systemImage: "speaker.wave.3")
+            Tab("Devices", systemImage: "list.bullet.indent") {
+                NavigationStack {
+                    DevicesView()
+                        .toolbar { BrowserToolbar(showError: $showError) }
+                    // .navigationTitle(Text("Device browser"))
+                }
             }
-
-            NavigationStack {
-                DevicesView()
-                    .toolbar { BrowserToolbar(showError: $showError) }
-                // .navigationTitle(Text("Device browser"))
-            }
-            .tabItem {
-                Label("Devices", systemImage: "list.bullet.indent")
-            }
-
-            NavigationStack {
-                BackupView()
-                    .toolbar { BrowserToolbar(showError: $showError) }
-                // .navigationTitle(Text("Backups"))
-            }
-            .tabItem {
-                Label("Backups", systemImage: "externaldrive")
+            Tab("Backups", systemImage: "externaldrive") {
+                NavigationStack {
+                    BackupView()
+                        .toolbar { BrowserToolbar(showError: $showError) }
+                    // .navigationTitle(Text("Backups"))
+                }
             }
         }
         // .onAppear { Task { await khAccess.setup() } }
     }
 
-    @ViewBuilder
     var bodymacOS: some View {
         TabView {
-            ScrollView {
-                MainTabmacOS()
-            }
-            .tabItem {
-                Label("Controls", systemImage: "speaker.wave.3")
-            }
-
-            DevicesView()
-                .toolbar { BrowserToolbar(showError: $showError) }
-                .tabItem {
-                    Label("Devices", systemImage: "list.bullet.indent")
+            Tab("Controls", systemImage: "speaker.wave.3") {
+                ScrollView {
+                    MainTabmacOS()
                 }
-
-            BackupView()
-                .toolbar { BrowserToolbar(showError: $showError) }
-                .tabItem {
-                    Label("Backups", systemImage: "externaldrive")
-                }
+            }
+            Tab("Devices", systemImage: "list.bullet.indent") {
+                DevicesView()
+                    .toolbar { BrowserToolbar(showError: $showError) }
+            }
+            Tab("Backups", systemImage: "externaldrive") {
+                BackupView()
+                    .toolbar { BrowserToolbar(showError: $showError) }
+            }
         }
         // .onAppear { Task { await khAccess.setup() } }
         .scenePadding()
