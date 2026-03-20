@@ -93,7 +93,7 @@ struct MainTabiOS: View {
                     }
             }
         }
-        .toolbar(removing: .title)
+        // .toolbar(removing: .title)
         .toolbar {
             MainToolbar(showError: $showError)
             if textFieldFocused {
