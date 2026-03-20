@@ -9,7 +9,7 @@ import SwiftUI
 struct ToolbarStatusDisplay: View {
     var status: KHDeviceStatus
     @Binding var showError: Bool
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Button {
@@ -54,7 +54,7 @@ struct ToolbarStatusDisplay: View {
 }
 
 struct ToolbarFetchButton: View {
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Button("Refresh", systemImage: "arrow.clockwise") {
@@ -65,7 +65,7 @@ struct ToolbarFetchButton: View {
 }
 
 struct ToolbarFetchParametersButton: View {
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Button("Fetch parameters", systemImage: "square.and.arrow.down") {
@@ -76,7 +76,7 @@ struct ToolbarFetchParametersButton: View {
 }
 
 struct ToolbarRescanButton: View {
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Button("Rescan", systemImage: "bonjour") {
@@ -91,7 +91,7 @@ struct ToolbarRescanButton: View {
 }
 
 struct ToolbarClearCacheButton: View {
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Button("Clear cache", systemImage: "clear") {
@@ -107,7 +107,7 @@ struct ToolbarClearCacheButton: View {
 
 struct MainToolbar: ToolbarContent {
     @Binding var showError: Bool
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     @ToolbarContentBuilder
     var bodyiOS: some ToolbarContent {
@@ -153,7 +153,7 @@ struct MainToolbar: ToolbarContent {
 
 struct BrowserToolbar: ToolbarContent {
     @Binding var showError: Bool
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     @ToolbarContentBuilder
     var bodyiOS: some ToolbarContent {
@@ -200,7 +200,7 @@ struct BrowserToolbar: ToolbarContent {
 // iOS only
 struct ToolbarDoneAndCancel: ToolbarContent {
     @FocusState.Binding var textFieldFocused: Bool
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .confirmationAction) {

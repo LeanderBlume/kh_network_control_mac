@@ -58,7 +58,7 @@ struct LabeledSliderTextField: View {
     @Binding var value: Double
     var range: ClosedRange<Double>
     var logarithmic: Bool = false
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     @ViewBuilder
     var bodyiOS: some View {

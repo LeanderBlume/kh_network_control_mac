@@ -26,15 +26,13 @@ struct KH_Volume_sliderApp: App {
         #if os(macOS)
         MenuBarExtra("SSC Control", systemImage: "hifispeaker.2") {
             MenuBarView()
-                // .environment(khAccess)
-                .environmentObject(khAccess)
+                .environment(khAccess)
         }
         .menuBarExtraStyle(.window)
         #endif
         WindowGroup(id: "main-window") {
             ContentView()
-                // .environment(khAccess)
-                .environmentObject(khAccess)
+                .environment(khAccess)
         }
         .defaultSize(width: 400, height: 400)
     }

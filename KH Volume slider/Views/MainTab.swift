@@ -9,12 +9,12 @@ import Foundation
 import SwiftUI
 
 struct MainTabiOS: View {
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
     @FocusState private var textFieldFocused: Bool
     @State private var showError: Bool = false
 
     var body: some View {
-        @ObservedObject var khAccess = khAccess
+        @Bindable var khAccess = khAccess
 
         Form {
             Section("Volume") {
@@ -55,7 +55,7 @@ struct MainTabiOS: View {
                     isOn: $khAccess.state.muted
                 )
                 // .toggleStyle(.button)
-                .onChange(of: khAccess.state.muted) { _ in Task { await khAccess.send() } }
+                .onChange(of: khAccess.state.muted) { Task { await khAccess.send() } }
             }
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
@@ -88,7 +88,7 @@ struct MainTabiOS: View {
 
             Section("Settings") {
                 Toggle("Enable auto-standby", isOn: $khAccess.state.standbyEnabled)
-                    .onChange(of: khAccess.state.standbyEnabled) { _ in
+                    .onChange(of: khAccess.state.standbyEnabled) {
                         Task { await khAccess.send() }
                     }
             }
@@ -104,11 +104,11 @@ struct MainTabiOS: View {
 }
 
 struct MainTabmacOS: View {
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
 
     var body: some View {
-        @ObservedObject var khAccess = khAccess
+        @Bindable var khAccess = khAccess
 
         VStack(spacing: 20) {
             // Text("Controls").font(.title)
@@ -127,7 +127,7 @@ struct MainTabmacOS: View {
                     )
                     .toggleStyle(.button)
                     // .toggleStyle(.switch)
-                    .onChange(of: khAccess.state.muted) { _ in
+                    .onChange(of: khAccess.state.muted) {
                         Task { await khAccess.send() }
                     }
                     .disabled(khAccess.status != .ready)
@@ -184,7 +184,7 @@ struct MainTabmacOS: View {
 
                     Toggle("Enable auto-standby", isOn: $khAccess.state.standbyEnabled)
                         .labelsHidden()
-                        .onChange(of: khAccess.state.standbyEnabled) { _ in
+                        .onChange(of: khAccess.state.standbyEnabled) {
                             Task { await khAccess.send() }
                         }
 

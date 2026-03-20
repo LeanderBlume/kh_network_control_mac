@@ -65,7 +65,7 @@ private struct EqBandPanel: View {
     @Binding var q: Double
     @Binding var boost: Double
     @Binding var gain: Double
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     private struct SliderParams: Identifiable {
         var name: String
@@ -108,7 +108,7 @@ private struct EqBandPanel: View {
     @ViewBuilder
     var bodyiOS: some View {
         EqTypePicker(bandEnabled: enabled, type: $type)
-            .onChange(of: type) { _ in Task { await khAccess.send() } }
+            .onChange(of: type) { Task { await khAccess.send() } }
 
         Grid(alignment: .leading) {
             ForEach(sliders.indices, id: \.self) { i in
@@ -130,7 +130,7 @@ private struct EqBandPanel: View {
         Grid(alignment: .topLeading) {
             GridRow {
                 EqTypePicker(bandEnabled: enabled, type: $type)
-                    .onChange(of: type) { _ in Task { await khAccess.send() } }
+                    .onChange(of: type) { Task { await khAccess.send() } }
                     .padding(.bottom, 5)
             }
             ForEach(sliders.indices, id: \.self) { i in
@@ -208,7 +208,7 @@ private struct BandPicker: View {
                 .frame(minWidth: geo.size.width)
                 // .frame(height: 90)
             }
-            // .scrollClipDisabled(true)
+            .scrollClipDisabled(true)
         }
         // This is not ideal but the GeometryReader somehow messes things up so
         // this overlaps with stuff below it.
@@ -220,11 +220,11 @@ private struct EqPanel: View {
     @Binding var eq: Eq
     @Binding var selectedEqBand: Int
     // @State var position = ScrollPosition
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         BandPicker(numBands: eq.numBands ?? 0, selectedEqBand: $selectedEqBand, eq: $eq)
-            .onChange(of: eq.enabled) { _ in
+            .onChange(of: eq.enabled) {
                 Task { await khAccess.send() }
             }
 
@@ -246,9 +246,11 @@ private struct EqPanel: View {
 struct EqTab: View {
     @State private var selectedEq: Int = 0
     @State var selectedBands: [Int] = [0, 0]
-    @EnvironmentObject private var khAccess: KHAccess
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
+        @Bindable var khAccess = khAccess
+
         if #available(macOS 15.0, *) {
             EqChart(eqs: khAccess.state.eqs).frame(height: 150)
         } else {
@@ -271,5 +273,5 @@ struct EqTab: View {
 }
 
 #Preview {
-    EqTab().environmentObject(KHAccess())
+    EqTab().environment(KHAccess())
 }

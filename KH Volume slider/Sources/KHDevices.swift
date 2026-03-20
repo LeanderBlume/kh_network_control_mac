@@ -85,10 +85,11 @@ struct DeviceModelID: Codable, Hashable {
     }
 }
 
-final class KHDevice: @MainActor KHSingleDeviceProtocol, ObservableObject {
-    @Published var state: KHState
-    @Published var status: KHDeviceStatus = .error("Not initialized")
-    @Published var parameterTree: SSCNode? = nil
+@Observable
+final class KHDevice: @MainActor KHSingleDeviceProtocol {
+    var state: KHState
+    var status: KHDeviceStatus = .error("Not initialized")
+    var parameterTree: SSCNode? = nil
 
     private let connection: SSCConnection
 
@@ -303,13 +304,14 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol, ObservableObject {
     func getNodeByID(_ id: SSCNode.ID) -> SSCNode? { parameterTree?.getNodeByID(id) }
 }
 
-final class KHDeviceGroup: KHDeviceGroupProtocol, ObservableObject {
-    @Published var state = KHState()
+@Observable
+final class KHDeviceGroup: KHDeviceGroupProtocol {
+    var state = KHState()
     private var statusOverride: KHDeviceStatus? = nil
     var status: KHDeviceStatus {
         statusOverride ?? KHDeviceStatus.aggregate(devices.map(\.status))
     }
-    @Published var devices: [KHDevice] = []
+    var devices: [KHDevice] = []
 
     static private func connectionsToDevices(_ connections: [SSCConnection]) async
         -> [KHDevice]
@@ -432,4 +434,3 @@ final class KHDeviceGroup: KHDeviceGroupProtocol, ObservableObject {
         }
     }
 }
-
