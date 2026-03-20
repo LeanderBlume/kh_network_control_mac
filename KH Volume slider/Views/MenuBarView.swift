@@ -1,14 +1,17 @@
 import Foundation
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct MenuBarView: View {
-    @Environment(KHAccess.self) private var khAccess: KHAccess
+    @EnvironmentObject private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
+    // @Environment(\.dismissWindow) private var dismissWindow
 
     @ViewBuilder
     var buttonBarTop: some View {
-        @Bindable var khAccess = khAccess
+        @ObservedObject var khAccess = khAccess
 
         HStack {
             Button("Rescan", systemImage: "bonjour") {
@@ -35,10 +38,22 @@ struct MenuBarView: View {
             Spacer()
 
             Button("Main window", systemImage: "link") {
-                openWindow(id: "main-window")
-                dismissWindow()
+                if #available(macOS 14.0, *) {
+                    openWindow(id: "main-window")
+                    // dismissWindow()
+                } else {
+                    #if os(macOS)
+                    // Fallback: bring app to front and try to show/close windows manually if needed
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                    // If you want to specifically close the current menu bar window, try to find and close it here.
+                    #endif
+                }
                 #if os(macOS)
+                if #available(macOS 14.0, *) {
                     NSApp.activate()
+                } else {
+                    NSApplication.shared.activate(ignoringOtherApps: true)
+                }
                 #endif
             }
 
@@ -49,7 +64,7 @@ struct MenuBarView: View {
     }
 
     var body: some View {
-        @Bindable var khAccess = khAccess
+        @ObservedObject var khAccess = khAccess
 
         VStack(spacing: 20) {
             buttonBarTop
@@ -64,9 +79,11 @@ struct MenuBarView: View {
                     )
                     // .toggleStyle(.button)
                     // .toggleStyle(.switch)
+                    /*
                     .onChange(of: khAccess.state.muted) {
                         Task { await khAccess.send() }
                     }
+                     */
                     .disabled(khAccess.status != .ready)
                     .labelsHidden()
                 }
@@ -116,5 +133,5 @@ struct MenuBarView: View {
 }
 
 #Preview {
-    MenuBarView().environment(KHAccess())
+    MenuBarView().environmentObject(KHAccess())
 }

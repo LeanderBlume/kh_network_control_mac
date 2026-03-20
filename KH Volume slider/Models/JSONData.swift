@@ -7,6 +7,10 @@
 
 import Foundation
 
+extension CodingUserInfoKey {
+    static let jsonSchema = CodingUserInfoKey(rawValue: "jsonSchema")!
+}
+
 enum JSONSchema: Codable {
     case string(limits: OSCLimits? = nil)
     case number(limits: OSCLimits? = nil)
@@ -126,7 +130,7 @@ enum JSONDataCodable: Equatable, Codable {
     }
 }
 
-enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
+enum JSONData: Equatable, Encodable, DecodableWithConfiguration, Decodable {
     typealias DecodingConfiguration = JSONSchema
 
     case string(String)
@@ -190,6 +194,13 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
     init?(rootNode: SSCNode) {
         guard let jdc = JSONDataCodable(rootNode: rootNode) else { return nil }
         self.init(jsonDataCodable: jdc)
+    }
+    
+    init(from decoder: Decoder) throws {
+        guard let configuration = decoder.userInfo[.jsonSchema] as? JSONSchema else {
+            throw JSONDataError.decodingError("Missing JSONSchema in userInfo")
+        }
+        try self.init(from: decoder, configuration: configuration)
     }
 
     init(from decoder: Decoder, configuration: DecodingConfiguration) throws {

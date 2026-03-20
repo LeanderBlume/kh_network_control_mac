@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(KHAccess.self) private var khAccess: KHAccess
+    @EnvironmentObject private var khAccess: KHAccess
     @State private var showError: Bool = false
 
     @ViewBuilder
@@ -82,5 +82,6 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView().environment(KHAccess())
+    // ContentView().environment(KHAccess())
+    ContentView().environmentObject(KHAccess())
 }

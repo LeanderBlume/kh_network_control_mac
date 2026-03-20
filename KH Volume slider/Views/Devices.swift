@@ -262,7 +262,7 @@ private struct NodeValueEditor: View {
 private struct NodeValueView: View {
     var node: SSCNode
     @Binding var values: PossibleValues
-    @Environment(KHAccess.self) private var khAccess: KHAccess
+    @EnvironmentObject private var khAccess: KHAccess
 
     private func sendValue() async {
         values.updateNode(node: node)
@@ -297,7 +297,7 @@ private struct NodeView: View {
     var node: SSCNode
     @State var mappedParameter: KHParameters?
     @State var values: PossibleValues
-    @Environment(KHAccess.self) private var khAccess: KHAccess
+    @EnvironmentObject private var khAccess: KHAccess
 
     init(node: SSCNode) {
         self.node = node
@@ -348,7 +348,7 @@ private struct NodeView: View {
                         }
                     }
                 }
-                .onChange(of: mappedParameter) {
+                .onChange(of: mappedParameter) { _ in
                     // TODO check type and stuff?
                     if let mappedParameter {
                         mappedParameter.setDevicePath(to: node.pathToNode())
@@ -385,7 +385,7 @@ private struct NodeView: View {
 
 private struct DeviceBrowser: View {
     var rootNode: SSCNode
-    @Environment(KHAccess.self) private var khAccess: KHAccess
+    @EnvironmentObject private var khAccess: KHAccess
 
     var body: some View {
         List(
@@ -423,7 +423,7 @@ private struct ParameterMapper: View {
     var rootNode: SSCNode
     @Binding var pathString: String?
     @State var selection: SSCNode.ID? = nil
-    @Environment(KHAccess.self) private var khAccess: KHAccess
+    @EnvironmentObject private var khAccess: KHAccess
 
     private func setParameter() {
         guard let selection else { return }
@@ -560,7 +560,7 @@ private struct DeviceBrowserForm: View {
 }
 
 struct DevicesView: View {
-    @Environment(KHAccess.self) private var khAccess: KHAccess
+    @EnvironmentObject private var khAccess: KHAccess
     @State private var pathStrings: [String: String] = [:]
 
     var body: some View {
@@ -578,7 +578,7 @@ struct DevicesView: View {
 #Preview {
     let khAccess = KHAccess()
     DevicesView()
-        .environment(khAccess)
+        .environmentObject(khAccess)
         .task { await khAccess.setup() }
         .frame(minWidth: 400, minHeight: 800)
 }

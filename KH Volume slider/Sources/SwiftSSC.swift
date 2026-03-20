@@ -204,11 +204,18 @@ actor SSCConnection {
         try await sendDataFireAndForget(data)
         let RXData = try await receiveData()
         let schema = JSONSchema(jsonData: jsonData)
-        return try JSONDecoder().decode(
-            JSONData.self,
-            from: RXData,
-            configuration: schema
-        )
+        let decoder = JSONDecoder()
+        if #available(macOS 14, iOS 17, tvOS 17, watchOS 10, *) {
+            return try decoder.decode(
+                JSONData.self,
+                from: RXData,
+                configuration: schema
+            )
+        } else {
+            // Fallback for older OS versions: pass configuration via userInfo
+            decoder.userInfo[.decodingConfiguration] = schema
+            return try decoder.decode(JSONData.self, from: RXData)
+        }
     }
 
     static func pathToJSONString<T>(path: [String], value: T) throws -> String
@@ -261,10 +268,21 @@ actor SSCConnection {
     func fetchJSONData(path: [String], schema: JSONSchema) async throws -> JSONData {
         let data = try await fetchSSCValueData(path: path)
         let decoder = JSONDecoder()
-        return try decoder.decode(
-            JSONData.self,
-            from: data,
-            configuration: schema.wrap(in: path)
-        ).unwrap()
+        if #available(macOS 14, iOS 17, tvOS 17, watchOS 10, *) {
+            return try decoder.decode(
+                JSONData.self,
+                from: data,
+                configuration: schema.wrap(in: path)
+            ).unwrap()
+        } else {
+            // Fallback for older OS versions: pass configuration via userInfo
+            decoder.userInfo[.decodingConfiguration] = schema.wrap(in: path)
+            return try decoder.decode(JSONData.self, from: data).unwrap()
+        }
     }
 }
+extension CodingUserInfoKey {
+    /// Key used to pass decoding configuration to JSONDecoder on older OS versions.
+    static let decodingConfiguration = CodingUserInfoKey(rawValue: "DecodingConfiguration")!
+}
+

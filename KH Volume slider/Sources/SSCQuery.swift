@@ -68,14 +68,13 @@ enum SSCNodeError: Error {
     case error(String)
 }
 
-@Observable
 @MainActor
-class SSCNode: @MainActor Identifiable, @MainActor Sequence {
+class SSCNode: @MainActor Identifiable, @MainActor Sequence, ObservableObject {
     let name: String
     let deviceID: KHDevice.ID
-    let parent: SSCNode?
-    var value: NodeData
-    var limits: OSCLimits?
+    private let parent: SSCNode?
+    @Published var value: NodeData
+    @Published var limits: OSCLimits?
 
     struct NodeID: Hashable, Codable {
         let deviceID: KHDevice.ID
@@ -227,14 +226,23 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
             return
         }
         guard let data else { throw SSCNodeError.error("Impossible error") }
+
         for schema in schemata {
-            if let v = try? decoder.decode(
-                JSONData.self,
-                from: data,
-                configuration: schema.wrap(in: path)
-            ) {
-                value = .value(v.unwrap())
-                return
+            if #available(macOS 14, iOS 17, tvOS 17, watchOS 10, *) {
+                if let v = try? decoder.decode(
+                    JSONData.self,
+                    from: data,
+                    configuration: schema.wrap(in: path)
+                ) {
+                    value = .value(v.unwrap())
+                    return
+                }
+            } else {
+                decoder.userInfo[.decodingConfiguration] = schema.wrap(in: path)
+                if let v = try? decoder.decode(JSONData.self, from: data) {
+                    value = .value(v.unwrap())
+                    return
+                }
             }
         }
         value = .error("Populating leaf fell through")

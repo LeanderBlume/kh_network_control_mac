@@ -11,7 +11,7 @@ struct BackupView: View {
     @State var newName: String = ""
     @State var selection: String? = nil
     @FocusState private var textFieldFocused: Bool
-    @Environment(KHAccess.self) private var khAccess
+    @EnvironmentObject private var khAccess: KHAccess
 
     private func createBackup() async throws {
         // TODO better: Load parameters from state.
