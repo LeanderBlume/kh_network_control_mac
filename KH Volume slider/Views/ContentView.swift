@@ -36,7 +36,7 @@ struct ContentView: View {
                 }
             }
         }
-        // .onAppear { Task { await khAccess.setup() } }
+        .onAppear { Task { await khAccess.setup() } }
     }
 
     var bodymacOS: some View {
