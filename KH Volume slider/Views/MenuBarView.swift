@@ -11,6 +11,14 @@ struct MenuBarView: View {
         @Bindable var khAccess = khAccess
 
         HStack {
+            Button("Main window", systemImage: "macwindow") {
+                openWindow(id: "main-window")
+                dismissWindow()
+                #if os(macOS)
+                    NSApp.activate()
+                #endif
+            }
+
             Spacer()
 
             Menu("Actions") {
@@ -25,7 +33,7 @@ struct MenuBarView: View {
                     }
                 }
 
-                Button("Clear cache", systemImage: "clear") {
+                Button("Clear cache", systemImage: "trash") {
                     Task {
                         try SchemaCache().clear()
                         try StateCache().clear()
@@ -33,6 +41,12 @@ struct MenuBarView: View {
                         await khAccess.setup()
                     }
                 }
+
+                #if os(macOS)
+                    Button("Quit", systemImage: "xmark.rectangle") {
+                        NSApplication.shared.terminate(nil)
+                    }
+                #endif
             }
         }
         .disabled(khAccess.status.isBusy())
@@ -42,20 +56,7 @@ struct MenuBarView: View {
     var buttonBarBottom: some View {
         HStack {
             StatusDisplay(status: khAccess.status)
-
             Spacer()
-
-            Button("Main window", systemImage: "link") {
-                openWindow(id: "main-window")
-                dismissWindow()
-                #if os(macOS)
-                    NSApp.activate()
-                #endif
-            }
-
-            #if os(macOS)
-                Button("Quit") { NSApplication.shared.terminate(nil) }
-            #endif
         }
     }
 

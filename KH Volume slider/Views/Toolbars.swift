@@ -61,6 +61,7 @@ struct ToolbarFetchButton: View {
             Task { await khAccess.fetch() }
         }
         .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
+        .help("Quick refresh")
     }
 }
 
@@ -72,6 +73,7 @@ struct ToolbarFetchParametersButton: View {
             Task { await khAccess.fetchParameterTree() }
         }
         .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
+        .help("Fetch full device parameter tree")
     }
 }
 
@@ -94,7 +96,7 @@ struct ToolbarClearCacheButton: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        Button("Clear cache", systemImage: "clear") {
+        Button("Clear cache", systemImage: "trash") {
             Task {
                 try SchemaCache().clear()
                 try StateCache().clear()
