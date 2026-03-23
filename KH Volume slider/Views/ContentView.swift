@@ -70,5 +70,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView().environment(KHAccess())
+    let khAccess = KHAccess()
+    ContentView().environment(khAccess)
+    let _ = Task { await khAccess.setup() }
 }
