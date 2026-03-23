@@ -122,7 +122,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         state = newState
     }
 
-    private func _fetchParameter(_ parameter: KHParameters) async {
+    private func _fetchParameter(_ parameter: KHParameters) async throws {
         do {
             state = try await parameter.fetch(
                 into: state,
@@ -131,10 +131,13 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
             )
         } catch {
             status = .error(String(describing: error))
+            throw error
         }
     }
 
-    private func _sendParameter(_ parameter: KHParameters, newState: KHState) async {
+    private func _sendParameter(_ parameter: KHParameters, newState: KHState)
+        async throws
+    {
         do {
             try await parameter.send(
                 oldState: state,
@@ -146,15 +149,16 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
             state = parameter.copy(from: newState, into: state)
         } catch SSCConnection.DeviceError.notAcceptable {
             status = .error("Rejected by device")
+            throw SSCConnection.DeviceError.notAcceptable
         } catch {
             status = .error(String(describing: error))
+            throw error
         }
     }
 
-    private func _fetchParameterGroup(_ parameterGroup: KHParameterGroup) async {
+    private func _fetchParameterGroup(_ parameterGroup: KHParameterGroup) async throws {
         for p in parameterGroup.parameters() {
-            await _fetchParameter(p)
-            if case .error = status { return }
+            try await _fetchParameter(p)
         }
         status = .ready
     }
@@ -162,22 +166,21 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     private func _sendParameterGroup(
         _ parameterGroup: KHParameterGroup,
         newState: KHState
-    ) async {
+    ) async throws {
         for p in parameterGroup.parameters() {
-            await _sendParameter(p, newState: newState)
-            if case .error = status { return }
+            try await _sendParameter(p, newState: newState)
         }
         status = .ready
     }
 
     func fetch() async {
         status = .busy("Fetching...")
-        await _fetchParameterGroup(.fetch)
+        try? await _fetchParameterGroup(.fetch)
         updateCachedState()
     }
 
     func send(_ newState: KHState) async {
-        await _sendParameterGroup(.send, newState: newState)
+        try? await _sendParameterGroup(.send, newState: newState)
     }
 
     private func populateParameters() async throws {
@@ -214,7 +217,11 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     func setup() async {
         status = .busy("Setting up")
         // We need to fetch product and version to identify the schema type.
-        await _fetchParameterGroup(.setup)
+        do {
+            try await _fetchParameterGroup(.setup)
+        } catch {
+            return
+        }
         do {
             try await populateParameters()
         } catch {
