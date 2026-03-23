@@ -129,7 +129,10 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
                 connection: connection,
                 parameterTree: parameterTree
             )
-        } catch {
+        } catch SSCConnection.ConnectionError.connectingTimedOut {
+            status = .error("Device not reachable")
+            throw SSCConnection.ConnectionError.connectingTimedOut
+        }catch {
             status = .error(String(describing: error))
             throw error
         }
