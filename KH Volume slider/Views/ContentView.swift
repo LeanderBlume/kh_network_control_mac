@@ -36,7 +36,7 @@ struct ContentView: View {
                 }
             }
         }
-        // .onAppear { Task { await khAccess.setup() } }
+        .onAppear { Task { await khAccess.setup() } }
     }
 
     var bodymacOS: some View {
@@ -70,5 +70,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView().environment(KHAccess())
+    let khAccess = KHAccess()
+    ContentView().environment(khAccess)
+    let _ = Task { await khAccess.setup() }
 }

@@ -18,6 +18,7 @@ struct KH_Volume_sliderApp: App {
         do {
             paths = try JSONEncoder().encode(KHParameters.devicePathDictDefault())
         } catch {
+            print("Error encoding default paths:", error)
             return
         }
     }

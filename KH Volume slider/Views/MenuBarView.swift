@@ -48,6 +48,9 @@ struct MenuBarView: View {
             Button("Main window", systemImage: "link") {
                 openWindow(id: "main-window")
                 dismissWindow()
+                #if os(macOS)
+                    NSApp.activate()
+                #endif
             }
 
             #if os(macOS)
@@ -70,7 +73,7 @@ struct MenuBarView: View {
                         systemImage: "speaker.slash.fill",
                         isOn: $khAccess.state.muted
                     )
-                    .toggleStyle(.button)
+                    // .toggleStyle(.button)
                     // .toggleStyle(.switch)
                     .onChange(of: khAccess.state.muted) {
                         Task { await khAccess.send() }
