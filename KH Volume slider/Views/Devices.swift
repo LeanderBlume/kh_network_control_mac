@@ -274,20 +274,22 @@ private struct NodeValueView: View {
     }
 
     var body: some View {
-        switch node.value {
-        case .value(let T):
-            if let type = UILeafNodeType(jsonData: T, limits: node.limits) {
-                let precision = (node.limits?.inc == 1) ? 0 : 1
-                NodeValueEditor(type: type, values: $values, precision: precision)
-            } else {
-                Text("Non-leaf node or unknown type")
+        Group {
+            switch node.value {
+            case .value(let T):
+                if let type = UILeafNodeType(jsonData: T, limits: node.limits) {
+                    let precision = (node.limits?.inc == 1) ? 0 : 1
+                    NodeValueEditor(type: type, values: $values, precision: precision)
+                } else {
+                    Text("Non-leaf node or unknown type")
+                }
+            default:
+                Text("Can't edit non-leaf node")
             }
-        default:
-            Text("Can't edit non-leaf node")
-        }
-
-        Button("Send to device", systemImage: "square.and.arrow.up") {
-            Task { await sendValue() }
+            
+            Button("Send to device", systemImage: "square.and.arrow.up") {
+                Task { await sendValue() }
+            }
         }
         .disabled(node.limits?.isWriteable == false)
     }
@@ -295,12 +297,14 @@ private struct NodeValueView: View {
 
 private struct NodeView: View {
     var node: SSCNode
+    var deviceName: String
     @State var mappedParameter: KHParameters?
     @State var values: PossibleValues
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
-    init(node: SSCNode) {
+    init(node: SSCNode, deviceName: String) {
         self.node = node
+        self.deviceName = deviceName
         values = .init(fromNode: node)
     }
 
@@ -311,7 +315,7 @@ private struct NodeView: View {
             }
 
             #if os(macOS)
-            Divider()
+                Divider()
             #endif
 
             Section("Parameter info (/osc/limits)") {
@@ -327,7 +331,7 @@ private struct NodeView: View {
             }
 
             #if os(macOS)
-            Divider()
+                Divider()
             #endif
 
             // Should this be read-only?
@@ -354,7 +358,7 @@ private struct NodeView: View {
                         mappedParameter.setDevicePath(to: node.pathToNode())
                     }
                 }
-                Button("Reset All") { KHParameters.resetAllDevicePaths() }
+                Button("Reset") { mappedParameter?.resetDevicePath() }
             }
         }
         .refreshable {
@@ -365,12 +369,16 @@ private struct NodeView: View {
             await device.fetchNode(path: node.pathToNode())
             values = .init(fromNode: node)
         }
-        .navigationTitle(node.getPathString())
+        .navigationTitle(deviceName + ":" + node.getPathString())
     }
 
     var bodymacOS: some View {
         ScrollView {
-            bodyiOS
+            VStack {
+                Text(deviceName + ":" + node.getPathString()).font(.title2)
+
+                bodyiOS
+            }
         }
     }
 
@@ -385,36 +393,43 @@ private struct NodeView: View {
 
 private struct DeviceBrowser: View {
     var rootNode: SSCNode
+    var deviceName: String
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        List(
-            rootNode.children ?? [],
-            children: \.children,
-        ) { node in
-            NavigationLink(destination: NodeView(node: node)) {
-                if let units = node.limits?.units {
-                    Text(node.name + " (\(units))")
-                } else {
-                    Text(node.name)
-                }
+        VStack {
+            Text(deviceName).font(.title2)
 
-                // This spacer can cause an EXC_BAD_ACCESS on the macOS build. Super weird.
-                // Actually it doesn't cause it, but not having it reduces occurences and also maybe it looks better.
-                // Spacer()
+            List(
+                rootNode.children ?? [],
+                children: \.children,
+            ) { node in
+                NavigationLink(
+                    destination: NodeView(node: node, deviceName: deviceName)
+                ) {
+                    if let units = node.limits?.units {
+                        Text(node.name + " (\(units))")
+                    } else {
+                        Text(node.name)
+                    }
 
-                switch node.value {
-                case .unknown, .unknownValue, .unknownChildren:
-                    Text("unknown")
-                case .error(let s):
-                    Label(s, systemImage: "exclamationmark.circle")
-                case .children:
-                    EmptyView()
-                case .value(let v):
-                    Text(v.stringify()).foregroundColor(.secondary)
+                    // This spacer can cause an EXC_BAD_ACCESS on the macOS build. Super weird.
+                    // Actually it doesn't cause it, but not having it reduces occurences and also maybe it looks better.
+                    // Spacer()
+
+                    switch node.value {
+                    case .unknown, .unknownValue, .unknownChildren:
+                        Text("unknown")
+                    case .error(let s):
+                        Label(s, systemImage: "exclamationmark.circle")
+                    case .children:
+                        EmptyView()
+                    case .value(let v):
+                        Text(v.stringify()).foregroundColor(.secondary)
+                    }
                 }
-            }
-        }.refreshable { await khAccess.fetchParameterTree() }
+            }.refreshable { await khAccess.fetchParameterTree() }
+        }
     }
 }
 
@@ -433,39 +448,45 @@ private struct ParameterMapper: View {
     }
 
     var body: some View {
-        List(
-            rootNode.children ?? [rootNode],
-            children: \.children,
-            selection: $selection
-        ) { node in
-            let unitString =
-                node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
-            Text(node.name + unitString)
-        }
-        .navigationTitle(Text(parameter.rawValue))
-        .overlay(alignment: .bottom) {
-            Button(action: setParameter) {
-                if let selection {
-                    VStack {
-                        Text(pathString ?? "unknown")
-                            .strikethrough(true)
-                        if let node = khAccess.getNodeByID(selection) {
-                            Label(
-                                "/" + node.pathToNode().joined(separator: "/"),
-                                systemImage: "arrow.right"
-                            )
-                        } else {
-                            Label("Node doesn't exist", systemImage: "arrow.right")
-                        }
-                    }
-                    .padding(.horizontal)
-                } else {
-                    Text("Select a node")
-                }
+        VStack {
+            #if os(macOS)
+                Text("Remapping UI element: \(parameter.rawValue)").font(.title2)
+            #endif
+
+            List(
+                rootNode.children ?? [rootNode],
+                children: \.children,
+                selection: $selection
+            ) { node in
+                let unitString =
+                    node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
+                Text(node.name + unitString)
             }
-            .padding()
-            .buttonStyle(.borderedProminent)
-            .disabled(selection == nil)
+            .navigationTitle(Text(parameter.rawValue))
+            .overlay(alignment: .bottom) {
+                Button(action: setParameter) {
+                    if let selection {
+                        VStack {
+                            Text(pathString ?? "unknown")
+                                .strikethrough(true)
+                            if let node = khAccess.getNodeByID(selection) {
+                                Label(
+                                    "/" + node.pathToNode().joined(separator: "/"),
+                                    systemImage: "arrow.right"
+                                )
+                            } else {
+                                Label("Node doesn't exist", systemImage: "arrow.right")
+                            }
+                        }
+                        .padding(.horizontal)
+                    } else {
+                        Text("Select a node")
+                    }
+                }
+                .padding()
+                .buttonStyle(.borderedProminent)
+                .disabled(selection == nil)
+            }
         }
     }
 }
@@ -476,8 +497,11 @@ private struct DeviceBrowserLink: View {
     var body: some View {
         if let rootNode = device.parameterTree {
             NavigationLink(
-                destination: DeviceBrowser(rootNode: rootNode)
-                    .navigationTitle(device.state.name)
+                destination: DeviceBrowser(
+                    rootNode: rootNode,
+                    deviceName: device.state.name
+                )
+                .navigationTitle(device.state.name)
             ) {
                 Text(device.state.name)
                 if device.status != .ready {
