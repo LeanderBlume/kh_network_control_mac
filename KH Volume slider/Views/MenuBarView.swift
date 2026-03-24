@@ -22,25 +22,13 @@ struct MenuBarView: View {
             Spacer()
 
             Menu("Actions") {
-                Button("Fetch", systemImage: "arrow.clockwise") {
-                    Task { await khAccess.fetch() }
-                }
+                ToolbarFetchButton()
 
-                Button("Rescan", systemImage: "bonjour") {
-                    Task {
-                        await khAccess.scan()
-                        await khAccess.setup()
-                    }
-                }
+                ToolbarConnectButton()
 
-                Button("Clear cache", systemImage: "trash") {
-                    Task {
-                        try SchemaCache().clear()
-                        try StateCache().clear()
-                        // await khAccess.scan()
-                        await khAccess.setup()
-                    }
-                }
+                ToolbarRescanButton()
+
+                ToolbarClearCacheButton()
 
                 #if os(macOS)
                     Button("Quit", systemImage: "xmark.rectangle") {
