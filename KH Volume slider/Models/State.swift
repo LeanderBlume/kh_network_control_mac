@@ -180,6 +180,7 @@ struct KHState: Codable, Equatable {
     var muted = false
     var logoBrightness = 100.0
     var standbyEnabled = false
+    var standbyTimeout = 90.0
 
     init() {}
 
@@ -336,6 +337,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
     case muted = "Mute"
     case logoBrightness = "Logo brightness"
     case standbyEnabled = "Enable auto-standby"
+    case standbyTimeout = "Auto-standby timeout"
 
     case eq0boost = "EQ 1 Boost"
     case eq0enabled = "EQ 1 Enabled"
@@ -369,6 +371,10 @@ enum KHParameters: String, CaseIterable, Identifiable {
             ["audio", "out", "mute"]
         case .logoBrightness:
             ["ui", "logo", "brightness"]
+        case .standbyEnabled:
+            ["device", "standby", "enabled"]
+        case .standbyTimeout:
+            ["device", "standby", "auto_standby_time"]
 
         case .eq0boost:
             ["audio", "out", "eq2", "boost"]
@@ -395,8 +401,6 @@ enum KHParameters: String, CaseIterable, Identifiable {
             ["audio", "out", "eq3", "q"]
         case .eq1type:
             ["audio", "out", "eq3", "type"]
-        case .standbyEnabled:
-            ["device", "standby", "enabled"]
         }
     }
 
@@ -455,6 +459,10 @@ enum KHParameters: String, CaseIterable, Identifiable {
             KHStatePath(keyPath: \.muted, devicePath: _getDevicePath())
         case .logoBrightness:
             KHStatePath(keyPath: \.logoBrightness, devicePath: _getDevicePath())
+        case .standbyEnabled:
+            KHStatePath(keyPath: \.standbyEnabled, devicePath: _getDevicePath())
+        case .standbyTimeout:
+            KHStatePath(keyPath: \.standbyTimeout, devicePath: _getDevicePath())
 
         case .eq0boost:
             KHStatePath(keyPath: \.eqs[0].boost, devicePath: _getDevicePath())
@@ -481,9 +489,6 @@ enum KHParameters: String, CaseIterable, Identifiable {
             KHStatePath(keyPath: \.eqs[1].q, devicePath: _getDevicePath())
         case .eq1type:
             KHStatePath(keyPath: \.eqs[1].type, devicePath: _getDevicePath())
-
-        case .standbyEnabled:
-            KHStatePath(keyPath: \.standbyEnabled, devicePath: _getDevicePath())
         }
     }
 
@@ -557,6 +562,7 @@ enum KHParameterGroup {
                 .eq1type,
                 .name,
                 .standbyEnabled,
+                .standbyTimeout,
             ]
         case .send:
             return [
@@ -576,6 +582,7 @@ enum KHParameterGroup {
                 .eq1q,
                 .eq1type,
                 .standbyEnabled,
+                .standbyTimeout,
             ]
         case .setup:
             return [

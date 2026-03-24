@@ -17,7 +17,7 @@ struct MainTabiOS: View {
         @Bindable var khAccess = khAccess
 
         Form {
-            Section("Volume") {
+            Section("Volume (dB)") {
                 LabeledContent {
                     TextField(
                         "",
@@ -86,11 +86,26 @@ struct MainTabiOS: View {
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
 
-            Section("Settings") {
-                Toggle("Enable auto-standby", isOn: $khAccess.state.standbyEnabled)
+            Section("Auto-standby") {
+                Toggle("Enable", isOn: $khAccess.state.standbyEnabled)
                     .onChange(of: khAccess.state.standbyEnabled) {
                         Task { await khAccess.send() }
                     }
+
+                LabeledContent {
+                    TextField(
+                        "Auto-standby timeout",
+                        value: $khAccess.state.standbyTimeout,
+                        format: .number.precision(.fractionLength(0))
+                    )
+                    .focused($textFieldFocused)
+                    .onSubmit { Task { await khAccess.send() } }
+                    #if os(iOS)
+                        .keyboardType(.numberPad)
+                    #endif
+                } label: {
+                    Text("Timeout (minutes):")
+                }
             }
         }
         .toolbar(removing: .title)
@@ -135,7 +150,7 @@ struct MainTabmacOS: View {
                     // .padding(.bottom, 10)
                 }
                 GridRow {
-                    Text("Volume")
+                    Text("Volume (dB)")
 
                     Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
                         editing in
@@ -175,18 +190,31 @@ struct MainTabmacOS: View {
 
             EqTab()
 
-            Text("Settings").font(.title2)
+            Text("Auto-standby").font(.title2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Grid(alignment: .leading) {
                 GridRow {
-                    Text("Enable auto-standby")
+                    Text("Enable")
 
                     Toggle("Enable auto-standby", isOn: $khAccess.state.standbyEnabled)
                         .labelsHidden()
                         .onChange(of: khAccess.state.standbyEnabled) {
                             Task { await khAccess.send() }
                         }
+
+                    Spacer()
+                }
+                GridRow {
+                    Text("Timeout (minutes)")
+
+                    TextField(
+                        "Timeout",
+                        value: $khAccess.state.standbyTimeout,
+                        format: .number.precision(.fractionLength(0))
+                    )
+                    .frame(width: 80)
+                    .onSubmit { Task { await khAccess.send() } }
 
                     Spacer()
                 }
