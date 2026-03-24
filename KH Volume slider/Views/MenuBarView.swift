@@ -74,6 +74,7 @@ struct MenuBarView: View {
                         systemImage: "speaker.slash.fill",
                         isOn: $khAccess.state.muted
                     )
+                    /// toggleStyle .button might crash the app on macOS 15. Or maybe it's the other thing in the EQ tab.
                     // .toggleStyle(.button)
                     // .toggleStyle(.switch)
                     .onChange(of: khAccess.state.muted) {

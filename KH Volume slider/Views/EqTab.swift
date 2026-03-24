@@ -163,6 +163,7 @@ private struct SingleBandPickerButton: View {
     var body: some View {
         let active = band == selectedEqBand
         VStack(alignment: .center, spacing: 27) {
+            /// Either this or toggleStyle .button in the menu bar crashes the app on macOS 15.
             /*
             Button(String(band + 1)) { selectedEqBand = band }
                 .foregroundStyle(active ? .green : .secondary)
