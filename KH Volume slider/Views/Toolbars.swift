@@ -30,7 +30,7 @@ struct ToolbarStatusDisplay: View {
                         ) { device in
                             let ds = device.status
                             HStack {
-                                Text("Status of device \"\(device.state.name)\":")
+                                Text("Device: \(device.state.name)")
                                     .font(.title2)
                                 Spacer()
                                 StatusDisplayCompact(status: ds)
