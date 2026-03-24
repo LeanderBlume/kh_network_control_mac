@@ -107,6 +107,20 @@ struct ToolbarClearCacheButton: View {
     }
 }
 
+struct ToolbarConnectButton: View {
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    var body: some View {
+        Button("Connect", systemImage: "arrowtriangle.right") {
+            Task {
+                await khAccess.setup()
+            }
+        }
+        .disabled(khAccess.status.isBusy())
+        .help("Connect (re-run setup)")
+    }
+}
+
 struct MainToolbar: ToolbarContent {
     @Binding var showError: Bool
     @Environment(KHAccess.self) private var khAccess: KHAccess
@@ -121,6 +135,8 @@ struct MainToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .secondaryAction) {
             ToolbarFetchButton()
             // ToolbarFetchParametersButton()
+
+            ToolbarConnectButton()
             ToolbarRescanButton()
             ToolbarClearCacheButton()
         }
@@ -136,6 +152,8 @@ struct MainToolbar: ToolbarContent {
         }
         ToolbarItemGroup(placement: .secondaryAction) {
             // ToolbarFetchParametersButton()
+
+            ToolbarConnectButton()
             ToolbarRescanButton()
             ToolbarClearCacheButton()
         }
@@ -167,6 +185,8 @@ struct BrowserToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .secondaryAction) {
             // ToolbarFetchButton()
             ToolbarFetchParametersButton()
+
+            ToolbarConnectButton()
             ToolbarRescanButton()
             ToolbarClearCacheButton()
         }
@@ -182,6 +202,8 @@ struct BrowserToolbar: ToolbarContent {
         }
         ToolbarItemGroup(placement: .secondaryAction) {
             // ToolbarFetchButton()
+
+            ToolbarConnectButton()
             ToolbarRescanButton()
             ToolbarClearCacheButton()
         }
