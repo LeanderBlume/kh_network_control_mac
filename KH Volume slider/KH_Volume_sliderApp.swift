@@ -12,11 +12,13 @@ struct KH_Volume_sliderApp: App {
     @State private var khAccess = KHAccess()
 
     // decodes to [String: [String]]
-    @AppStorage("paths") private var paths: Data = Data()
+    @AppStorage("paths") private var paths: Data?
 
     init() {
+        if paths != nil { return }
+        let emptyDict = [String: [String]]()
         do {
-            paths = try JSONEncoder().encode(KHParameters.devicePathDictDefault())
+            paths = try JSONEncoder().encode(emptyDict)
         } catch {
             print("Error encoding default paths:", error)
             return

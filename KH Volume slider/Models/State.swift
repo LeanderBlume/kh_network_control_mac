@@ -425,7 +425,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
         return result
     }
 
-    func setDevicePath(to path: [String]) {
+    func setDevicePath(to path: [String]?) {
         guard var dict = KHParameters.getPathDict() else { return }
         dict[rawValue] = path
         let encoder = JSONEncoder()
@@ -434,7 +434,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
         }
     }
 
-    func resetDevicePath() { setDevicePath(to: getDevicePathFallback()) }
+    func resetDevicePath() { setDevicePath(to: nil) }
 
     static func resetAllDevicePaths() {
         KHParameters.allCases.forEach { $0.resetDevicePath() }
