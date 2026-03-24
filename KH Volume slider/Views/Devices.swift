@@ -298,7 +298,6 @@ private struct NodeValueView: View {
 private struct NodeView: View {
     var node: SSCNode
     var deviceName: String
-    @State var mappedParameter: KHParameters?
     @State var values: PossibleValues
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
@@ -306,6 +305,13 @@ private struct NodeView: View {
         self.node = node
         self.deviceName = deviceName
         values = .init(fromNode: node)
+    }
+
+    private func getMappedParameters() -> [KHParameters] {
+        // Check if this path is already mapped to a parameter.
+        return KHParameters.allCases.filter {
+            $0.getDevicePath() == node.pathToNode()
+        }
     }
 
     var bodyiOS: some View {
@@ -334,31 +340,12 @@ private struct NodeView: View {
                 Divider()
             #endif
 
-            // Should this be read-only?
             Section("UI Mapping") {
-                Picker("UI Element", selection: $mappedParameter) {
-                    Text("None").tag(nil as KHParameters?)
-                    ForEach(KHParameters.allCases) { parameter in
-                        Text(parameter.rawValue).tag(parameter)
-                    }
+                LabeledContent {
+                    Text(getMappedParameters().first?.rawValue ?? "None")
+                } label: {
+                    Text("Mapped to:")
                 }
-                .onAppear {
-                    // Check if this path is already mapped to a parameter.
-                    let path = node.pathToNode()
-                    KHParameters.allCases.forEach { parameter in
-                        if parameter.getDevicePath() == path {
-                            mappedParameter = parameter
-                            return
-                        }
-                    }
-                }
-                .onChange(of: mappedParameter) {
-                    // TODO check type and stuff?
-                    if let mappedParameter {
-                        mappedParameter.setDevicePath(to: node.pathToNode())
-                    }
-                }
-                Button("Reset") { mappedParameter?.resetDevicePath() }
             }
         }
         .refreshable {
