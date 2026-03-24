@@ -193,7 +193,7 @@ struct KHState: Codable, Equatable {
     init?(jsonDataCodable: JSONDataCodable) {
         self.init(jsonData: JSONData(jsonDataCodable: jsonDataCodable))
     }
-    
+
     @MainActor
     init?(nodeTree: SSCNode) {
         guard let jd = JSONData(rootNode: nodeTree) else { return nil }
@@ -218,8 +218,7 @@ private protocol KHStatePathProtocol: Equatable {
         newState: KHState,
         connection: SSCConnection,
         parameterTree: SSCNode?
-    )
-        async throws
+    ) async throws
 }
 
 private struct KHStatePath<T>: KHStatePathProtocol
