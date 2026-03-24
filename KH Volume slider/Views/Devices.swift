@@ -398,7 +398,9 @@ private struct DeviceBrowser: View {
 
     var body: some View {
         VStack {
-            Text(deviceName).font(.title2)
+            #if os(macOS)
+                Text(deviceName).font(.title2)
+            #endif
 
             List(
                 rootNode.children ?? [],
