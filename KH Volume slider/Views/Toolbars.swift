@@ -73,7 +73,7 @@ struct ToolbarFetchParametersButton: View {
             Task { await khAccess.fetchParameterTree() }
         }
         .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
-        .help("Fetch full device parameter tree")
+        .help("Fetch full parameter trees")
     }
 }
 
@@ -120,7 +120,7 @@ struct MainToolbar: ToolbarContent {
         #endif
         ToolbarItemGroup(placement: .secondaryAction) {
             ToolbarFetchButton()
-            ToolbarFetchParametersButton()
+            // ToolbarFetchParametersButton()
             ToolbarRescanButton()
             ToolbarClearCacheButton()
         }
@@ -135,7 +135,7 @@ struct MainToolbar: ToolbarContent {
             ToolbarStatusDisplay(status: khAccess.status, showError: $showError)
         }
         ToolbarItemGroup(placement: .secondaryAction) {
-            ToolbarFetchParametersButton()
+            // ToolbarFetchParametersButton()
             ToolbarRescanButton()
             ToolbarClearCacheButton()
         }
@@ -165,7 +165,7 @@ struct BrowserToolbar: ToolbarContent {
             }
         #endif
         ToolbarItemGroup(placement: .secondaryAction) {
-            ToolbarFetchButton()
+            // ToolbarFetchButton()
             ToolbarFetchParametersButton()
             ToolbarRescanButton()
             ToolbarClearCacheButton()
@@ -181,7 +181,7 @@ struct BrowserToolbar: ToolbarContent {
             ToolbarStatusDisplay(status: khAccess.status, showError: $showError)
         }
         ToolbarItemGroup(placement: .secondaryAction) {
-            ToolbarFetchButton()
+            // ToolbarFetchButton()
             ToolbarRescanButton()
             ToolbarClearCacheButton()
         }
