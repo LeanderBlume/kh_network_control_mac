@@ -106,6 +106,16 @@ struct MainTabiOS: View {
                 } label: {
                     Text("Timeout (minutes):")
                 }
+                 /*
+                Picker("Timeout (minutes)", selection: $khAccess.state.standbyTimeout) {
+                    ForEach(3...240, id: \.self) { i in
+                        Text("\(i)").tag(i)
+                    }
+                }
+                #if os(iOS)
+                    .pickerStyle(.wheel)
+                #endif
+                  */
             }
         }
         .toolbar(removing: .title)
