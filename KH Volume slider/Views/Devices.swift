@@ -286,7 +286,7 @@ private struct NodeValueView: View {
             default:
                 Text("Can't edit non-leaf node")
             }
-            
+
             Button("Send to device", systemImage: "square.and.arrow.up") {
                 Task { await sendValue() }
             }
