@@ -597,12 +597,12 @@ private struct DeviceBrowserForm: View {
 
     var body: some View {
         List {
-            Section("Devices") {
+            Section("Parameter Browser") {
                 ForEach(devices) { device in
                     DeviceBrowserLink(device: device)
                 }
             }
-            Section("Device Types") {
+            Section("UI mappings") {
                 ForEach(deviceModels) { deviceModel in
                     NavigationLink(
                         deviceModel.description(),
