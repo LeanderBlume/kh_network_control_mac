@@ -17,13 +17,16 @@ struct KH_Volume_sliderApp: App {
     @AppStorage("paths") private var paths: Data?
 
     init() {
-        if paths != nil { return }
-        let emptyDict = ParameterPathDict()
+        if let p = paths {
+            if let _ = try? JSONDecoder().decode(ParameterPathDict.self, from: p) {
+                return
+            }
+        }
+        // paths is either nil or in the wrong format, re-initialize it.
         do {
-            paths = try JSONEncoder().encode(emptyDict)
+            paths = try JSONEncoder().encode(ParameterPathDict())
         } catch {
             print("Error encoding default paths:", error)
-            return
         }
     }
 
