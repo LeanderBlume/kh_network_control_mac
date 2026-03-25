@@ -92,7 +92,7 @@ struct ConnectionCache: ConnectionCacheProtocol {
 
     struct DeviceData: Codable {
         let service: BonjourService
-        let modelID: DeviceModelID
+        let modelID: DeviceModel
         let deviceID: KHDevice.ID
     }
 
@@ -136,19 +136,19 @@ struct SchemaCache: SchemaCacheProtocol {
         try Self.ensureFileExists()
     }
 
-    typealias FileSchema = [DeviceModelID: JSONSchema]
+    typealias FileSchema = [DeviceModel: JSONSchema]
 
     @MainActor
     func getSchema(for device: KHDevice) throws -> JSONSchema? {
         let schemaList = try getFileContents()
-        return schemaList[DeviceModelID(device.state)]
+        return schemaList[DeviceModel(device.state)]
     }
 
     @MainActor
     func saveSchema(_ rootNode: SSCNode, for device: KHDevice) throws {
         let jdc = JSONSchema(rootNode: rootNode)
         var schemaList = try getFileContents()
-        schemaList[DeviceModelID(device.state)] = jdc
+        schemaList[DeviceModel(device.state)] = jdc
         try writeFile(schemaList, prettyPrinted: true)
     }
 }
@@ -170,7 +170,8 @@ struct StateCache: StateCacheProtocol {
     func getState(for device: KHDevice) throws -> (KHState, JSONDataCodable)? {
         let list = try getFileContents()
         guard let jdc = list[device.id] else { return nil }
-        guard let state = KHState(jsonDataCodable: jdc) else {
+        guard let state = KHState(jsonDataCodable: jdc, deviceModel: device.getModel())
+        else {
             throw StateCacheError.error("JSON Data to State conversion error")
         }
         return (state, jdc)
@@ -295,7 +296,12 @@ struct Backupper: BackupperProtocol {
             if let deviceBackup = backup[device.id] {
                 guard let rootNode = device.parameterTree else { return }
                 try rootNode.load(from: deviceBackup)
-                guard let newState = KHState(jsonDataCodable: deviceBackup) else {
+                guard
+                    let newState = KHState(
+                        jsonDataCodable: deviceBackup,
+                        deviceModel: device.getModel()
+                    )
+                else {
                     throw BackupperErrors.error(
                         "backed up JSONData not compatibe with state."
                     )

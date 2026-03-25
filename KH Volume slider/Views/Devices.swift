@@ -297,20 +297,26 @@ private struct NodeValueView: View {
 
 private struct NodeView: View {
     var node: SSCNode
-    var deviceName: String
+    private var deviceName: String {
+        khAccess.getDeviceByID(node.id.deviceID)?.state.name ?? "Non-existent device"
+    }
     @State var values: PossibleValues
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
-    init(node: SSCNode, deviceName: String) {
+    init(node: SSCNode) {
         self.node = node
-        self.deviceName = deviceName
         values = .init(fromNode: node)
     }
 
     private func getMappedParameters() -> [KHParameters] {
+        guard let device = khAccess.getDeviceByID(node.id.deviceID) else {
+            print("Device with id \(node.id.deviceID) not found")
+            return []
+        }
+        let deviceModel = device.getModel()
         // Check if this path is already mapped to a parameter.
         return KHParameters.allCases.filter {
-            $0.getDevicePath() == node.pathToNode()
+            deviceModel.getDevicePath(for: $0) == node.pathToNode()
         }
     }
 
@@ -380,7 +386,10 @@ private struct NodeView: View {
 
 private struct DeviceBrowser: View {
     var rootNode: SSCNode
-    var deviceName: String
+    var deviceName: String {
+        khAccess.getDeviceByID(rootNode.id.deviceID)?.state.name
+            ?? "Non-existent device"
+    }
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
@@ -394,7 +403,7 @@ private struct DeviceBrowser: View {
                 children: \.children,
             ) { node in
                 NavigationLink(
-                    destination: NodeView(node: node, deviceName: deviceName)
+                    destination: NodeView(node: node)
                 ) {
                     if let units = node.limits?.units {
                         Text(node.name + " (\(units))")
@@ -417,7 +426,9 @@ private struct DeviceBrowser: View {
                         Text(v.stringify()).foregroundColor(.secondary)
                     }
                 }
-            }.refreshable { await khAccess.fetchParameterTree() }
+            }
+            .refreshable { await khAccess.fetchParameterTree() }
+            .navigationTitle(deviceName)
         }
     }
 }
@@ -430,10 +441,15 @@ private struct ParameterMapper: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     private func setParameter() {
+        guard let device = khAccess.getDeviceByID(rootNode.id.deviceID) else {
+            print("Device with id \(rootNode.id.deviceID) not found")
+            return
+        }
+        let deviceModel = device.getModel()
         guard let selection else { return }
         guard let node = khAccess.getNodeByID(selection) else { return }
-        parameter.setDevicePath(to: node.pathToNode())
-        pathString = parameter.getPathString()
+        deviceModel.setDevicePath(for: parameter, to: node.pathToNode())
+        pathString = deviceModel.getPathString(for: parameter)
     }
 
     var body: some View {
@@ -486,17 +502,11 @@ private struct DeviceBrowserLink: View {
     var body: some View {
         if let rootNode = device.parameterTree {
             NavigationLink(
-                destination: DeviceBrowser(
-                    rootNode: rootNode,
-                    deviceName: device.state.name
-                )
-                .navigationTitle(device.state.name)
+                destination: DeviceBrowser(rootNode: rootNode)
             ) {
                 Text(device.state.name)
-                if device.status != .ready {
-                    StatusDisplayText(status: device.status)
-                        .foregroundStyle(.secondary)
-                }
+                Text(device.getModel().description())
+                    .foregroundStyle(.secondary)
             }
         } else {
             LabeledContent {
@@ -514,37 +524,75 @@ private struct DeviceBrowserLink: View {
 
 private struct ParameterMapperLink: View {
     var parameter: KHParameters
-    var device: KHDevice
+    var rootNode: SSCNode
     @Binding var pathString: String?
 
     var body: some View {
         LabeledContent {
-            if let rootNode = device.parameterTree {
-                NavigationLink(
-                    pathString ?? "unknown",
-                    destination: ParameterMapper(
-                        parameter: parameter,
-                        rootNode: rootNode,
-                        pathString: $pathString
-                    )
+            NavigationLink(
+                pathString ?? "unknown",
+                destination: ParameterMapper(
+                    parameter: parameter,
+                    rootNode: rootNode,
+                    pathString: $pathString
                 )
-            } else {
-                Text(pathString ?? "unknown")
-            }
+            )
         } label: {
             Text(parameter.rawValue)
         }
     }
 }
 
-private struct DeviceBrowserForm: View {
-    var devices: [KHDevice]
+private struct ParameterMappingForDeviceModel: View {
+    var deviceModel: DeviceModel
     @State private var pathStrings: [String: String] = [:]
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     private func updatePathStrings() {
         for parameter in KHParameters.allCases {
-            pathStrings[parameter.rawValue] = parameter.getPathString()
+            pathStrings[parameter.rawValue] = deviceModel.getPathString(for: parameter)
         }
+    }
+
+    private func getMatchingRootNode() -> SSCNode? {
+        khAccess.getDeviceByModel(deviceModel)?.parameterTree
+    }
+
+    var body: some View {
+        VStack {
+            #if os(macOS)
+                Text("UI mappings for \(deviceModel.description())")
+                    .font(.title2)
+            #endif
+
+            List {
+                Button("Reset all") {
+                    deviceModel.resetAllDevicePaths()
+                    updatePathStrings()
+                }
+                if let rootNode = getMatchingRootNode() {
+                    ForEach(KHParameters.allCases) { parameter in
+                        ParameterMapperLink(
+                            parameter: parameter,
+                            rootNode: rootNode,
+                            pathString: $pathStrings[parameter.rawValue]
+                        )
+                    }
+                    .onAppear(perform: updatePathStrings)
+                } else {
+                    Text("Failed to find matching parameter tree")
+                }
+            }
+            .navigationTitle("UI mappings for " + deviceModel.description())
+        }
+    }
+}
+
+private struct DeviceBrowserForm: View {
+    var devices: [KHDevice]
+    var deviceModels: [DeviceModel] {
+        let models = devices.map({ $0.getModel() })
+        return Array(Set(models)).sorted { $0.description() < $1.description() }
     }
 
     var body: some View {
@@ -554,21 +602,17 @@ private struct DeviceBrowserForm: View {
                     DeviceBrowserLink(device: device)
                 }
             }
-            Section("Map UI Elements") {
-                Button("Reset all") {
-                    KHParameters.resetAllDevicePaths()
-                    updatePathStrings()
-                }
-                ForEach(KHParameters.allCases) { parameter in
-                    ParameterMapperLink(
-                        parameter: parameter,
-                        device: devices.first!,
-                        pathString: $pathStrings[parameter.rawValue]
+            Section("Device Types") {
+                ForEach(deviceModels) { deviceModel in
+                    NavigationLink(
+                        deviceModel.description(),
+                        destination: ParameterMappingForDeviceModel(
+                            deviceModel: deviceModel
+                        )
                     )
                 }
             }
         }
-        .onAppear(perform: updatePathStrings)
     }
 }
 

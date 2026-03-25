@@ -34,6 +34,7 @@ protocol KHDeviceGroupProtocol: KHDevicesProtocol {
     // Truly specific
     var devices: [KHDevice] { get }
     func getDeviceByID(_: KHDevice.ID) -> KHDevice?
+    func getDeviceByModel(_: DeviceModel) -> KHDevice?
     func scan(seconds: UInt32) async
 }
 
@@ -75,16 +76,6 @@ enum KHDeviceStatus: Equatable {
     }
 }
 
-struct DeviceModelID: Codable, Hashable {
-    let product: String
-    let version: String
-
-    init(_ state: KHState) {
-        product = state.product
-        version = state.version
-    }
-}
-
 @Observable
 final class KHDevice: @MainActor KHSingleDeviceProtocol {
     var state: KHState
@@ -115,24 +106,28 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
             print("Parameters not populated, cannot update state")
             return
         }
-        guard let newState = KHState(nodeTree: rootNode) else {
+        guard let newState = KHState(nodeTree: rootNode, deviceModel: getModel())
+        else {
             print("Failed to create KHState from parameter tree")
             return
         }
         state = newState
     }
 
+    func getModel() -> DeviceModel { DeviceModel(self.state) }
+
     private func _fetchParameter(_ parameter: KHParameters) async throws {
         do {
             state = try await parameter.fetch(
                 into: state,
                 connection: connection,
+                deviceModel: getModel(),
                 parameterTree: parameterTree
             )
         } catch SSCConnection.ConnectionError.connectingTimedOut {
             status = .error("Device not reachable")
             throw SSCConnection.ConnectionError.connectingTimedOut
-        }catch {
+        } catch {
             status = .error(String(describing: error))
             throw error
         }
@@ -146,6 +141,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
                 oldState: state,
                 newState: newState,
                 connection: connection,
+                deviceModel: getModel(),
                 parameterTree: parameterTree
             )
             /// We only want to copy these parameters and not update the whole state because we can get a single state with Name etc. from KHDeviceGroup and don't want to overwrite names of devices.
@@ -364,7 +360,11 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
     }
 
     func getDeviceByID(_ id: KHDevice.ID) -> KHDevice? {
-        return devices.first(where: { $0.id == id })
+        devices.first(where: { $0.id == id })
+    }
+
+    func getDeviceByModel(_ deviceModel: DeviceModel) -> KHDevice? {
+        devices.first(where: { $0.getModel() == deviceModel })
     }
 
     func getNodeByID(_ id: SSCNode.ID) -> SSCNode? {

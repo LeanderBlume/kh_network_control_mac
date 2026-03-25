@@ -184,21 +184,30 @@ struct KHState: Codable, Equatable {
 
     init() {}
 
-    init?(jsonData: JSONData) {
+    init?(jsonData: JSONData, deviceModel: DeviceModel) {
         for p in KHParameters.allCases {
-            guard let newState = p.copy(from: jsonData, into: self) else { return nil }
+            guard
+                let newState = p.copy(
+                    from: jsonData,
+                    into: self,
+                    deviceModel: deviceModel
+                )
+            else { return nil }
             self = newState
         }
     }
 
-    init?(jsonDataCodable: JSONDataCodable) {
-        self.init(jsonData: JSONData(jsonDataCodable: jsonDataCodable))
+    init?(jsonDataCodable: JSONDataCodable, deviceModel: DeviceModel) {
+        self.init(
+            jsonData: JSONData(jsonDataCodable: jsonDataCodable),
+            deviceModel: deviceModel
+        )
     }
 
     @MainActor
-    init?(nodeTree: SSCNode) {
+    init?(nodeTree: SSCNode, deviceModel: DeviceModel) {
         guard let jd = JSONData(rootNode: nodeTree) else { return nil }
-        self.init(jsonData: jd)
+        self.init(jsonData: jd, deviceModel: deviceModel)
     }
 }
 
@@ -206,18 +215,23 @@ private protocol KHStatePathProtocol: Equatable {
     associatedtype T: Equatable, Codable, Sendable
 
     var keyPath: WritableKeyPath<KHState, T> { get }
-    var devicePath: [String] { get }
 
     func copy(from: KHState, into: KHState) -> KHState
-    func copy(from: JSONData, into: KHState) -> KHState?
-    @MainActor func copy(from: KHState, into: SSCNode)
+    func copy(from: JSONData, into: KHState, devicePath: [String]) -> KHState?
+    @MainActor func copy(from: KHState, into: SSCNode, devicePath: [String])
 
-    func fetch(into: KHState, connection: SSCConnection, parameterTree: SSCNode?)
-        async throws -> KHState
+    func fetch(
+        into: KHState,
+        connection: SSCConnection,
+        devicePath: [String],
+        parameterTree: SSCNode?
+    ) async throws -> KHState
+
     func send(
         oldState: KHState,
         newState: KHState,
         connection: SSCConnection,
+        devicePath: [String],
         parameterTree: SSCNode?
     ) async throws
 }
@@ -225,7 +239,6 @@ private protocol KHStatePathProtocol: Equatable {
 private struct KHStatePath<T>: KHStatePathProtocol
 where T: Equatable, T: Codable, T: Sendable {
     let keyPath: WritableKeyPath<KHState, T>
-    let devicePath: [String]
 
     private func get(from state: KHState) -> T {
         state[keyPath: keyPath]
@@ -255,13 +268,17 @@ where T: Equatable, T: Codable, T: Sendable {
         set(get(from: sourceState), into: targetState)
     }
 
-    func copy(from jsonData: JSONData, into targetState: KHState) -> KHState? {
+    func copy(
+        from jsonData: JSONData,
+        into targetState: KHState,
+        devicePath: [String]
+    ) -> KHState? {
         guard let value = jsonData.getAtPath(devicePath) else { return nil }
         return set(value, into: targetState)
     }
 
     @MainActor
-    func copy(from state: KHState, into nodeTree: SSCNode) {
+    func copy(from state: KHState, into nodeTree: SSCNode, devicePath: [String]) {
         guard let leaf = nodeTree.getAtPath(devicePath) else { return }
         guard case .value(let val) = leaf.value else { return }
         switch val {
@@ -297,13 +314,14 @@ where T: Equatable, T: Codable, T: Sendable {
     func fetch(
         into state: KHState,
         connection: SSCConnection,
+        devicePath: [String],
         parameterTree: SSCNode? = nil
     ) async throws -> KHState {
         let newValue: T = try await connection.fetchSSCValue(path: devicePath)
         var newState = state
         newState[keyPath: keyPath] = newValue
         if let parameterTree {
-            copy(from: newState, into: parameterTree)
+            copy(from: newState, into: parameterTree, devicePath: devicePath)
         }
         return newState
     }
@@ -313,6 +331,7 @@ where T: Equatable, T: Codable, T: Sendable {
         oldState: KHState,
         newState: KHState,
         connection: SSCConnection,
+        devicePath: [String],
         parameterTree: SSCNode? = nil
     )
         async throws
@@ -323,7 +342,7 @@ where T: Equatable, T: Codable, T: Sendable {
             value: newState[keyPath: keyPath]
         )
         if let parameterTree {
-            copy(from: newState, into: parameterTree)
+            copy(from: newState, into: parameterTree, devicePath: devicePath)
         }
     }
 }
@@ -355,7 +374,7 @@ enum KHParameters: String, CaseIterable, Identifiable {
 
     var id: String { self.rawValue }
 
-    private func getDevicePathFallback() -> [String] {
+    func getDevicePathFallback() -> [String] {
         switch self {
         case .name:
             ["device", "name"]
@@ -404,119 +423,90 @@ enum KHParameters: String, CaseIterable, Identifiable {
         }
     }
 
-    private static func getPathDict() -> [String: [String]]? {
-        let decoder = JSONDecoder()
-        guard let data: Data = AppStorage("paths").wrappedValue else {
-            return nil
-        }
-        return try? decoder.decode([String: [String]].self, from: data)
-    }
-
-    private func _getDevicePath() -> [String] {
-        let fallback = getDevicePathFallback()
-        guard let pathDict = KHParameters.getPathDict() else {
-            return fallback
-        }
-        return pathDict[rawValue] ?? fallback
-    }
-
-    static func devicePathDictDefault() -> [String: [String]] {
-        var result: [String: [String]] = [:]
-        for p in KHParameters.allCases {
-            result[p.rawValue] = p.getDevicePathFallback()
-        }
-        return result
-    }
-
-    func setDevicePath(to path: [String]?) {
-        guard var dict = KHParameters.getPathDict() else { return }
-        dict[rawValue] = path
-        let encoder = JSONEncoder()
-        if let data = try? encoder.encode(dict) {
-            AppStorage("paths").wrappedValue = data
-        }
-    }
-
-    func resetDevicePath() { setDevicePath(to: nil) }
-
-    static func resetAllDevicePaths() {
-        KHParameters.allCases.forEach { $0.resetDevicePath() }
-    }
-
     private func getPathObject() -> any KHStatePathProtocol {
         switch self {
         case .name:
-            KHStatePath(keyPath: \.name, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.name)
         case .serial:
-            KHStatePath(keyPath: \.serial, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.serial)
         case .product:
-            KHStatePath(keyPath: \.product, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.product)
         case .version:
-            KHStatePath(keyPath: \.version, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.version)
         case .volume:
-            KHStatePath(keyPath: \.volume, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.volume)
         case .muted:
-            KHStatePath(keyPath: \.muted, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.muted)
         case .logoBrightness:
-            KHStatePath(keyPath: \.logoBrightness, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.logoBrightness)
         case .standbyEnabled:
-            KHStatePath(keyPath: \.standbyEnabled, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.standbyEnabled)
         case .standbyTimeout:
-            KHStatePath(keyPath: \.standbyTimeout, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.standbyTimeout)
 
         case .eq0boost:
-            KHStatePath(keyPath: \.eqs[0].boost, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[0].boost)
         case .eq0enabled:
-            KHStatePath(keyPath: \.eqs[0].enabled, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[0].enabled)
         case .eq0frequency:
-            KHStatePath(keyPath: \.eqs[0].frequency, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[0].frequency)
         case .eq0gain:
-            KHStatePath(keyPath: \.eqs[0].gain, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[0].gain)
         case .eq0q:
-            KHStatePath(keyPath: \.eqs[0].q, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[0].q)
         case .eq0type:
-            KHStatePath(keyPath: \.eqs[0].type, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[0].type)
 
         case .eq1boost:
-            KHStatePath(keyPath: \.eqs[1].boost, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[1].boost)
         case .eq1enabled:
-            KHStatePath(keyPath: \.eqs[1].enabled, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[1].enabled)
         case .eq1frequency:
-            KHStatePath(keyPath: \.eqs[1].frequency, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[1].frequency)
         case .eq1gain:
-            KHStatePath(keyPath: \.eqs[1].gain, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[1].gain)
         case .eq1q:
-            KHStatePath(keyPath: \.eqs[1].q, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[1].q)
         case .eq1type:
-            KHStatePath(keyPath: \.eqs[1].type, devicePath: _getDevicePath())
+            KHStatePath(keyPath: \.eqs[1].type)
         }
     }
-
-    func getDevicePath() -> [String] { getPathObject().devicePath }
-
-    func getPathString() -> String { "/" + getDevicePath().joined(separator: "/") }
 
     func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
         getPathObject().copy(from: sourceState, into: targetState)
     }
 
-    func copy(from jsonData: JSONData, into targetState: KHState) -> KHState? {
-        getPathObject().copy(from: jsonData, into: targetState)
+    func copy(
+        from jsonData: JSONData,
+        into targetState: KHState,
+        deviceModel: DeviceModel
+    ) -> KHState? {
+        getPathObject().copy(
+            from: jsonData,
+            into: targetState,
+            devicePath: deviceModel.getDevicePath(for: self)
+        )
     }
 
     @MainActor
-    func copy(from state: KHState, into nodeTree: SSCNode) {
-        getPathObject().copy(from: state, into: nodeTree)
+    func copy(from state: KHState, into nodeTree: SSCNode, deviceModel: DeviceModel) {
+        getPathObject().copy(
+            from: state,
+            into: nodeTree,
+            devicePath: deviceModel.getDevicePath(for: self)
+        )
     }
 
     func fetch(
         into state: KHState,
         connection: SSCConnection,
+        deviceModel: DeviceModel,
         parameterTree: SSCNode? = nil
     ) async throws -> KHState {
         try await getPathObject().fetch(
             into: state,
             connection: connection,
+            devicePath: deviceModel.getDevicePath(for: self),
             parameterTree: parameterTree
         )
     }
@@ -525,12 +515,14 @@ enum KHParameters: String, CaseIterable, Identifiable {
         oldState: KHState,
         newState: KHState,
         connection: SSCConnection,
+        deviceModel: DeviceModel,
         parameterTree: SSCNode? = nil
     ) async throws {
         try await getPathObject().send(
             oldState: oldState,
             newState: newState,
             connection: connection,
+            devicePath: deviceModel.getDevicePath(for: self),
             parameterTree: parameterTree
         )
     }

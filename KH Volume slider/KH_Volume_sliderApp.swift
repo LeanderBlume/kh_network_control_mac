@@ -7,16 +7,18 @@
 
 import SwiftUI
 
+typealias ParameterPathDict = [DeviceModel: [String: [String]]]
+
 @main
 struct KH_Volume_sliderApp: App {
     @State private var khAccess = KHAccess()
 
-    // decodes to [String: [String]]
+    // decodes to ParameterPathDict
     @AppStorage("paths") private var paths: Data?
 
     init() {
         if paths != nil { return }
-        let emptyDict = [String: [String]]()
+        let emptyDict = ParameterPathDict()
         do {
             paths = try JSONEncoder().encode(emptyDict)
         } catch {
