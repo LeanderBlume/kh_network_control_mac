@@ -108,7 +108,6 @@ private struct EqBandPanel: View {
     @ViewBuilder
     var bodyiOS: some View {
         EqTypePicker(bandEnabled: enabled, type: $type)
-            .onChange(of: type) { Task { await khAccess.send() } }
 
         Grid(alignment: .leading) {
             ForEach(sliders.indices, id: \.self) { i in
@@ -130,7 +129,6 @@ private struct EqBandPanel: View {
         Grid(alignment: .topLeading) {
             GridRow {
                 EqTypePicker(bandEnabled: enabled, type: $type)
-                    .onChange(of: type) { Task { await khAccess.send() } }
                     .padding(.bottom, 5)
             }
             ForEach(sliders.indices, id: \.self) { i in
@@ -225,9 +223,6 @@ private struct EqPanel: View {
 
     var body: some View {
         BandPicker(numBands: eq.numBands ?? 0, selectedEqBand: $selectedEqBand, eq: $eq)
-            .onChange(of: eq.enabled) {
-                Task { await khAccess.send() }
-            }
 
         if selectedEqBand >= eq.numBands ?? -1 {
             Text("Band index out of range")
@@ -245,6 +240,7 @@ private struct EqPanel: View {
 }
 
 struct EqTab: View {
+    @Binding var khState: KHState
     @State private var selectedEq: Int = 0
     @State var selectedBands: [Int] = [0, 0]
     @Environment(KHAccess.self) private var khAccess: KHAccess
@@ -252,7 +248,7 @@ struct EqTab: View {
     var body: some View {
         @Bindable var khAccess = khAccess
 
-        EqChart(eqs: khAccess.state.eqs).frame(height: 150)
+        EqChart(eqs: khState.eqs).frame(height: 150)
 
         Picker("", selection: $selectedEq) {
             Text("post EQ")
@@ -263,12 +259,9 @@ struct EqTab: View {
         .pickerStyle(.segmented)
 
         EqPanel(
-            eq: $khAccess.state.eqs[selectedEq],
+            eq: $khState.eqs[selectedEq],
             selectedEqBand: $selectedBands[selectedEq]
         )
+        .onChange(of: khState) { Task { await khAccess.send(khState) } }
     }
-}
-
-#Preview {
-    EqTab().environment(KHAccess())
 }

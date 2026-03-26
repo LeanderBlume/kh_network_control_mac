@@ -14,9 +14,9 @@ protocol DeviceModelProtocol: Codable, Hashable, Identifiable {
 
     func description() -> String
 
-    func getDevicePath(for: KHParameters2) -> [String]
-    func setDevicePath(for: KHParameters2, to path: [String]?)
-    func resetDevicePath(for: KHParameters2)
+    func getDevicePath(for: KHParameters) -> [String]
+    func setDevicePath(for: KHParameters, to path: [String]?)
+    func resetDevicePath(for: KHParameters)
     func resetAllDevicePaths()
 }
 
@@ -41,22 +41,22 @@ struct DeviceModel: DeviceModelProtocol {
         return try? decoder.decode(ParameterPathDict.self, from: data)
     }
 
-    func getDevicePath(for parameter: KHParameters2) -> [String] {
-        Self.getPathDict()?[self]?[parameter.id]
+    func getDevicePath(for parameter: KHParameters) -> [String] {
+        Self.getPathDict()?[self]?[parameter.rawValue]
             ?? parameter.getDevicePathFallback()
     }
     
-    func getPathString(for parameter: KHParameters2) -> String {
+    func getPathString(for parameter: KHParameters) -> String {
         "/" + getDevicePath(for: parameter).joined(separator: "/")
     }
     
-    func setDevicePath(for parameter: KHParameters2, to path: [String]?) {
+    func setDevicePath(for parameter: KHParameters, to path: [String]?) {
         guard var topDict = Self.getPathDict() else {
             print("Error getting path dict when setting")
             return
         }
         var modelDict = topDict[self] ?? [String: [String]]()
-        modelDict[parameter.id] = path
+        modelDict[parameter.rawValue] = path
         topDict[self] = modelDict
         guard let data = try? JSONEncoder().encode(topDict) else {
             print("Error encoding path dict when setting")
@@ -65,11 +65,11 @@ struct DeviceModel: DeviceModelProtocol {
         AppStorage("paths").wrappedValue = data
     }
 
-    func resetDevicePath(for parameter: KHParameters2) {
+    func resetDevicePath(for parameter: KHParameters) {
         setDevicePath(for: parameter, to: nil)
     }
 
     func resetAllDevicePaths() {
-        KHParameters2.allCases.forEach { resetDevicePath(for: $0) }
+        KHParameters.allCases.forEach { resetDevicePath(for: $0) }
     }
 }

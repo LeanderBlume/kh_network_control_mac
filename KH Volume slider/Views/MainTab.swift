@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct MainTab: View {
-    @State var khState = KHState()
+    @Binding var khState: KHState
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @FocusState private var textFieldFocused: Bool
     @State private var showError: Bool = false
@@ -81,7 +81,7 @@ struct MainTab: View {
             .disabled(khAccess.status != .ready)
 
             Section("EQ") {
-                EqTab()
+                EqTab(khState: $khState)
             }
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
@@ -120,9 +120,14 @@ struct MainTab: View {
         }
         .toolbar(removing: .title)
         .toolbar {
-            MainToolbar(showError: $showError)
+            MainToolbar(khState: $khState, showError: $showError)
             if textFieldFocused {
                 ToolbarDoneAndCancel(textFieldFocused: $textFieldFocused)
+            }
+        }
+        .onChange(of: textFieldFocused) {
+            if !textFieldFocused {
+                Task { await khAccess.send(khState) }
             }
         }
     }
@@ -192,7 +197,7 @@ struct MainTab: View {
             Text("EQ").font(.title2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            EqTab()
+            EqTab(khState: $khState)
 
             Text("Auto-standby").font(.title2)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -225,7 +230,7 @@ struct MainTab: View {
             }
         }
         .disabled(khAccess.status != .ready)
-        .toolbar { MainToolbar(showError: $showError) }
+        .toolbar { MainToolbar(khState: $khState, showError: $showError) }
     }
 
     var body: some View {

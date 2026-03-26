@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 
 struct MenuBarView: View {
+    @Binding var khState: KHState
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
@@ -22,13 +23,10 @@ struct MenuBarView: View {
             Spacer()
 
             Menu("Actions") {
-                ToolbarFetchButton()
-
-                ToolbarConnectButton()
-
-                ToolbarRescanButton()
-
-                ToolbarClearCacheButton()
+                ToolbarFetchButton(khState: $khState)
+                ToolbarConnectButton(khState: $khState)
+                ToolbarRescanButton(khState: $khState)
+                ToolbarClearCacheButton(khState: $khState)
 
                 #if os(macOS)
                     Button("Quit", systemImage: "xmark.rectangle") {
@@ -60,13 +58,13 @@ struct MenuBarView: View {
                     Toggle(
                         "Toggle",
                         systemImage: "speaker.slash.fill",
-                        isOn: $khAccess.state.muted
+                        isOn: $khState.muted
                     )
                     /// toggleStyle .button might crash the app on macOS 15. Or maybe it's the other thing in the EQ tab.
                     // .toggleStyle(.button)
                     // .toggleStyle(.switch)
-                    .onChange(of: khAccess.state.muted) {
-                        Task { await khAccess.send() }
+                    .onChange(of: khState.muted) {
+                        Task { await khAccess.send(khState) }
                     }
                     .disabled(khAccess.status != .ready)
                     .labelsHidden()
@@ -74,35 +72,35 @@ struct MenuBarView: View {
                 GridRow {
                     Text("Volume")
 
-                    Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
+                    Slider(value: $khState.volume, in: 0...120, step: 3) {
                         editing in
-                        if !editing { Task { await khAccess.send() } }
+                        if !editing { Task { await khAccess.send(khState) } }
                     }
 
                     TextField(
                         "Volume",
-                        value: $khAccess.state.volume,
+                        value: $khState.volume,
                         format: .number.precision(.fractionLength(1))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send() } }
+                    .onSubmit { Task { await khAccess.send(khState) } }
                     .labelsHidden()
                 }
                 GridRow {
                     Text("Logo")
 
-                    Slider(value: $khAccess.state.logoBrightness, in: 0...125, step: 5)
+                    Slider(value: $khState.logoBrightness, in: 0...125, step: 5)
                     { editing in
-                        if !editing { Task { await khAccess.send() } }
+                        if !editing { Task { await khAccess.send(khState) } }
                     }
 
                     TextField(
                         "Logo",
-                        value: $khAccess.state.logoBrightness,
+                        value: $khState.logoBrightness,
                         format: .number.rounded()
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send() } }
+                    .onSubmit { Task { await khAccess.send(khState) } }
                     .labelsHidden()
                 }
             }
@@ -114,8 +112,4 @@ struct MenuBarView: View {
         .scenePadding()
         .onAppear { Task { await khAccess.setup() } }
     }
-}
-
-#Preview {
-    MenuBarView().environment(KHAccess())
 }
