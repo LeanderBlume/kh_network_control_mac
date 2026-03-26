@@ -66,29 +66,24 @@ struct TestSSC {
                 type: service.1,
                 domain: service.2
             )
-            try await newC.open()
             let response: Bool = try await newC.fetchSSCValue(path: [
                 "audio", "out", "mute",
             ])
             #expect(response == false)
-            await newC.close()
         }
     }
 
     // This should be a SwiftSSC test.
     @Test func testFetchSSCValue() async throws {
         let sscDevice = await SSCConnection.scan()[0]
-        try await sscDevice.open()
         let response: Bool = try await sscDevice.fetchSSCValue(path: [
             "audio", "out", "mute",
         ])
         #expect(response == false)
-        await sscDevice.close()
     }
 
     @Test func testSendSSCValue() async throws {
         let sscDevice = await SSCConnection.scan()[0]
-        try await sscDevice.open()
         try await sscDevice.sendSSCValue(
             path: [
                 "audio", "out", "mute",
@@ -102,7 +97,6 @@ struct TestSSC {
             ],
             value: false
         )
-        await sscDevice.close()
     }
 }
 
@@ -143,12 +137,10 @@ struct TestSSC {
             path: ["ui", "logo", "brightness"]
         )
         #expect(result3 == nil)
-        // node.disconnect()
     }
 
     @Test func testGetLimits() async throws {
         let node = SSCNode(name: "root", deviceID: deviceID, parent: nil)
-        // try await node.connect()
         let result = try await node.getLimits(
             connection: connection,
             path: ["ui", "logo", "brightness"]
@@ -168,23 +160,19 @@ struct TestSSC {
                     "writeable": nil,
                 ])
         )
-        // node.disconnect()
     }
 
     @Test func testPopulate() async throws {
         let node = SSCNode(name: "root", deviceID: deviceID, parent: nil)
-        try await connection.open()
         #expect(node.pathToNode() == [])
-        try await node.populate(connection: connection)
-        await connection.close()
+        try await node.populate(connection: connection, recursive: true)
+        // print(node.children?.map(\.name))
     }
 
     @Test func testIteration() async throws {
         let node = SSCNode(name: "root", deviceID: deviceID, parent: nil)
-        try await connection.open()
         #expect(node.pathToNode() == [])
         try await node.populate(connection: connection)
-        await connection.close()
         let names = node.map(\.name)
         // Not the root node!
         #expect(!names.contains("root"))
@@ -201,9 +189,7 @@ struct TestSSC {
         let leaf = SSCNode(name: "name", deviceID: deviceID, parent: node2)
         #expect(leaf.pathToNode() == ["device", "name"])
         leaf.value = NodeData(value: "New name!")
-        try await connection.open()
         // try await leaf.sendLeaf(connection: connection)
-        await connection.close()
     }
     
     @Test func testGetAtPath() async throws {
@@ -221,19 +207,17 @@ struct TestSSC {
 
     @Test func testDecoding() async throws {
         let rootNode = SSCNode(name: "root", deviceID: deviceID, parent: nil)
-        try await connection.open()
         #expect(rootNode.pathToNode() == [])
         try await rootNode.populate(connection: connection)
-        await connection.close()
-        let treeData = JSONData(from: rootNode)!
+        let treeData = JSONData(rootNode: rootNode)!
         let jd = try JSONEncoder().encode(treeData)
         let decoder = JSONDecoder()
-        let schema = JSONData(from: rootNode)
+        let schema = JSONData(rootNode: rootNode)
         // decoder.userInfo[.schemaJSONData] = schema
         let decodedTest = try decoder.decode(
             JSONData.self,
             from: jd,
-            configuration: schema!
+            configuration: JSONSchema(jsonData: schema!)
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
@@ -275,5 +259,15 @@ struct TestKHParameter {
         vol.setDevicePath(to: ["bla", "blub"])
         #expect(vol.getDevicePath() == ["bla", "blub"])
         vol.resetDevicePath()
+    }
+}
+
+@MainActor
+struct TestBackup {
+    @Test func main() async throws {
+        let kha = KHAccess()
+        await kha.setup()
+        let b = try Backupper()
+        try await b.load(name: "TestAnew.json", khAccess: kha)
     }
 }

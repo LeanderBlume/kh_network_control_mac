@@ -274,20 +274,22 @@ private struct NodeValueView: View {
     }
 
     var body: some View {
-        switch node.value {
-        case .value(let T):
-            if let type = UILeafNodeType(jsonData: T, limits: node.limits) {
-                let precision = (node.limits?.inc == 1) ? 0 : 1
-                NodeValueEditor(type: type, values: $values, precision: precision)
-            } else {
-                Text("Non-leaf node or unknown type")
+        Group {
+            switch node.value {
+            case .value(let T):
+                if let type = UILeafNodeType(jsonData: T, limits: node.limits) {
+                    let precision = (node.limits?.inc == 1) ? 0 : 1
+                    NodeValueEditor(type: type, values: $values, precision: precision)
+                } else {
+                    Text("Non-leaf node or unknown type")
+                }
+            default:
+                Text("Can't edit non-leaf node")
             }
-        default:
-            Text("Can't edit non-leaf node")
-        }
 
-        Button("Send to device", systemImage: "square.and.arrow.up") {
-            Task { await sendValue() }
+            Button("Send to device", systemImage: "square.and.arrow.up") {
+                Task { await sendValue() }
+            }
         }
         .disabled(node.limits?.isWriteable == false)
     }
@@ -295,7 +297,9 @@ private struct NodeValueView: View {
 
 private struct NodeView: View {
     var node: SSCNode
-    @State var mappedParameter: KHParameters?
+    private var deviceName: String {
+        khAccess.getDeviceByID(node.id.deviceID)?.state.name ?? "Non-existent device"
+    }
     @State var values: PossibleValues
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
@@ -304,262 +308,70 @@ private struct NodeView: View {
         values = .init(fromNode: node)
     }
 
-    var body: some View {
-        ScrollView {
-            Form {
-                Section("Edit value(s)") {
-                    NodeValueView(node: node, values: $values)
-                }
-
-                Divider()
-
-                Section("Parameter info (/osc/limits)") {
-                    if let limits = node.limits {
-                        LimitsView(limits: limits)
-                    } else {
-                        LabeledContent {
-                            Text("Container")
-                        } label: {
-                            Text("Type:")
-                        }
-                    }
-                }
-
-                Divider()
-
-                // Should this be read-only?
-                Section("UI Mapping") {
-                    Picker("UI Element", selection: $mappedParameter) {
-                        Text("None").tag(nil as KHParameters?)
-                        ForEach(KHParameters.allCases) { parameter in
-                            Text(parameter.rawValue).tag(parameter)
-                        }
-                    }
-                    .onAppear {
-                        // Check if this path is already mapped to a parameter.
-                        let path = node.pathToNode()
-                        KHParameters.allCases.forEach { parameter in
-                            if parameter.getDevicePath() == path {
-                                mappedParameter = parameter
-                                return
-                            }
-                        }
-                    }
-                    .onChange(of: mappedParameter) {
-                        // TODO check type and stuff?
-                        if let mappedParameter {
-                            mappedParameter.setDevicePath(to: node.pathToNode())
-                        }
-                    }
-                    Button("Reset All") { KHParameters.resetAllDevicePaths() }
-                }
-            }
-            .refreshable {
-                guard let device = khAccess.getDeviceByID(node.id.deviceID) else {
-                    print("Device with id \(node.id.deviceID) not found")
-                    return
-                }
-                await device.fetchNode(path: node.pathToNode())
-                values = .init(fromNode: node)
-            }
-            .navigationTitle(node.getPathString())
+    private func getMappedParameters() -> [KHParameters] {
+        guard let device = khAccess.getDeviceByID(node.id.deviceID) else {
+            print("Device with id \(node.id.deviceID) not found")
+            return []
         }
-    }
-}
-
-private struct DeviceBrowser: View {
-    var rootNode: SSCNode
-    @Environment(KHAccess.self) private var khAccess: KHAccess
-
-    var body: some View {
-        List(
-            rootNode.children ?? [],
-            children: \.children,
-        ) { node in
-            NavigationLink(destination: NodeView(node: node)) {
-                if let units = node.limits?.units {
-                    Text(node.name + " (\(units))")
-                } else {
-                    Text(node.name)
-                }
-
-                // This spacer can cause an EXC_BAD_ACCESS on the macOS build. Super weird.
-                // Actually it doesn't cause it, but not having it reduces occurences and also maybe it looks better.
-                // Spacer()
-
-                switch node.value {
-                case .unknown, .unknownValue, .unknownChildren:
-                    Text("unknown")
-                case .error(let s):
-                    Label(s, systemImage: "exclamationmark.circle")
-                case .children:
-                    EmptyView()
-                case .value(let v):
-                    Text(v.stringify()).foregroundColor(.secondary)
-                }
-            }
-        }.refreshable { await khAccess.fetchParameterTree() }
-    }
-}
-
-private struct ParameterMapper: View {
-    var parameter: KHParameters
-    var rootNode: SSCNode
-    @Binding var pathString: String?
-    @State var selection: SSCNode.ID? = nil
-    @Environment(KHAccess.self) private var khAccess: KHAccess
-
-    private func setParameter() {
-        guard let selection else { return }
-        guard let node = khAccess.getNodeByID(selection) else { return }
-        parameter.setDevicePath(to: node.pathToNode())
-        pathString = parameter.getPathString()
-    }
-
-    var body: some View {
-        List(
-            rootNode.children ?? [rootNode],
-            children: \.children,
-            selection: $selection
-        ) { node in
-            let unitString =
-                node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
-            Text(node.name + unitString)
-        }
-        .navigationTitle(Text(parameter.rawValue))
-        .overlay(alignment: .bottom) {
-            Button(action: setParameter) {
-                if let selection {
-                    VStack {
-                        Text(pathString ?? "unknown")
-                            .strikethrough(true)
-                        if let node = khAccess.getNodeByID(selection) {
-                            Label(
-                                "/" + node.pathToNode().joined(separator: "/"),
-                                systemImage: "arrow.right"
-                            )
-                        } else {
-                            Label("Node doesn't exist", systemImage: "arrow.right")
-                        }
-                    }
-                    .padding(.horizontal)
-                } else {
-                    Text("Select a node")
-                }
-            }
-            .padding()
-            .buttonStyle(.borderedProminent)
-            .disabled(selection == nil)
-        }
-    }
-}
-
-private struct DeviceBrowserLink: View {
-    var device: KHDevice
-
-    var body: some View {
-        if let rootNode = device.parameterTree {
-            NavigationLink(
-                destination: DeviceBrowser(rootNode: rootNode)
-                    .navigationTitle(device.state.name)
-            ) {
-                Text(device.state.name)
-                if device.status != .ready {
-                    StatusDisplayText(status: device.status)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        } else {
-            LabeledContent {
-                StatusDisplayText(status: device.status)
-            } label: {
-                Text(device.state.name)
-            }
-        }
-    }
-}
-
-private struct ParameterMapperLink: View {
-    var parameter: KHParameters
-    var device: KHDevice
-    @Binding var pathString: String?
-
-    var body: some View {
-        LabeledContent {
-            if let rootNode = device.parameterTree {
-                NavigationLink(
-                    pathString ?? "unknown",
-                    destination: ParameterMapper(
-                        parameter: parameter,
-                        rootNode: rootNode,
-                        pathString: $pathString
-                    )
-                )
-            } else {
-                Text(pathString ?? "unknown")
-            }
-        } label: {
-            Text(parameter.rawValue)
-        }
-    }
-}
-
-private struct DeviceBrowserForm: View {
-    var devices: [KHDevice]
-    @State private var pathStrings: [String: String] = [:]
-
-    func updatePathStrings() {
-        for parameter in KHParameters.allCases {
-            pathStrings[parameter.rawValue] = parameter.getPathString()
+        let deviceModel = device.getModel()
+        // Check if this path is already mapped to a parameter.
+        return KHParameters.allCases.filter {
+            deviceModel.getDevicePath(for: $0) == node.pathToNode()
         }
     }
 
     var bodyiOS: some View {
-        List {
-            Section("Devices") {
-                ForEach(devices.indices, id: \.self) { i in
-                    DeviceBrowserLink(device: devices[i])
+        Form {
+            Section("Edit value(s)") {
+                NodeValueView(node: node, values: $values)
+            }
+
+            #if os(macOS)
+                Divider()
+            #endif
+
+            Section("Parameter info (/osc/limits)") {
+                if let limits = node.limits {
+                    LimitsView(limits: limits)
+                } else {
+                    LabeledContent {
+                        Text("Container")
+                    } label: {
+                        Text("Type:")
+                    }
                 }
             }
 
-            Section("Map UI Elements") {
-                Button("Reset all") {
-                    KHParameters.resetAllDevicePaths()
-                    updatePathStrings()
-                }
-                ForEach(KHParameters.allCases) { parameter in
-                    ParameterMapperLink(
-                        parameter: parameter,
-                        device: devices.first!,
-                        pathString: $pathStrings[parameter.rawValue]
-                    )
+            #if os(macOS)
+                Divider()
+            #endif
+
+            Section("UI Mapping") {
+                LabeledContent {
+                    Text(getMappedParameters().first?.rawValue ?? "None")
+                } label: {
+                    Text("Mapped to:")
                 }
             }
         }
-        .onAppear(perform: updatePathStrings)
+        .refreshable {
+            guard let device = khAccess.getDeviceByID(node.id.deviceID) else {
+                print("Device with id \(node.id.deviceID) not found")
+                return
+            }
+            await device.fetchNode(path: node.pathToNode())
+            values = .init(fromNode: node)
+        }
+        .navigationTitle(deviceName + ":" + node.getPathString())
     }
 
     var bodymacOS: some View {
-        List {
-            Section("Devices") {
-                ForEach(devices.indices, id: \.self) { i in
-                    DeviceBrowserLink(device: devices[i])
-                }
+        ScrollView {
+            VStack {
+                Text(deviceName + ":" + node.getPathString()).font(.title2)
+
+                bodyiOS
             }
-            Section("Map UI Elements") {
-                Button("Reset all") {
-                    KHParameters.resetAllDevicePaths()
-                    updatePathStrings()
-                }
-                ForEach(KHParameters.allCases) { parameter in
-                    ParameterMapperLink(
-                        parameter: parameter,
-                        device: devices.first!,
-                        pathString: $pathStrings[parameter.rawValue]
-                    )
-                }
-            }
-            .onAppear(perform: updatePathStrings)
         }
     }
 
@@ -572,7 +384,239 @@ private struct DeviceBrowserForm: View {
     }
 }
 
-struct ParameterTab: View {
+private struct DeviceBrowser: View {
+    var rootNode: SSCNode
+    var deviceName: String {
+        khAccess.getDeviceByID(rootNode.id.deviceID)?.state.name
+            ?? "Non-existent device"
+    }
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    var body: some View {
+        VStack {
+            #if os(macOS)
+                Text(deviceName).font(.title2)
+            #endif
+
+            List(
+                rootNode.children ?? [],
+                children: \.children,
+            ) { node in
+                NavigationLink(
+                    destination: NodeView(node: node)
+                ) {
+                    if let units = node.limits?.units {
+                        Text(node.name + " (\(units))")
+                    } else {
+                        Text(node.name)
+                    }
+
+                    // This spacer can cause an EXC_BAD_ACCESS on the macOS build. Super weird.
+                    // Actually it doesn't cause it, but not having it reduces occurences and also maybe it looks better.
+                    // Spacer()
+
+                    switch node.value {
+                    case .unknown, .unknownValue, .unknownChildren:
+                        Text("unknown")
+                    case .error(let s):
+                        Label(s, systemImage: "exclamationmark.circle")
+                    case .children:
+                        EmptyView()
+                    case .value(let v):
+                        Text(v.stringify()).foregroundColor(.secondary)
+                    }
+                }
+            }
+            .refreshable { await khAccess.fetchParameterTree() }
+            .navigationTitle(deviceName)
+        }
+    }
+}
+
+private struct ParameterMapper: View {
+    var parameter: KHParameters
+    var rootNode: SSCNode
+    @Binding var pathString: String?
+    @State var selection: SSCNode.ID? = nil
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    private func setParameter() {
+        guard let device = khAccess.getDeviceByID(rootNode.id.deviceID) else {
+            print("Device with id \(rootNode.id.deviceID) not found")
+            return
+        }
+        let deviceModel = device.getModel()
+        guard let selection else { return }
+        guard let node = khAccess.getNodeByID(selection) else { return }
+        deviceModel.setDevicePath(for: parameter, to: node.pathToNode())
+        pathString = deviceModel.getPathString(for: parameter)
+    }
+
+    var body: some View {
+        VStack {
+            #if os(macOS)
+                Text("Remapping UI element: \(parameter.rawValue)").font(.title2)
+            #endif
+
+            List(
+                rootNode.children ?? [rootNode],
+                children: \.children,
+                selection: $selection
+            ) { node in
+                let unitString =
+                    node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
+                Text(node.name + unitString)
+            }
+            .navigationTitle(Text(parameter.rawValue))
+            .overlay(alignment: .bottom) {
+                Button(action: setParameter) {
+                    if let selection {
+                        VStack {
+                            Text(pathString ?? "unknown")
+                                .strikethrough(true)
+                            if let node = khAccess.getNodeByID(selection) {
+                                Label(
+                                    "/" + node.pathToNode().joined(separator: "/"),
+                                    systemImage: "arrow.right"
+                                )
+                            } else {
+                                Label("Node doesn't exist", systemImage: "arrow.right")
+                            }
+                        }
+                        .padding(.horizontal)
+                    } else {
+                        Text("Select a node")
+                    }
+                }
+                .padding()
+                .buttonStyle(.borderedProminent)
+                .disabled(selection == nil)
+            }
+        }
+    }
+}
+
+private struct DeviceBrowserLink: View {
+    var device: KHDevice
+
+    var body: some View {
+        if let rootNode = device.parameterTree {
+            NavigationLink(
+                destination: DeviceBrowser(rootNode: rootNode)
+            ) {
+                Text(device.state.name)
+                Text(device.getModel().description())
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            LabeledContent {
+                if device.status == .ready {
+                    Text("Parameters not loaded")
+                } else {
+                    StatusDisplayText(status: device.status)
+                }
+            } label: {
+                Text(device.state.name)
+            }
+        }
+    }
+}
+
+private struct ParameterMapperLink: View {
+    var parameter: KHParameters
+    var rootNode: SSCNode
+    @Binding var pathString: String?
+
+    var body: some View {
+        LabeledContent {
+            NavigationLink(
+                pathString ?? "unknown",
+                destination: ParameterMapper(
+                    parameter: parameter,
+                    rootNode: rootNode,
+                    pathString: $pathString
+                )
+            )
+        } label: {
+            Text(parameter.rawValue)
+        }
+    }
+}
+
+private struct ParameterMappingForDeviceModel: View {
+    var deviceModel: DeviceModel
+    @State private var pathStrings: [String: String] = [:]
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    private func updatePathStrings() {
+        for parameter in KHParameters.allCases {
+            pathStrings[parameter.rawValue] = deviceModel.getPathString(for: parameter)
+        }
+    }
+
+    private func getMatchingRootNode() -> SSCNode? {
+        khAccess.getDeviceByModel(deviceModel)?.parameterTree
+    }
+
+    var body: some View {
+        VStack {
+            #if os(macOS)
+                Text("UI mappings for \(deviceModel.description())")
+                    .font(.title2)
+            #endif
+
+            List {
+                Button("Reset all") {
+                    deviceModel.resetAllDevicePaths()
+                    updatePathStrings()
+                }
+                if let rootNode = getMatchingRootNode() {
+                    ForEach(KHParameters.allCases) { parameter in
+                        ParameterMapperLink(
+                            parameter: parameter,
+                            rootNode: rootNode,
+                            pathString: $pathStrings[parameter.rawValue]
+                        )
+                    }
+                    .onAppear(perform: updatePathStrings)
+                } else {
+                    Text("Failed to find matching parameter tree")
+                }
+            }
+            .navigationTitle("UI mappings for " + deviceModel.description())
+        }
+    }
+}
+
+private struct DeviceBrowserForm: View {
+    var devices: [KHDevice]
+    var deviceModels: [DeviceModel] {
+        let models = devices.map({ $0.getModel() })
+        return Array(Set(models)).sorted { $0.description() < $1.description() }
+    }
+
+    var body: some View {
+        List {
+            Section("Parameter Browser") {
+                ForEach(devices) { device in
+                    DeviceBrowserLink(device: device)
+                }
+            }
+            Section("UI mappings") {
+                ForEach(deviceModels) { deviceModel in
+                    NavigationLink(
+                        deviceModel.description(),
+                        destination: ParameterMappingForDeviceModel(
+                            deviceModel: deviceModel
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+struct DevicesView: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var pathStrings: [String: String] = [:]
 
@@ -582,7 +626,7 @@ struct ParameterTab: View {
             if devices.isEmpty {
                 Text("No devices")
             } else {
-                DeviceBrowserForm(devices: khAccess.devices)
+                DeviceBrowserForm(devices: devices)
             }
         }
     }
@@ -590,7 +634,7 @@ struct ParameterTab: View {
 
 #Preview {
     let khAccess = KHAccess()
-    ParameterTab()
+    DevicesView()
         .environment(khAccess)
         .task { await khAccess.setup() }
         .frame(minWidth: 400, minHeight: 800)

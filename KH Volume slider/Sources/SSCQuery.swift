@@ -22,15 +22,6 @@ enum NodeData {
     init(value: [Double]) { self = .value(.array(value.map({ .number($0) }))) }
     init(value: [Bool]) { self = .value(.array(value.map({ .bool($0) }))) }
 
-    func isUnknown() -> Bool {
-        switch self {
-        case .unknown, .unknownChildren, .unknownValue:
-            return true
-        default:
-            return false
-        }
-    }
-
     func isLeaf() -> Bool {
         switch self {
         case .value, .error:
@@ -208,27 +199,34 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         let path = pathToNode()
         limits = try await getLimits(connection: connection, path: path)
         let decoder = JSONDecoder()
-        var schemata: [JSONData]
+        var schemata: [JSONSchema]
         switch limits!.type {
         case "Number":
-            schemata = [.number(0), .array([.number(0)])]
+            schemata = [.number(), .array(type: .number())]
         case "String":
-            schemata = [.string(""), .array([.string("")])]
+            schemata = [.string(), .array(type: .string())]
         case "Boolean":
-            schemata = [.bool(false), .array([.bool(false)])]
+            schemata = [.bool(), .array(type: .bool())]
         case .none:
             schemata = [
-                .bool(false),
-                .number(0),
-                .string(""),
-                .array([.bool(false)]),
-                .array([.number(0)]),
-                .array([.string("")]),
+                .bool(),
+                .number(),
+                .string(),
+                .array(type: .bool()),
+                .array(type: .number()),
+                .array(type: .string()),
             ]
         default:
             throw SSCNodeError.unknownTypeFromLimits(limits!.type)
         }
-        let data = try await connection.fetchSSCValueData(path: path)
+        var data: Data? = nil
+        do {
+            data = try await connection.fetchSSCValueData(path: path)
+        } catch SSCConnection.DeviceError.notAcceptable {
+            value = .error("Node cannot be fetched")
+            return
+        }
+        guard let data else { throw SSCNodeError.error("Impossible error") }
         for schema in schemata {
             if let v = try? decoder.decode(
                 JSONData.self,
@@ -300,12 +298,12 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         }
     }
 
-    func populate(from jsonDataCodable: JSONDataCodable) {
-        switch jsonDataCodable {
+    func populate(from schema: JSONSchema) {
+        switch schema {
         case .null:
             value = .error("null")
-        case .number(_, let l), .bool(_, let l), .string(_, let l), .array(_, let l):
-            value = .value(JSONData(from: jsonDataCodable))
+        case .number(let l), .bool(let l), .string(let l), .array(_, let l):
+            value = .value(JSONData(schema: schema))
             limits = l
         case .object(let dict):
             var children: [SSCNode] = []
@@ -348,8 +346,9 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         case .error:
             return
         case .value(let T):
+            let schema = JSONSchema(jsonData: T)
             value = .value(
-                try await connection.fetchJSONData(path: pathToNode(), schema: T)
+                try await connection.fetchJSONData(path: pathToNode(), schema: schema)
             )
         case .children, .unknown, .unknownChildren, .unknownValue:
             throw SSCNodeError.error("Node is not a populated leaf")
@@ -385,7 +384,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
     }
 
     func load(from jsonDataCodable: JSONDataCodable) throws {
-        try load(from: JSONData(from: jsonDataCodable))
+        try load(from: JSONData(jsonDataCodable: jsonDataCodable))
     }
     
     
@@ -397,8 +396,8 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
     var children: [SSCNode]? {
         if case .children(let c) = value {
             return c.sorted { a, b in
-                if a.value.isLeaf() && !b.value.isLeaf() { return true }
-                if !a.value.isLeaf() && b.value.isLeaf() { return false }
+                if a.isLeaf() && !b.isLeaf() { return true }
+                if !a.isLeaf() && b.isLeaf() { return false }
                 return a.name < b.name
             }
         }

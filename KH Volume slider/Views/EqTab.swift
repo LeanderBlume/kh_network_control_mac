@@ -163,8 +163,19 @@ private struct SingleBandPickerButton: View {
     var body: some View {
         let active = band == selectedEqBand
         VStack(alignment: .center, spacing: 27) {
+            /// Either this or toggleStyle .button in the menu bar crashes the app on macOS 15.
+            /*
             Button(String(band + 1)) { selectedEqBand = band }
                 .foregroundStyle(active ? .green : .secondary)
+                // .font(active ? .title3 : .caption)
+             */
+            if active {
+                Button(String(band + 1)) { selectedEqBand = band }
+                    .foregroundStyle(.green)
+            } else {
+                Button(String(band + 1)) { selectedEqBand = band }
+                    .foregroundStyle(.secondary)
+            }
                 // .font(active ? .title3 : .caption)
 
             Toggle("✓", isOn: $eq.enabled[band])
@@ -213,19 +224,23 @@ private struct EqPanel: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        BandPicker(numBands: eq.enabled.count, selectedEqBand: $selectedEqBand, eq: $eq)
+        BandPicker(numBands: eq.numBands ?? 0, selectedEqBand: $selectedEqBand, eq: $eq)
             .onChange(of: eq.enabled) {
                 Task { await khAccess.send() }
             }
 
-        EqBandPanel(
-            enabled: eq.enabled[selectedEqBand],
-            type: $eq.type[selectedEqBand],
-            frequency: $eq.frequency[selectedEqBand],
-            q: $eq.q[selectedEqBand],
-            boost: $eq.boost[selectedEqBand],
-            gain: $eq.gain[selectedEqBand]
-        )
+        if selectedEqBand >= eq.numBands ?? -1 {
+            Text("Band index out of range")
+        } else {
+            EqBandPanel(
+                enabled: eq.enabled[selectedEqBand],
+                type: $eq.type[selectedEqBand],
+                frequency: $eq.frequency[selectedEqBand],
+                q: $eq.q[selectedEqBand],
+                boost: $eq.boost[selectedEqBand],
+                gain: $eq.gain[selectedEqBand]
+            )
+        }
     }
 }
 

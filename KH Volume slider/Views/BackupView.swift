@@ -7,37 +7,64 @@
 
 import SwiftUI
 
-struct BackupViewiOS: View {
+struct BackupView: View {
     @State var newName: String = ""
     @State var selection: String? = nil
     @FocusState private var textFieldFocused: Bool
     @Environment(KHAccess.self) private var khAccess
-    let backupper = Backupper()
 
-    var body: some View {
+    private func createBackup() async throws {
+        // TODO better: Load parameters from state.
+        await khAccess.fetchParameterTree()
+        let backupper = try Backupper()
+        try backupper.write(name: newName, khAccess: khAccess)
+        selection = newName
+        newName = ""
+        textFieldFocused = false
+    }
+
+    private func loadSelected() async throws {
+        guard let selection else { return }
+        let backupper = try Backupper()
+        try await backupper.load(
+            name: selection,
+            khAccess: khAccess
+        )
+    }
+    
+    private func deleteSelected() {
+        guard let s = selection else { return }
+        do {
+            let backupper = try Backupper()
+            try backupper.delete(name: s)
+        } catch {
+            print("Error deleting backup:", error)
+        }
+        selection = nil
+    }
+
+    private func backupList() -> [String] {
+        guard let backupper = try? Backupper() else { return [] }
+        return backupper.list()
+    }
+
+    var bodyiOS: some View {
         Form {
             Section("New backup") {
                 TextField("Name", text: $newName)
                     .textFieldStyle(.automatic)
                     .focused($textFieldFocused)
                 Button("Save") {
-                    Task {
-                        // TODO better: Load parameters from state.
-                        await khAccess.fetchParameterTree()
-                        try backupper.write(name: newName, khAccess: khAccess)
-                        selection = newName
-                        newName = ""
-                        textFieldFocused = false
-                    }
+                    Task { try await createBackup() }
                 }
             }
-            
+
             Section("Load backup") {
-                if backupper.list().isEmpty {
+                if backupList().isEmpty {
                     Text("No stored backups").foregroundColor(.secondary)
                 } else {
                     Picker("Choose backup", selection: $selection) {
-                        ForEach(backupper.list(), id: \.self) {
+                        ForEach(backupList(), id: \.self) {
                             Label($0, systemImage: "text.document").tag($0)
                         }
                     }
@@ -49,56 +76,31 @@ struct BackupViewiOS: View {
                         systemImage:
                             "clock.arrow.trianglehead.counterclockwise.rotate.90"
                     ) {
-                        if let selection {
-                            Task {
-                                try await backupper.load(
-                                    name: selection,
-                                    khAccess: khAccess
-                                )
-                            }
-                        }
+                        Task { try await loadSelected() }
                     }
 
-                    Button("Delete", systemImage: "trash") {
-                        if let s = selection {
-                            do { try backupper.delete(name: s) } catch { print(error) }
-                            selection = nil
-                        }
-                    }
+                    Button("Delete", systemImage: "trash", action: deleteSelected)
 
                 }
             }
         }
     }
-}
 
-struct BackupViewMacOS: View {
-    @State var newName: String = ""
-    @State var selection: String? = nil
-    @Environment(KHAccess.self) private var khAccess
-    let backupper = Backupper()
-
-    var body: some View {
+    var bodymacOS: some View {
         Form {
             TextField("New backup", text: $newName)
 
             Button("Create") {
-                Task {
-                    // TODO better: Load parameters from state.
-                    await khAccess.fetchParameterTree()
-                    try backupper.write(name: newName, khAccess: khAccess)
-                    selection = newName
-                    newName = ""
-                }
+                Task { try await createBackup() }
             }
-            
+
             Divider()
 
-            if backupper.list().isEmpty {
+            if backupList().isEmpty {
                 Text("No stored backups").foregroundColor(.secondary)
             } else {
                 Picker("Load backup", selection: $selection) {
-                    ForEach(backupper.list(), id: \.self) {
+                    ForEach(backupList(), id: \.self) {
                         Label($0, systemImage: "text.document").tag($0)
                     }
                 }
@@ -109,25 +111,19 @@ struct BackupViewMacOS: View {
                         systemImage:
                             "clock.arrow.trianglehead.counterclockwise.rotate.90"
                     ) {
-                        guard let selection else { return }
-                        Task {
-                            do {
-                                try await backupper.load(
-                                    name: selection,
-                                    khAccess: khAccess
-                                )
-                            } catch {
-                                print("Error loading backup: \(error)")
-                            }
-                        }
+                        Task { try await loadSelected() }
                     }
-                    Button("Delete", systemImage: "trash") {
-                        guard let s = selection else { return }
-                        do { try backupper.delete(name: s) } catch { print(error) }
-                        selection = nil
-                    }
+                    Button("Delete", systemImage: "trash", action: deleteSelected)
                 }
             }
         }
+    }
+
+    var body: some View {
+        #if os(iOS)
+            bodyiOS
+        #elseif os(macOS)
+            bodymacOS
+        #endif
     }
 }

@@ -4,23 +4,37 @@ import SwiftUI
 struct MenuBarView: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
 
     @ViewBuilder
     var buttonBarTop: some View {
         @Bindable var khAccess = khAccess
 
         HStack {
-            Button("Rescan", systemImage: "bonjour") {
-                Task {
-                    await khAccess.scan()
-                    await khAccess.setup()
-                }
+            Button("Main window", systemImage: "macwindow") {
+                openWindow(id: "main-window")
+                dismissWindow()
+                #if os(macOS)
+                    NSApp.activate()
+                #endif
             }
 
             Spacer()
 
-            Button("Fetch", systemImage: "arrow.clockwise") {
-                Task { await khAccess.fetch() }
+            Menu("Actions") {
+                ToolbarFetchButton()
+
+                ToolbarConnectButton()
+
+                ToolbarRescanButton()
+
+                ToolbarClearCacheButton()
+
+                #if os(macOS)
+                    Button("Quit", systemImage: "xmark.rectangle") {
+                        NSApplication.shared.terminate(nil)
+                    }
+                #endif
             }
         }
         .disabled(khAccess.status.isBusy())
@@ -30,16 +44,7 @@ struct MenuBarView: View {
     var buttonBarBottom: some View {
         HStack {
             StatusDisplay(status: khAccess.status)
-
             Spacer()
-
-            Button("Main window", systemImage: "link") {
-                openWindow(id: "main-window")
-            }
-
-            #if os(macOS)
-                Button("Quit") { NSApplication.shared.terminate(nil) }
-            #endif
         }
     }
 
@@ -57,7 +62,8 @@ struct MenuBarView: View {
                         systemImage: "speaker.slash.fill",
                         isOn: $khAccess.state.muted
                     )
-                    .toggleStyle(.button)
+                    /// toggleStyle .button might crash the app on macOS 15. Or maybe it's the other thing in the EQ tab.
+                    // .toggleStyle(.button)
                     // .toggleStyle(.switch)
                     .onChange(of: khAccess.state.muted) {
                         Task { await khAccess.send() }
@@ -66,18 +72,38 @@ struct MenuBarView: View {
                     .labelsHidden()
                 }
                 GridRow {
-                    LabeledSliderTextField(
-                        name: "Volume",
+                    Text("Volume")
+
+                    Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
+                        editing in
+                        if !editing { Task { await khAccess.send() } }
+                    }
+
+                    TextField(
+                        "Volume",
                         value: $khAccess.state.volume,
-                        range: 0...120
+                        format: .number.precision(.fractionLength(1))
                     )
+                    .frame(width: 80)
+                    .onSubmit { Task { await khAccess.send() } }
+                    .labelsHidden()
                 }
                 GridRow {
-                    LabeledSliderTextField(
-                        name: "Logo",
+                    Text("Logo")
+
+                    Slider(value: $khAccess.state.logoBrightness, in: 0...125, step: 5)
+                    { editing in
+                        if !editing { Task { await khAccess.send() } }
+                    }
+
+                    TextField(
+                        "Logo",
                         value: $khAccess.state.logoBrightness,
-                        range: 0...125
+                        format: .number.rounded()
                     )
+                    .frame(width: 80)
+                    .onSubmit { Task { await khAccess.send() } }
+                    .labelsHidden()
                 }
             }
             .disabled(khAccess.status != .ready)

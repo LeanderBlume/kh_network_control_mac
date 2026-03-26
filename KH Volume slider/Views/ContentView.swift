@@ -24,14 +24,14 @@ struct ContentView: View {
             }
             Tab("Devices", systemImage: "list.bullet.indent") {
                 NavigationStack {
-                    ParameterTab()
+                    DevicesView()
                         .toolbar { BrowserToolbar(showError: $showError) }
                     // .navigationTitle(Text("Device browser"))
                 }
             }
             Tab("Backups", systemImage: "externaldrive") {
                 NavigationStack {
-                    BackupViewiOS()
+                    BackupView()
                         .toolbar { BrowserToolbar(showError: $showError) }
                     // .navigationTitle(Text("Backups"))
                 }
@@ -48,17 +48,17 @@ struct ContentView: View {
                 }
             }
             Tab("Devices", systemImage: "list.bullet.indent") {
-                ParameterTab()
+                DevicesView()
                     .toolbar { BrowserToolbar(showError: $showError) }
             }
             Tab("Backups", systemImage: "externaldrive") {
-                BackupViewMacOS()
+                BackupView()
                     .toolbar { BrowserToolbar(showError: $showError) }
             }
         }
-        .onAppear { Task { await khAccess.setup() } }
+        // .onAppear { Task { await khAccess.setup() } }
         .scenePadding()
-        .frame(minWidth: 450)
+        .frame(minWidth: 450, minHeight: 600)
     }
 
     var body: some View {
@@ -71,5 +71,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView().environment(KHAccess())
+    let khAccess = KHAccess()
+    ContentView().environment(khAccess)
+    let _ = Task { await khAccess.setup() }
 }

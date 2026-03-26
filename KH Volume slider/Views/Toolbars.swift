@@ -9,17 +9,47 @@ import SwiftUI
 struct ToolbarStatusDisplay: View {
     var status: KHDeviceStatus
     @Binding var showError: Bool
+    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Button {
             showError.toggle()
         } label: {
-            if showError {
-                StatusDisplay(status: status).padding(.trailing, 7)
-            } else {
-                StatusDisplayCompact(status: status)
-            }
+            StatusDisplayCompact(status: status)
         }
+        .sheet(isPresented: $showError) {
+            VStack {
+                ScrollView {
+                    VStack(alignment: .leading) {
+                        if khAccess.devices.isEmpty {
+                            StatusDisplay(status: status)
+                                .padding(.bottom, 10)
+                        }
+                        ForEach(
+                            khAccess.devices.sorted { $0.state.name < $1.state.name }
+                        ) { device in
+                            let ds = device.status
+                            HStack {
+                                Text("Device: \(device.state.name)")
+                                    .font(.title2)
+                                Spacer()
+                                StatusDisplayCompact(status: ds)
+                            }
+                            .padding(.bottom, 5)
+
+                            StatusDisplayText(status: ds)
+                                .padding(.bottom, 10)
+                        }
+                    }
+                }
+
+                Button("Dismiss") { showError.toggle() }
+                    .padding(.top, 10)
+            }
+            .scenePadding()
+            .presentationDetents([.medium])
+        }
+        .help("Show status")
     }
 }
 
@@ -27,10 +57,11 @@ struct ToolbarFetchButton: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
-        Button("Fetch", systemImage: "arrow.clockwise") {
+        Button("Refresh", systemImage: "arrow.clockwise") {
             Task { await khAccess.fetch() }
         }
         .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
+        .help("Quick refresh")
     }
 }
 
@@ -42,6 +73,7 @@ struct ToolbarFetchParametersButton: View {
             Task { await khAccess.fetchParameterTree() }
         }
         .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
+        .help("Fetch full parameter trees")
     }
 }
 
@@ -60,6 +92,35 @@ struct ToolbarRescanButton: View {
     }
 }
 
+struct ToolbarClearCacheButton: View {
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    var body: some View {
+        Button("Clear cache", systemImage: "trash") {
+            Task {
+                try SchemaCache().clear()
+                try StateCache().clear()
+                await khAccess.setup()
+            }
+        }
+        .help("Clear device schema and state cache")
+    }
+}
+
+struct ToolbarConnectButton: View {
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    var body: some View {
+        Button("Connect", systemImage: "arrowtriangle.right") {
+            Task {
+                await khAccess.setup()
+            }
+        }
+        .disabled(khAccess.status.isBusy())
+        .help("Connect (re-run setup)")
+    }
+}
+
 struct MainToolbar: ToolbarContent {
     @Binding var showError: Bool
     @Environment(KHAccess.self) private var khAccess: KHAccess
@@ -71,8 +132,13 @@ struct MainToolbar: ToolbarContent {
                 ToolbarStatusDisplay(status: khAccess.status, showError: $showError)
             }
         #endif
-        ToolbarItem(placement: .secondaryAction) {
+        ToolbarItemGroup(placement: .secondaryAction) {
+            ToolbarFetchButton()
+            // ToolbarFetchParametersButton()
+
+            ToolbarConnectButton()
             ToolbarRescanButton()
+            ToolbarClearCacheButton()
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchButton()
@@ -85,7 +151,11 @@ struct MainToolbar: ToolbarContent {
             ToolbarStatusDisplay(status: khAccess.status, showError: $showError)
         }
         ToolbarItemGroup(placement: .secondaryAction) {
+            // ToolbarFetchParametersButton()
+
+            ToolbarConnectButton()
             ToolbarRescanButton()
+            ToolbarClearCacheButton()
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchButton()
@@ -112,8 +182,13 @@ struct BrowserToolbar: ToolbarContent {
                 ToolbarStatusDisplay(status: khAccess.status, showError: $showError)
             }
         #endif
-        ToolbarItem(placement: .secondaryAction) {
+        ToolbarItemGroup(placement: .secondaryAction) {
+            // ToolbarFetchButton()
+            ToolbarFetchParametersButton()
+
+            ToolbarConnectButton()
             ToolbarRescanButton()
+            ToolbarClearCacheButton()
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchParametersButton()
@@ -125,8 +200,12 @@ struct BrowserToolbar: ToolbarContent {
         ToolbarItem(placement: .status) {
             ToolbarStatusDisplay(status: khAccess.status, showError: $showError)
         }
-        ToolbarItem(placement: .secondaryAction) {
+        ToolbarItemGroup(placement: .secondaryAction) {
+            // ToolbarFetchButton()
+
+            ToolbarConnectButton()
             ToolbarRescanButton()
+            ToolbarClearCacheButton()
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchParametersButton()
@@ -159,7 +238,6 @@ struct ToolbarDoneAndCancel: ToolbarContent {
             Button("Cancel", systemImage: "keyboard.chevron.compact.down") {
                 textFieldFocused = false
             }
-            // .buttonStyle(.borderedProminent)
         }
     }
 }
