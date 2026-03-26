@@ -13,6 +13,8 @@ struct MainTab: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @FocusState private var textFieldFocused: Bool
     @State private var showError: Bool = false
+    
+    func sendCallback() async { await khAccess.send(khState) }
 
     @ViewBuilder
     var bodyiOS: some View {
@@ -24,7 +26,7 @@ struct MainTab: View {
                         value: $khState.volume,
                         format: .number.precision(.fractionLength(1))
                     )
-                    .onSubmit { Task { await khAccess.send(khState) } }
+                    .onSubmit { Task { await sendCallback() } }
                     #if os(iOS)
                         .keyboardType(.numberPad)
                     #endif
@@ -35,7 +37,7 @@ struct MainTab: View {
                 Slider(value: $khState.volume, in: 0...120, step: 3) {
                     Text("")
                 } onEditingChanged: { editing in
-                    if !editing { Task { await khAccess.send(khState) } }
+                    if !editing { Task { await sendCallback() } }
                 }
 
                 Stepper(
@@ -46,7 +48,7 @@ struct MainTab: View {
                 ) {
                     editing in
                     if editing { return }
-                    Task { await khAccess.send(khState) }
+                    Task { await sendCallback() }
                 }
 
                 Toggle(
@@ -55,7 +57,7 @@ struct MainTab: View {
                     isOn: $khState.muted
                 )
                 // .toggleStyle(.button)
-                .onChange(of: khState.muted) { Task { await khAccess.send(khState) } }
+                .onChange(of: khState.muted) { Task { await sendCallback() } }
             }
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
@@ -66,7 +68,7 @@ struct MainTab: View {
                     value: $khState.logoBrightness,
                     format: .percent.scale(1).precision(.fractionLength(0))
                 )
-                .onSubmit { Task { await khAccess.send(khState) } }
+                .onSubmit { Task { await sendCallback() } }
                 #if os(iOS)
                     .keyboardType(.numberPad)
                 #endif
@@ -74,14 +76,14 @@ struct MainTab: View {
                 Slider(value: $khState.logoBrightness, in: 0...125, step: 5) {
                     Text("")
                 } onEditingChanged: { editing in
-                    if !editing { Task { await khAccess.send(khState) } }
+                    if !editing { Task { await sendCallback() } }
                 }
             }
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
 
             Section("EQ") {
-                EqTab(khState: $khState)
+                EqTab(eqs: $khState.eqs, sendCallback: sendCallback)
             }
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
@@ -89,7 +91,7 @@ struct MainTab: View {
             Section("Auto-standby") {
                 Toggle("Enable", isOn: $khState.standbyEnabled)
                     .onChange(of: khState.standbyEnabled) {
-                        Task { await khAccess.send(khState) }
+                        Task { await sendCallback() }
                     }
 
                 LabeledContent {
@@ -99,7 +101,7 @@ struct MainTab: View {
                         format: .number.precision(.fractionLength(0))
                     )
                     .focused($textFieldFocused)
-                    .onSubmit { Task { await khAccess.send(khState) } }
+                    .onSubmit { Task { await sendCallback() } }
                     #if os(iOS)
                         .keyboardType(.numberPad)
                     #endif
@@ -127,7 +129,7 @@ struct MainTab: View {
         }
         .onChange(of: textFieldFocused) {
             if !textFieldFocused {
-                Task { await khAccess.send(khState) }
+                Task { await sendCallback() }
             }
         }
     }
@@ -152,7 +154,7 @@ struct MainTab: View {
                     .toggleStyle(.button)
                     // .toggleStyle(.switch)
                     .onChange(of: khState.muted) {
-                        Task { await khAccess.send(khState) }
+                        Task { await sendCallback() }
                     }
                     .disabled(khAccess.status != .ready)
                     .labelsHidden()
@@ -163,7 +165,7 @@ struct MainTab: View {
 
                     Slider(value: $khState.volume, in: 0...120, step: 3) {
                         editing in
-                        if !editing { Task { await khAccess.send(khState) } }
+                        if !editing { Task { await sendCallback() } }
                     }
 
                     TextField(
@@ -172,7 +174,7 @@ struct MainTab: View {
                         format: .number.precision(.fractionLength(1))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send(khState) } }
+                    .onSubmit { Task { await sendCallback() } }
                     .labelsHidden()
                 }
                 GridRow {
@@ -180,7 +182,7 @@ struct MainTab: View {
 
                     Slider(value: $khState.logoBrightness, in: 0...125, step: 5)
                     { editing in
-                        if !editing { Task { await khAccess.send(khState) } }
+                        if !editing { Task { await sendCallback() } }
                     }
 
                     TextField(
@@ -189,7 +191,7 @@ struct MainTab: View {
                         format: .percent.scale(1).precision(.fractionLength(0))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send(khState) } }
+                    .onSubmit { Task { await sendCallback() } }
                     .labelsHidden()
                 }
             }
@@ -197,7 +199,7 @@ struct MainTab: View {
             Text("EQ").font(.title2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            EqTab(khState: $khState)
+            EqTab(eqs: $khState.eqs, sendCallback: sendCallback)
 
             Text("Auto-standby").font(.title2)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -209,7 +211,7 @@ struct MainTab: View {
                     Toggle("Enable auto-standby", isOn: $khState.standbyEnabled)
                         .labelsHidden()
                         .onChange(of: khState.standbyEnabled) {
-                            Task { await khAccess.send(khState) }
+                            Task { await sendCallback() }
                         }
 
                     Spacer()
@@ -223,7 +225,7 @@ struct MainTab: View {
                         format: .number.precision(.fractionLength(0))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send(khState) } }
+                    .onSubmit { Task { await sendCallback() } }
 
                     Spacer()
                 }

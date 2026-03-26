@@ -58,7 +58,7 @@ struct LabeledSliderTextField: View {
     @Binding var value: Double
     var range: ClosedRange<Double>
     var logarithmic: Bool = false
-    @Environment(KHAccess.self) private var khAccess: KHAccess
+    var sendCallback: () async -> Void
 
     @ViewBuilder
     var bodyiOS: some View {
@@ -70,7 +70,7 @@ struct LabeledSliderTextField: View {
                 value: $value,
                 format: .number.precision(.fractionLength(1))
             )
-            .onSubmit { Task { await khAccess.send() } }
+            .onSubmit { Task { await sendCallback() } }
             #if os(iOS)
                 .keyboardType(.decimalPad)
             #endif
@@ -78,11 +78,11 @@ struct LabeledSliderTextField: View {
 
         if logarithmic {
             Slider.withLog2Scale(value: $value, in: range) { editing in
-                if !editing { Task { await khAccess.send() } }
+                if !editing { Task { await sendCallback() } }
             }
         } else {
             Slider(value: $value, in: range) { editing in
-                if !editing { Task { await khAccess.send() } }
+                if !editing { Task { await sendCallback() } }
             }
         }
     }
@@ -92,16 +92,16 @@ struct LabeledSliderTextField: View {
         Text(name)
         if logarithmic {
             Slider.withLog2Scale(value: $value, in: range) { editing in
-                if !editing { Task { await khAccess.send() } }
+                if !editing { Task { await sendCallback() } }
             }
         } else {
             Slider(value: $value, in: range) { editing in
-                if !editing { Task { await khAccess.send() } }
+                if !editing { Task { await sendCallback() } }
             }
         }
         TextField(name, value: $value, format: .number.precision(.fractionLength(1)))
             .frame(width: 80)
-            .onSubmit { Task { await khAccess.send() } }
+            .onSubmit { Task { await sendCallback() } }
             .labelsHidden()
     }
 

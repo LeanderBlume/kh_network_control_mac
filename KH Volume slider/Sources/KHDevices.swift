@@ -370,7 +370,7 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         return owner.getNodeByID(id)
     }
 
-    func setup() async -> KHState{
+    func setup() async -> KHState {
         if !devices.isEmpty {
             return await setupDevices()
         }

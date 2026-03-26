@@ -65,7 +65,7 @@ private struct EqBandPanel: View {
     @Binding var q: Double
     @Binding var boost: Double
     @Binding var gain: Double
-    @Environment(KHAccess.self) private var khAccess: KHAccess
+    var sendCallback: () async -> Void
 
     private struct SliderParams: Identifiable {
         var name: String
@@ -108,7 +108,7 @@ private struct EqBandPanel: View {
     @ViewBuilder
     var bodyiOS: some View {
         EqTypePicker(bandEnabled: enabled, type: $type)
-            .onChange(of: type) { Task { await khAccess.send() } }
+            .onChange(of: type) { Task { await sendCallback() } }
 
         Grid(alignment: .leading) {
             ForEach(sliders.indices, id: \.self) { i in
@@ -117,6 +117,7 @@ private struct EqBandPanel: View {
                     value: sliders[i].value,
                     range: sliders[i].range,
                     logarithmic: sliders[i].logarithmic,
+                    sendCallback: sendCallback
                 )
                 if i + 1 != sliders.count {
                     Divider()
@@ -130,7 +131,7 @@ private struct EqBandPanel: View {
         Grid(alignment: .topLeading) {
             GridRow {
                 EqTypePicker(bandEnabled: enabled, type: $type)
-                    .onChange(of: type) { Task { await khAccess.send() } }
+                    .onChange(of: type) { Task { await sendCallback() } }
                     .padding(.bottom, 5)
             }
             ForEach(sliders.indices, id: \.self) { i in
@@ -140,6 +141,7 @@ private struct EqBandPanel: View {
                         value: sliders[i].value,
                         range: sliders[i].range,
                         logarithmic: sliders[i].logarithmic,
+                        sendCallback: sendCallback
                     )
                 }
             }
@@ -221,12 +223,12 @@ private struct EqPanel: View {
     @Binding var eq: Eq
     @Binding var selectedEqBand: Int
     // @State var position = ScrollPosition
-    @Environment(KHAccess.self) private var khAccess: KHAccess
+    var sendCallback: () async -> Void
 
     var body: some View {
         BandPicker(numBands: eq.numBands ?? 0, selectedEqBand: $selectedEqBand, eq: $eq)
             .onChange(of: eq.enabled) {
-                Task { await khAccess.send() }
+                Task { await sendCallback() }
             }
 
         if selectedEqBand >= eq.numBands ?? -1 {
@@ -238,21 +240,21 @@ private struct EqPanel: View {
                 frequency: $eq.frequency[selectedEqBand],
                 q: $eq.q[selectedEqBand],
                 boost: $eq.boost[selectedEqBand],
-                gain: $eq.gain[selectedEqBand]
+                gain: $eq.gain[selectedEqBand],
+                sendCallback: sendCallback
             )
         }
     }
 }
 
 struct EqTab: View {
+    @Binding var eqs: [Eq]
     @State private var selectedEq: Int = 0
     @State var selectedBands: [Int] = [0, 0]
-    @Environment(KHAccess.self) private var khAccess: KHAccess
+    var sendCallback: () async -> Void
 
     var body: some View {
-        @Bindable var khAccess = khAccess
-
-        EqChart(eqs: khAccess.state.eqs).frame(height: 150)
+        EqChart(eqs: eqs).frame(height: 150)
 
         Picker("", selection: $selectedEq) {
             Text("post EQ")
@@ -263,12 +265,9 @@ struct EqTab: View {
         .pickerStyle(.segmented)
 
         EqPanel(
-            eq: $khAccess.state.eqs[selectedEq],
-            selectedEqBand: $selectedBands[selectedEq]
+            eq: $eqs[selectedEq],
+            selectedEqBand: $selectedBands[selectedEq],
+            sendCallback: sendCallback
         )
     }
-}
-
-#Preview {
-    EqTab().environment(KHAccess())
 }
