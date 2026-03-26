@@ -110,6 +110,6 @@ struct MenuBarView: View {
         }
         .frame(minWidth: 350)
         .scenePadding()
-        .onAppear { Task { await khAccess.setup() } }
+        .onAppear { Task { khState = await khAccess.setup() } }
     }
 }

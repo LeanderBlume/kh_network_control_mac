@@ -82,5 +82,5 @@ struct ContentView: View {
     @Previewable @State var khState = KHState()
     let khAccess = KHAccess()
     ContentView(khState: $khState).environment(khAccess)
-    let _ = Task { await khAccess.setup() }
+    let _ = Task { khState = await khAccess.setup() }
 }
