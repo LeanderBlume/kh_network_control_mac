@@ -160,7 +160,7 @@ private struct EqBandPanel: View {
 private struct SingleBandPickerButton: View {
     var band: Int
     @Binding var selectedEqBand: Int
-    @Binding var eq: Eq
+    @Binding var enabled: [Bool]
 
     var body: some View {
         let active = band == selectedEqBand
@@ -173,14 +173,14 @@ private struct SingleBandPickerButton: View {
              */
             if active {
                 Button(String(band + 1)) { selectedEqBand = band }
-                    .foregroundStyle(.green)
+                    .foregroundStyle(.accent)
             } else {
                 Button(String(band + 1)) { selectedEqBand = band }
                     .foregroundStyle(.secondary)
             }
             // .font(active ? .title3 : .caption)
 
-            Toggle("✓", isOn: $eq.enabled[band])
+            Toggle("✓", isOn: $enabled[band])
                 .toggleStyle(.switch)
                 .labelsHidden()
                 .rotationEffect(Angle(degrees: -90))
@@ -194,7 +194,7 @@ private struct SingleBandPickerButton: View {
 private struct BandPicker: View {
     var numBands: Int
     @Binding var selectedEqBand: Int
-    @Binding var eq: Eq
+    @Binding var enabled: [Bool]
 
     var body: some View {
         GeometryReader { geo in
@@ -204,7 +204,7 @@ private struct BandPicker: View {
                         SingleBandPickerButton(
                             band: i,
                             selectedEqBand: $selectedEqBand,
-                            eq: $eq
+                            enabled: $enabled
                         )
                     }
                 }
@@ -225,10 +225,14 @@ private struct EqPanel: View {
     var sendCallback: () async -> Void
 
     var body: some View {
-        BandPicker(numBands: eq.numBands ?? 0, selectedEqBand: $selectedEqBand, eq: $eq)
-            .onChange(of: eq.enabled) {
-                Task { await sendCallback() }
-            }
+        BandPicker(
+            numBands: eq.numBands ?? 0,
+            selectedEqBand: $selectedEqBand,
+            enabled: $eq.enabled
+        )
+        .onChange(of: eq.enabled) {
+            Task { await sendCallback() }
+        }
 
         if selectedEqBand >= eq.numBands ?? -1 {
             Text("Band index out of range")
