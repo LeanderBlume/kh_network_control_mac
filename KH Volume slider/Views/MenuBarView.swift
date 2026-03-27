@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 struct MenuBarView: View {
-    @Binding var khState: KHState
+    @Binding var commonState: KHState
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
@@ -23,10 +23,10 @@ struct MenuBarView: View {
             Spacer()
 
             Menu("Actions") {
-                ToolbarFetchButton(khState: $khState)
-                ToolbarConnectButton(khState: $khState)
-                ToolbarRescanButton(khState: $khState)
-                ToolbarClearCacheButton(khState: $khState)
+                ToolbarFetchButton(commonState: $commonState)
+                ToolbarConnectButton(commonState: $commonState)
+                ToolbarRescanButton(commonState: $commonState)
+                ToolbarClearCacheButton(commonState: $commonState)
 
                 #if os(macOS)
                     Button("Quit", systemImage: "xmark.rectangle") {
@@ -58,13 +58,13 @@ struct MenuBarView: View {
                     Toggle(
                         "Toggle",
                         systemImage: "speaker.slash.fill",
-                        isOn: $khState.muted
+                        isOn: $commonState.muted
                     )
                     /// toggleStyle .button might crash the app on macOS 15. Or maybe it's the other thing in the EQ tab.
                     // .toggleStyle(.button)
                     // .toggleStyle(.switch)
-                    .onChange(of: khState.muted) {
-                        Task { await khAccess.send(khState) }
+                    .onChange(of: commonState.muted) {
+                        Task { await khAccess.send(commonState) }
                     }
                     .disabled(khAccess.status != .ready)
                     .labelsHidden()
@@ -72,35 +72,35 @@ struct MenuBarView: View {
                 GridRow {
                     Text("Volume")
 
-                    Slider(value: $khState.volume, in: 0...120, step: 3) {
+                    Slider(value: $commonState.volume, in: 0...120, step: 3) {
                         editing in
-                        if !editing { Task { await khAccess.send(khState) } }
+                        if !editing { Task { await khAccess.send(commonState) } }
                     }
 
                     TextField(
                         "Volume",
-                        value: $khState.volume,
+                        value: $commonState.volume,
                         format: .number.precision(.fractionLength(1))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send(khState) } }
+                    .onSubmit { Task { await khAccess.send(commonState) } }
                     .labelsHidden()
                 }
                 GridRow {
                     Text("Logo")
 
-                    Slider(value: $khState.logoBrightness, in: 0...125, step: 5)
+                    Slider(value: $commonState.logoBrightness, in: 0...125, step: 5)
                     { editing in
-                        if !editing { Task { await khAccess.send(khState) } }
+                        if !editing { Task { await khAccess.send(commonState) } }
                     }
 
                     TextField(
                         "Logo",
-                        value: $khState.logoBrightness,
+                        value: $commonState.logoBrightness,
                         format: .number.rounded()
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send(khState) } }
+                    .onSubmit { Task { await khAccess.send(commonState) } }
                     .labelsHidden()
                 }
             }
@@ -110,6 +110,6 @@ struct MenuBarView: View {
         }
         .frame(minWidth: 350)
         .scenePadding()
-        .onAppear { Task { khState = await khAccess.setup() } }
+        .onAppear { Task { commonState = await khAccess.setup() } }
     }
 }

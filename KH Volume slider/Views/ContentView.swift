@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct ContentView: View {
-    @Binding var khState: KHState
+    @Binding var commonState: KHState
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
 
@@ -17,7 +17,7 @@ struct ContentView: View {
         TabView {
             Tab("Controls", systemImage: "speaker.wave.3") {
                 NavigationStack {
-                    MainTab(khState: $khState)
+                    MainTab(commonState: $commonState)
                     // toolbar is handled in Tab view
                     // .navigationTitle(Text("Controls"))
                 }
@@ -26,41 +26,41 @@ struct ContentView: View {
                 NavigationStack {
                     DevicesView()
                         .toolbar {
-                            BrowserToolbar(khState: $khState, showError: $showError)
+                            BrowserToolbar(commonState: $commonState, showError: $showError)
                         }
                     // .navigationTitle(Text("Device browser"))
                 }
             }
             Tab("Backups", systemImage: "externaldrive") {
                 NavigationStack {
-                    BackupView(khState: $khState)
+                    BackupView(commonState: $commonState)
                         .toolbar {
-                            BrowserToolbar(khState: $khState, showError: $showError)
+                            BrowserToolbar(commonState: $commonState, showError: $showError)
                         }
                     // .navigationTitle(Text("Backups"))
                 }
             }
         }
-        .onAppear { Task { khState = await khAccess.setup() } }
+        .onAppear { Task { commonState = await khAccess.setup() } }
     }
 
     var bodymacOS: some View {
         TabView {
             Tab("Controls", systemImage: "speaker.wave.3") {
                 ScrollView {
-                    MainTab(khState: $khState)
+                    MainTab(commonState: $commonState)
                 }
             }
             Tab("Devices", systemImage: "list.bullet.indent") {
                 DevicesView()
                     .toolbar {
-                        BrowserToolbar(khState: $khState, showError: $showError)
+                        BrowserToolbar(commonState: $commonState, showError: $showError)
                     }
             }
             Tab("Backups", systemImage: "externaldrive") {
-                BackupView(khState: $khState)
+                BackupView(commonState: $commonState)
                     .toolbar {
-                        BrowserToolbar(khState: $khState, showError: $showError)
+                        BrowserToolbar(commonState: $commonState, showError: $showError)
                     }
             }
         }
@@ -81,6 +81,6 @@ struct ContentView: View {
 #Preview {
     @Previewable @State var khState = KHState()
     let khAccess = KHAccess()
-    ContentView(khState: $khState).environment(khAccess)
+    ContentView(commonState: $khState).environment(khAccess)
     let _ = Task { khState = await khAccess.setup() }
 }

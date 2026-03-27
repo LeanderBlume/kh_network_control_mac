@@ -417,7 +417,7 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         }
     }
 
-    func fetch() async -> KHState {
+    func fetchAll() async -> [KHState] {
         await withTaskGroup { group in
             for d in devices {
                 group.addTask { await d.fetch() }
@@ -426,17 +426,29 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
             for await state in group {
                 results.append(state)
             }
-            // await group.waitForAll()
-            return results.first ?? KHState()
+            return results
         }
     }
 
-    func send(_ state: KHState) async {
+    func fetch() async -> KHState { await fetchAll().first ?? KHState() }
+
+    func sendIndividual(_ states: [KHState]) async {
+        guard states.count == devices.count else {
+            statusOverride = .error(
+                "Can't send \(states.count) states to \(devices.count) devices."
+            )
+            return
+        }
         await withTaskGroup { group in
-            for d in devices {
+            for (d, state) in zip(devices, states) {
                 group.addTask { await d.send(state) }
             }
             await group.waitForAll()
         }
+    }
+
+    func send(_ state: KHState) async {
+        let states = Array(repeating: state, count: devices.count)
+        await sendIndividual(states)
     }
 }
