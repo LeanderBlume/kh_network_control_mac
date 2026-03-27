@@ -8,6 +8,23 @@
 import Foundation
 import SwiftUI
 
+struct DelaySection: View {
+    @State var deviceStates: [KHState]
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    func sendCallback() async {
+        await khAccess.sendIndividual(deviceStates)
+    }
+
+    func fetch() async {
+        deviceStates = await khAccess.fetchAll()
+    }
+
+    var body: some View {
+
+    }
+}
+
 struct MainTab: View {
     @Binding var commonState: KHState
     @Environment(KHAccess.self) private var khAccess: KHAccess
