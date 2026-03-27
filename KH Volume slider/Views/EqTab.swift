@@ -178,14 +178,15 @@ private struct SingleBandPickerButton: View {
                 Button(String(band + 1)) { selectedEqBand = band }
                     .foregroundStyle(.secondary)
             }
-                // .font(active ? .title3 : .caption)
+            // .font(active ? .title3 : .caption)
 
             Toggle("✓", isOn: $eq.enabled[band])
                 .toggleStyle(.switch)
                 .labelsHidden()
                 .rotationEffect(Angle(degrees: -90))
         }
-        .frame(width: 35) // , height: 80)
+        .frame(width: 35)
+        .padding(.bottom, 20)
         // .background( band == selectedEqBand ? .red : .gray)
     }
 }
@@ -198,24 +199,22 @@ private struct BandPicker: View {
     var body: some View {
         GeometryReader { geo in
             ScrollView(.horizontal) {
-                HStack(alignment: .center) {
+                HStack(alignment: .bottom) {
                     ForEach((0..<numBands), id: \.self) { i in
                         SingleBandPickerButton(
                             band: i,
                             selectedEqBand: $selectedEqBand,
                             eq: $eq
                         )
-                        // .padding(.bottom, 10)
                     }
                 }
                 .frame(minWidth: geo.size.width)
-                // .frame(height: 90)
             }
             .scrollClipDisabled(true)
         }
+        .frame(height: 95)
         // This is not ideal but the GeometryReader somehow messes things up so
         // this overlaps with stuff below it.
-        .frame(height: 90)
     }
 }
 
