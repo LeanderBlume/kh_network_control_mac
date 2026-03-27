@@ -636,6 +636,6 @@ struct DevicesView: View {
     let khAccess = KHAccess()
     DevicesView()
         .environment(khAccess)
-        .task { await khAccess.setup() }
+        .task { _ = await khAccess.setup() }
         .frame(minWidth: 400, minHeight: 800)
 }

@@ -8,23 +8,25 @@
 import Foundation
 import SwiftUI
 
-struct MainTabiOS: View {
+struct MainTab: View {
+    @Binding var commonState: KHState
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @FocusState private var textFieldFocused: Bool
     @State private var showError: Bool = false
+    
+    func sendCallback() async { await khAccess.send(commonState) }
 
-    var body: some View {
-        @Bindable var khAccess = khAccess
-
+    @ViewBuilder
+    var bodyiOS: some View {
         Form {
             Section("Volume (dB)") {
                 LabeledContent {
                     TextField(
                         "",
-                        value: $khAccess.state.volume,
+                        value: $commonState.volume,
                         format: .number.precision(.fractionLength(1))
                     )
-                    .onSubmit { Task { await khAccess.send() } }
+                    .onSubmit { Task { await sendCallback() } }
                     #if os(iOS)
                         .keyboardType(.numberPad)
                     #endif
@@ -32,30 +34,30 @@ struct MainTabiOS: View {
                     Text("dB:").foregroundColor(.secondary)
                 }
 
-                Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
+                Slider(value: $commonState.volume, in: 0...120, step: 3) {
                     Text("")
                 } onEditingChanged: { editing in
-                    if !editing { Task { await khAccess.send() } }
+                    if !editing { Task { await sendCallback() } }
                 }
 
                 Stepper(
                     "+/- 1 db",
-                    value: $khAccess.state.volume,
+                    value: $commonState.volume,
                     in: 0...120,
                     step: 1
                 ) {
                     editing in
                     if editing { return }
-                    Task { await khAccess.send() }
+                    Task { await sendCallback() }
                 }
 
                 Toggle(
                     "Mute",
                     systemImage: "speaker.slash.fill",
-                    isOn: $khAccess.state.muted
+                    isOn: $commonState.muted
                 )
                 // .toggleStyle(.button)
-                .onChange(of: khAccess.state.muted) { Task { await khAccess.send() } }
+                .onChange(of: commonState.muted) { Task { await sendCallback() } }
             }
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
@@ -63,43 +65,43 @@ struct MainTabiOS: View {
             Section("Logo brightness") {
                 TextField(
                     "",
-                    value: $khAccess.state.logoBrightness,
+                    value: $commonState.logoBrightness,
                     format: .percent.scale(1).precision(.fractionLength(0))
                 )
-                .onSubmit { Task { await khAccess.send() } }
+                .onSubmit { Task { await sendCallback() } }
                 #if os(iOS)
                     .keyboardType(.numberPad)
                 #endif
 
-                Slider(value: $khAccess.state.logoBrightness, in: 0...125, step: 5) {
+                Slider(value: $commonState.logoBrightness, in: 0...125, step: 5) {
                     Text("")
                 } onEditingChanged: { editing in
-                    if !editing { Task { await khAccess.send() } }
+                    if !editing { Task { await sendCallback() } }
                 }
             }
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
 
             Section("EQ") {
-                EqTab()
+                EqTab(eqs: $commonState.eqs, sendCallback: sendCallback)
             }
             .focused($textFieldFocused)
             .disabled(khAccess.status != .ready)
 
             Section("Auto-standby") {
-                Toggle("Enable", isOn: $khAccess.state.standbyEnabled)
-                    .onChange(of: khAccess.state.standbyEnabled) {
-                        Task { await khAccess.send() }
+                Toggle("Enable", isOn: $commonState.standbyEnabled)
+                    .onChange(of: commonState.standbyEnabled) {
+                        Task { await sendCallback() }
                     }
 
                 LabeledContent {
                     TextField(
                         "Auto-standby timeout",
-                        value: $khAccess.state.standbyTimeout,
+                        value: $commonState.standbyTimeout,
                         format: .number.precision(.fractionLength(0))
                     )
                     .focused($textFieldFocused)
-                    .onSubmit { Task { await khAccess.send() } }
+                    .onSubmit { Task { await sendCallback() } }
                     #if os(iOS)
                         .keyboardType(.numberPad)
                     #endif
@@ -107,7 +109,7 @@ struct MainTabiOS: View {
                     Text("Timeout (minutes):")
                 }
                  /*
-                Picker("Timeout (minutes)", selection: $khAccess.state.standbyTimeout) {
+                Picker("Timeout (minutes)", selection: $commonState.standbyTimeout) {
                     ForEach(3...240, id: \.self) { i in
                         Text("\(i)").tag(i)
                     }
@@ -120,25 +122,21 @@ struct MainTabiOS: View {
         }
         .toolbar(removing: .title)
         .toolbar {
-            MainToolbar(showError: $showError)
+            MainToolbar(commonState: $commonState, showError: $showError)
             if textFieldFocused {
                 ToolbarDoneAndCancel(textFieldFocused: $textFieldFocused)
             }
         }
+        .onChange(of: textFieldFocused) {
+            if !textFieldFocused {
+                Task { await sendCallback() }
+            }
+        }
     }
-}
 
-struct MainTabmacOS: View {
-    @Environment(KHAccess.self) private var khAccess: KHAccess
-    @State private var showError: Bool = false
-
-    var body: some View {
-        @Bindable var khAccess = khAccess
-
+    @ViewBuilder
+    var bodymacOS: some View {
         VStack(spacing: 20) {
-            // Text("Controls").font(.title)
-            //     .frame(maxWidth: .infinity, alignment: .leading)
-
             Text("Basic controls").font(.title2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -148,12 +146,12 @@ struct MainTabmacOS: View {
                     Toggle(
                         "Toggle",
                         systemImage: "speaker.slash.fill",
-                        isOn: $khAccess.state.muted
+                        isOn: $commonState.muted
                     )
                     .toggleStyle(.button)
                     // .toggleStyle(.switch)
-                    .onChange(of: khAccess.state.muted) {
-                        Task { await khAccess.send() }
+                    .onChange(of: commonState.muted) {
+                        Task { await sendCallback() }
                     }
                     .disabled(khAccess.status != .ready)
                     .labelsHidden()
@@ -162,35 +160,35 @@ struct MainTabmacOS: View {
                 GridRow {
                     Text("Volume (dB)")
 
-                    Slider(value: $khAccess.state.volume, in: 0...120, step: 3) {
+                    Slider(value: $commonState.volume, in: 0...120, step: 3) {
                         editing in
-                        if !editing { Task { await khAccess.send() } }
+                        if !editing { Task { await sendCallback() } }
                     }
 
                     TextField(
                         "Volume",
-                        value: $khAccess.state.volume,
+                        value: $commonState.volume,
                         format: .number.precision(.fractionLength(1))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send() } }
+                    .onSubmit { Task { await sendCallback() } }
                     .labelsHidden()
                 }
                 GridRow {
                     Text("Logo")
 
-                    Slider(value: $khAccess.state.logoBrightness, in: 0...125, step: 5)
+                    Slider(value: $commonState.logoBrightness, in: 0...125, step: 5)
                     { editing in
-                        if !editing { Task { await khAccess.send() } }
+                        if !editing { Task { await sendCallback() } }
                     }
 
                     TextField(
                         "Logo",
-                        value: $khAccess.state.logoBrightness,
+                        value: $commonState.logoBrightness,
                         format: .percent.scale(1).precision(.fractionLength(0))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send() } }
+                    .onSubmit { Task { await sendCallback() } }
                     .labelsHidden()
                 }
             }
@@ -198,7 +196,7 @@ struct MainTabmacOS: View {
             Text("EQ").font(.title2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            EqTab()
+            EqTab(eqs: $commonState.eqs, sendCallback: sendCallback)
 
             Text("Auto-standby").font(.title2)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -207,10 +205,10 @@ struct MainTabmacOS: View {
                 GridRow {
                     Text("Enable")
 
-                    Toggle("Enable auto-standby", isOn: $khAccess.state.standbyEnabled)
+                    Toggle("Enable auto-standby", isOn: $commonState.standbyEnabled)
                         .labelsHidden()
-                        .onChange(of: khAccess.state.standbyEnabled) {
-                            Task { await khAccess.send() }
+                        .onChange(of: commonState.standbyEnabled) {
+                            Task { await sendCallback() }
                         }
 
                     Spacer()
@@ -220,17 +218,25 @@ struct MainTabmacOS: View {
 
                     TextField(
                         "Timeout",
-                        value: $khAccess.state.standbyTimeout,
+                        value: $commonState.standbyTimeout,
                         format: .number.precision(.fractionLength(0))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send() } }
+                    .onSubmit { Task { await sendCallback() } }
 
                     Spacer()
                 }
             }
         }
         .disabled(khAccess.status != .ready)
-        .toolbar { MainToolbar(showError: $showError) }
+        .toolbar { MainToolbar(commonState: $commonState, showError: $showError) }
+    }
+
+    var body: some View {
+        #if os(iOS)
+            bodyiOS
+        #elseif os(macOS)
+            bodymacOS
+        #endif
     }
 }

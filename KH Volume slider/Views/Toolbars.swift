@@ -54,11 +54,12 @@ struct ToolbarStatusDisplay: View {
 }
 
 struct ToolbarFetchButton: View {
+    @Binding var commonState: KHState
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Button("Refresh", systemImage: "arrow.clockwise") {
-            Task { await khAccess.fetch() }
+            Task { commonState = await khAccess.fetch() }
         }
         .disabled(khAccess.devices.isEmpty || khAccess.status.isBusy())
         .help("Quick refresh")
@@ -78,13 +79,14 @@ struct ToolbarFetchParametersButton: View {
 }
 
 struct ToolbarRescanButton: View {
+    @Binding var commonState: KHState
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Button("Rescan", systemImage: "bonjour") {
             Task {
                 await khAccess.scan()
-                await khAccess.setup()
+                commonState = await khAccess.setup()
             }
         }
         .disabled(khAccess.status.isBusy())
@@ -93,6 +95,7 @@ struct ToolbarRescanButton: View {
 }
 
 struct ToolbarClearCacheButton: View {
+    @Binding var commonState: KHState
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
@@ -100,7 +103,7 @@ struct ToolbarClearCacheButton: View {
             Task {
                 try SchemaCache().clear()
                 try StateCache().clear()
-                await khAccess.setup()
+                commonState = await khAccess.setup()
             }
         }
         .help("Clear device schema and state cache")
@@ -108,12 +111,13 @@ struct ToolbarClearCacheButton: View {
 }
 
 struct ToolbarConnectButton: View {
+    @Binding var commonState: KHState
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some View {
         Button("Connect", systemImage: "arrowtriangle.right") {
             Task {
-                await khAccess.setup()
+                commonState = await khAccess.setup()
             }
         }
         .disabled(khAccess.status.isBusy())
@@ -122,6 +126,7 @@ struct ToolbarConnectButton: View {
 }
 
 struct MainToolbar: ToolbarContent {
+    @Binding var commonState: KHState
     @Binding var showError: Bool
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
@@ -133,15 +138,15 @@ struct MainToolbar: ToolbarContent {
             }
         #endif
         ToolbarItemGroup(placement: .secondaryAction) {
-            ToolbarFetchButton()
+            ToolbarFetchButton(commonState: $commonState)
             // ToolbarFetchParametersButton()
 
-            ToolbarConnectButton()
-            ToolbarRescanButton()
-            ToolbarClearCacheButton()
+            ToolbarConnectButton(commonState: $commonState)
+            ToolbarRescanButton(commonState: $commonState)
+            ToolbarClearCacheButton(commonState: $commonState)
         }
         ToolbarItem(placement: .primaryAction) {
-            ToolbarFetchButton()
+            ToolbarFetchButton(commonState: $commonState)
         }
     }
 
@@ -153,12 +158,12 @@ struct MainToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .secondaryAction) {
             // ToolbarFetchParametersButton()
 
-            ToolbarConnectButton()
-            ToolbarRescanButton()
-            ToolbarClearCacheButton()
+            ToolbarConnectButton(commonState: $commonState)
+            ToolbarRescanButton(commonState: $commonState)
+            ToolbarClearCacheButton(commonState: $commonState)
         }
         ToolbarItem(placement: .primaryAction) {
-            ToolbarFetchButton()
+            ToolbarFetchButton(commonState: $commonState)
         }
     }
 
@@ -172,6 +177,7 @@ struct MainToolbar: ToolbarContent {
 }
 
 struct BrowserToolbar: ToolbarContent {
+    @Binding var commonState: KHState
     @Binding var showError: Bool
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
@@ -186,9 +192,9 @@ struct BrowserToolbar: ToolbarContent {
             // ToolbarFetchButton()
             ToolbarFetchParametersButton()
 
-            ToolbarConnectButton()
-            ToolbarRescanButton()
-            ToolbarClearCacheButton()
+            ToolbarConnectButton(commonState: $commonState)
+            ToolbarRescanButton(commonState: $commonState)
+            ToolbarClearCacheButton(commonState: $commonState)
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchParametersButton()
@@ -203,9 +209,9 @@ struct BrowserToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .secondaryAction) {
             // ToolbarFetchButton()
 
-            ToolbarConnectButton()
-            ToolbarRescanButton()
-            ToolbarClearCacheButton()
+            ToolbarConnectButton(commonState: $commonState)
+            ToolbarRescanButton(commonState: $commonState)
+            ToolbarClearCacheButton(commonState: $commonState)
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchParametersButton()
@@ -224,12 +230,11 @@ struct BrowserToolbar: ToolbarContent {
 // iOS only
 struct ToolbarDoneAndCancel: ToolbarContent {
     @FocusState.Binding var textFieldFocused: Bool
-    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .confirmationAction) {
             Button("Done", systemImage: "checkmark") {
-                Task { await khAccess.send() }
+                // Task { await khAccess.send() }
                 textFieldFocused = false
             }
             .buttonStyle(.borderedProminent)

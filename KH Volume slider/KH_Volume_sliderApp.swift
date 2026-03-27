@@ -12,6 +12,7 @@ typealias ParameterPathDict = [DeviceModel: [String: [String]]]
 @main
 struct KH_Volume_sliderApp: App {
     @State private var khAccess = KHAccess()
+    @State var commonState = KHState()
 
     // decodes to ParameterPathDict
     @AppStorage("paths") private var paths: Data?
@@ -33,13 +34,13 @@ struct KH_Volume_sliderApp: App {
     var body: some Scene {
         #if os(macOS)
         MenuBarExtra("SSC Control", systemImage: "hifispeaker.2") {
-            MenuBarView()
+            MenuBarView(commonState: $commonState)
                 .environment(khAccess)
         }
         .menuBarExtraStyle(.window)
         #endif
         WindowGroup(id: "main-window") {
-            ContentView()
+            ContentView(commonState: $commonState)
                 .environment(khAccess)
         }
         .defaultSize(width: 400, height: 400)
