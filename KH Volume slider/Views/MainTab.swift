@@ -13,7 +13,7 @@ struct MainTab: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @FocusState private var textFieldFocused: Bool
     @State private var showError: Bool = false
-    
+
     func sendCallback() async { await khAccess.send(commonState) }
 
     @ViewBuilder
@@ -108,7 +108,7 @@ struct MainTab: View {
                 } label: {
                     Text("Timeout (minutes):")
                 }
-                 /*
+                /*
                 Picker("Timeout (minutes)", selection: $commonState.standbyTimeout) {
                     ForEach(3...240, id: \.self) { i in
                         Text("\(i)").tag(i)
@@ -124,12 +124,10 @@ struct MainTab: View {
         .toolbar {
             MainToolbar(commonState: $commonState, showError: $showError)
             if textFieldFocused {
-                ToolbarDoneAndCancel(textFieldFocused: $textFieldFocused)
-            }
-        }
-        .onChange(of: textFieldFocused) {
-            if !textFieldFocused {
-                Task { await sendCallback() }
+                ToolbarDoneAndCancel(
+                    textFieldFocused: $textFieldFocused,
+                    sendCallback: sendCallback
+                )
             }
         }
     }
@@ -177,8 +175,8 @@ struct MainTab: View {
                 GridRow {
                     Text("Logo")
 
-                    Slider(value: $commonState.logoBrightness, in: 0...125, step: 5)
-                    { editing in
+                    Slider(value: $commonState.logoBrightness, in: 0...125, step: 5) {
+                        editing in
                         if !editing { Task { await sendCallback() } }
                     }
 

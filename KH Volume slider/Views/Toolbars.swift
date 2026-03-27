@@ -230,11 +230,12 @@ struct BrowserToolbar: ToolbarContent {
 // iOS only
 struct ToolbarDoneAndCancel: ToolbarContent {
     @FocusState.Binding var textFieldFocused: Bool
+    var sendCallback: () async -> Void
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .confirmationAction) {
             Button("Done", systemImage: "checkmark") {
-                // Task { await khAccess.send() }
+                Task { await sendCallback() }
                 textFieldFocused = false
             }
             .buttonStyle(.borderedProminent)
