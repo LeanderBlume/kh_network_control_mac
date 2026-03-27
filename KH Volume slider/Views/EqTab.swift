@@ -160,7 +160,7 @@ private struct EqBandPanel: View {
 private struct SingleBandPickerButton: View {
     var band: Int
     @Binding var selectedEqBand: Int
-    @Binding var eq: Eq
+    @Binding var enabled: [Bool]
 
     var body: some View {
         let active = band == selectedEqBand
@@ -180,7 +180,7 @@ private struct SingleBandPickerButton: View {
             }
             // .font(active ? .title3 : .caption)
 
-            Toggle("✓", isOn: $eq.enabled[band])
+            Toggle("✓", isOn: $enabled[band])
                 .toggleStyle(.switch)
                 .labelsHidden()
                 .rotationEffect(Angle(degrees: -90))
@@ -194,27 +194,21 @@ private struct SingleBandPickerButton: View {
 private struct BandPicker: View {
     var numBands: Int
     @Binding var selectedEqBand: Int
-    @Binding var eq: Eq
+    @Binding var enabled: [Bool]
 
     var body: some View {
-        GeometryReader { geo in
-            ScrollView(.horizontal) {
-                HStack(alignment: .bottom) {
-                    ForEach((0..<numBands), id: \.self) { i in
-                        SingleBandPickerButton(
-                            band: i,
-                            selectedEqBand: $selectedEqBand,
-                            eq: $eq
-                        )
-                    }
+        ScrollView(.horizontal) {
+            HStack(alignment: .bottom) {
+                ForEach((0..<numBands), id: \.self) { i in
+                    SingleBandPickerButton(
+                        band: i,
+                        selectedEqBand: $selectedEqBand,
+                        enabled: $enabled
+                    )
                 }
-                .frame(minWidth: geo.size.width)
             }
-            .scrollClipDisabled(true)
         }
-        .frame(height: 95)
-        // This is not ideal but the GeometryReader somehow messes things up so
-        // this overlaps with stuff below it.
+        .scrollClipDisabled(true)
     }
 }
 
@@ -225,10 +219,14 @@ private struct EqPanel: View {
     var sendCallback: () async -> Void
 
     var body: some View {
-        BandPicker(numBands: eq.numBands ?? 0, selectedEqBand: $selectedEqBand, eq: $eq)
-            .onChange(of: eq.enabled) {
-                Task { await sendCallback() }
-            }
+        BandPicker(
+            numBands: eq.numBands ?? 0,
+            selectedEqBand: $selectedEqBand,
+            enabled: $eq.enabled
+        )
+        .onChange(of: eq.enabled) {
+            Task { await sendCallback() }
+        }
 
         if selectedEqBand >= eq.numBands ?? -1 {
             Text("Band index out of range")
