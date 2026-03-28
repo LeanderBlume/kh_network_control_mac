@@ -12,18 +12,18 @@ typealias KHAccess = KHDeviceGroup
 @MainActor
 protocol KHDevicesProtocol {
     var status: KHDeviceStatus { get }
+
     func setup() async -> KHState
     func fetch() async -> KHState
     func send(_: KHState) async
+
     func sendParameterTree() async
     func fetchParameterTree() async
+
     func getNodeByID(_: SSCNode.ID) -> SSCNode?
 }
 
 protocol KHSingleDeviceProtocol: KHDevicesProtocol, Identifiable {
-    func send(_: KHState) async
-
-    // Truly specific
     func sendNode(path: [String]) async
     func fetchNode(path: [String]) async
 }
