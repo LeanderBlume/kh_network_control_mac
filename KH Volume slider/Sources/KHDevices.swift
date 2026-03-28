@@ -13,7 +13,7 @@ typealias KHAccess = KHDeviceGroup
 protocol KHDevicesProtocol {
     var status: KHDeviceStatus { get }
 
-    func setup() async -> KHState
+    func setup() async
     func fetch() async -> KHState
     func send(_: KHState) async
 
@@ -39,6 +39,10 @@ protocol KHSingleDeviceProtocol: KHDevicesProtocol, Identifiable {
 
 protocol KHDeviceGroupProtocol: KHDevicesProtocol {
     var devices: [KHDevice] { get }
+
+    func fetchAll() async -> [KHState]
+    func sendIndividual(_ states: [KHState]) async
+
     func getDeviceByID(_: KHDevice.ID) -> KHDevice?
     func getDeviceByModel(_: DeviceModel) -> KHDevice?
     func scan(seconds: UInt32) async
@@ -242,19 +246,19 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         status = .ready
     }
 
-    func setup() async -> KHState {
+    func setup() async {
         status = .busy("Setting up")
         // We need to fetch product and version to identify the schema type.
         do {
             try await _fetchParameterGroup(.setup)
         } catch {
-            return KHState()
+            return
         }
         do {
             try await populateParameters()
         } catch {
             status = .error("Error populating parameters: \(error)")
-            return state
+            return
         }
         do {
             try await loadParameterValues()
@@ -262,7 +266,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
             status = .error("Error loading parameters: \(error)")
         }
         // We do NOT update the state now because that messes up the ID
-        return state
+        // return state
     }
 
     private func _fetchNodes(_ nodes: [SSCNode]) async {
@@ -400,10 +404,20 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         guard let owner = getDeviceByID(id.deviceID) else { return nil }
         return owner.getNodeByID(id)
     }
+    
+    private func setupDevices() async {
+        // We don't want to do this in parallel (naively) because of file system cache
+        for d in devices {
+            _ = await d.setup()
+        }
+        // not sure
+        // await fetchParameters()
+        // await fetch()
+    }
 
-    func setup() async -> KHState {
+    func setup() async {
         if !devices.isEmpty {
-            return await setupDevices()
+            await setupDevices()
         }
         var connections: [SSCConnection] = []
         do {
@@ -417,17 +431,7 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         } else {
             devices = await Self.connectionsToDevices(connections)
         }
-        return await setupDevices()
-    }
-
-    private func setupDevices() async -> KHState {
-        // We don't want to do this in parallel (naively) because of file system cache
-        for d in devices {
-            _ = await d.setup()
-        }
-        // not sure
-        // await fetchParameters()
-        return await fetch()
+        await setupDevices()
     }
 
     func fetchParameterTree() async {
@@ -457,7 +461,7 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
             for await state in group {
                 results.append(state)
             }
-            return results
+            return results.sorted(by: {$0.name < $1.name})
         }
     }
 

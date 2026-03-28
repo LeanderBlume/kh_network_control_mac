@@ -10,15 +10,19 @@ import SwiftUI
 
 struct ContentView: View {
     @Binding var commonState: KHState
+    @State var deviceStates: [KHState] = []
+
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
 
     func setup() async {
-        commonState = await khAccess.setup()
+        await khAccess.setup()
+        await fetch()
     }
 
     func fetch() async {
-        commonState = await khAccess.fetch()
+        deviceStates = await khAccess.fetchAll()
+        commonState = deviceStates.first ?? KHState()
     }
 
     func send() async {
@@ -38,7 +42,7 @@ struct ContentView: View {
             print("Failed to clear cache with error:", error)
             return
         }
-        commonState = await khAccess.setup()
+        await setup()
     }
 
     var bodyiOS: some View {
@@ -47,6 +51,7 @@ struct ContentView: View {
                 NavigationStack {
                     MainTab(
                         commonState: $commonState,
+                        deviceStates: $deviceStates,
                         fetchCallback: fetch,
                         sendCallback: send,
                         connectCallback: setup,
@@ -97,6 +102,7 @@ struct ContentView: View {
                 ScrollView {
                     MainTab(
                         commonState: $commonState,
+                        deviceStates: $deviceStates,
                         fetchCallback: fetch,
                         sendCallback: send,
                         connectCallback: setup,
@@ -130,7 +136,7 @@ struct ContentView: View {
                     }
             }
         }
-        // .onAppear { Task { await khAccess.setup() } }
+        .onAppear { Task { await setup() } }
         .scenePadding()
         .frame(minWidth: 450, minHeight: 600)
     }
@@ -148,5 +154,7 @@ struct ContentView: View {
     @Previewable @State var khState = KHState()
     let khAccess = KHAccess()
     ContentView(commonState: $khState).environment(khAccess)
-    let _ = Task { khState = await khAccess.setup() }
+    let _ = Task {
+        await khAccess.setup()
+    }
 }

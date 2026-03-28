@@ -10,11 +10,13 @@ import SwiftUI
 struct KHState: Codable, Equatable {
     var name = "Unknown name"
     var volume = 54.0
-    var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
     var muted = false
+    var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
     var logoBrightness = 100.0
     var standbyEnabled = false
     var standbyTimeout = 90.0
+    var delay = 0.0
+    var identify = false
 
     init() {}
 
@@ -73,6 +75,10 @@ private protocol KHStatePathProtocol: Equatable {
 private struct KHStatePath<T>: KHStatePathProtocol
 where T: Equatable, T: Codable, T: Sendable {
     let keyPath: WritableKeyPath<KHState, T>
+
+    init(_ keyPath: WritableKeyPath<KHState, T>) {
+        self.keyPath = keyPath
+    }
 
     private func get(from state: KHState) -> T {
         state[keyPath: keyPath]
@@ -188,6 +194,8 @@ enum KHParameters: String, CaseIterable, Identifiable {
     case logoBrightness = "Logo brightness"
     case standbyEnabled = "Enable auto-standby"
     case standbyTimeout = "Auto-standby timeout"
+    case delay = "Delay"
+    case identify = "Identify (flash LED)"
 
     case eq0boost = "EQ 1 Boost"
     case eq0enabled = "EQ 1 Enabled"
@@ -219,6 +227,10 @@ enum KHParameters: String, CaseIterable, Identifiable {
             ["device", "standby", "enabled"]
         case .standbyTimeout:
             ["device", "standby", "auto_standby_time"]
+        case .delay:
+            ["audio", "out", "delay"]
+        case .identify:
+            ["device", "identification", "visual"]
 
         case .eq0boost:
             ["audio", "out", "eq2", "boost"]
@@ -251,43 +263,47 @@ enum KHParameters: String, CaseIterable, Identifiable {
     private func getPathObject() -> any KHStatePathProtocol {
         switch self {
         case .name:
-            KHStatePath(keyPath: \.name)
+            KHStatePath(\.name)
         case .volume:
-            KHStatePath(keyPath: \.volume)
+            KHStatePath(\.volume)
         case .muted:
-            KHStatePath(keyPath: \.muted)
+            KHStatePath(\.muted)
         case .logoBrightness:
-            KHStatePath(keyPath: \.logoBrightness)
+            KHStatePath(\.logoBrightness)
         case .standbyEnabled:
-            KHStatePath(keyPath: \.standbyEnabled)
+            KHStatePath(\.standbyEnabled)
         case .standbyTimeout:
-            KHStatePath(keyPath: \.standbyTimeout)
+            KHStatePath(\.standbyTimeout)
+        case .delay:
+            KHStatePath(\.delay)
+        case .identify:
+            KHStatePath(\.identify)
 
         case .eq0boost:
-            KHStatePath(keyPath: \.eqs[0].boost)
+            KHStatePath(\.eqs[0].boost)
         case .eq0enabled:
-            KHStatePath(keyPath: \.eqs[0].enabled)
+            KHStatePath(\.eqs[0].enabled)
         case .eq0frequency:
-            KHStatePath(keyPath: \.eqs[0].frequency)
+            KHStatePath(\.eqs[0].frequency)
         case .eq0gain:
-            KHStatePath(keyPath: \.eqs[0].gain)
+            KHStatePath(\.eqs[0].gain)
         case .eq0q:
-            KHStatePath(keyPath: \.eqs[0].q)
+            KHStatePath(\.eqs[0].q)
         case .eq0type:
-            KHStatePath(keyPath: \.eqs[0].type)
+            KHStatePath(\.eqs[0].type)
 
         case .eq1boost:
-            KHStatePath(keyPath: \.eqs[1].boost)
+            KHStatePath(\.eqs[1].boost)
         case .eq1enabled:
-            KHStatePath(keyPath: \.eqs[1].enabled)
+            KHStatePath(\.eqs[1].enabled)
         case .eq1frequency:
-            KHStatePath(keyPath: \.eqs[1].frequency)
+            KHStatePath(\.eqs[1].frequency)
         case .eq1gain:
-            KHStatePath(keyPath: \.eqs[1].gain)
+            KHStatePath(\.eqs[1].gain)
         case .eq1q:
-            KHStatePath(keyPath: \.eqs[1].q)
+            KHStatePath(\.eqs[1].q)
         case .eq1type:
-            KHStatePath(keyPath: \.eqs[1].type)
+            KHStatePath(\.eqs[1].type)
         }
     }
 
@@ -359,6 +375,12 @@ enum KHParameterGroup {
                 .volume,
                 .muted,
                 .logoBrightness,
+                .name,
+                .standbyEnabled,
+                .standbyTimeout,
+                .delay,
+                .identify,
+
                 .eq0boost,
                 .eq0enabled,
                 .eq0frequency,
@@ -371,15 +393,17 @@ enum KHParameterGroup {
                 .eq1gain,
                 .eq1q,
                 .eq1type,
-                .name,
-                .standbyEnabled,
-                .standbyTimeout,
             ]
         case .send:
             return [
                 .volume,
                 .muted,
                 .logoBrightness,
+                .standbyEnabled,
+                .standbyTimeout,
+                .delay,
+                .identify,
+
                 .eq0boost,
                 .eq0enabled,
                 .eq0frequency,
@@ -392,12 +416,10 @@ enum KHParameterGroup {
                 .eq1gain,
                 .eq1q,
                 .eq1type,
-                .standbyEnabled,
-                .standbyTimeout,
             ]
         case .setup:
             return [
-                .name,
+                .name
             ]
         }
     }

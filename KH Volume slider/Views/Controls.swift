@@ -59,6 +59,7 @@ struct LabeledSliderTextField: View {
     var range: ClosedRange<Double>
     var logarithmic: Bool = false
     var sendCallback: () async -> Void
+    var precision: Int = 1
 
     @ViewBuilder
     var bodyiOS: some View {

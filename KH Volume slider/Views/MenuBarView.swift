@@ -8,7 +8,8 @@ struct MenuBarView: View {
     @Environment(\.dismissWindow) private var dismissWindow
     
     func setup() async {
-        commonState = await khAccess.setup()
+        await khAccess.setup()
+        await fetch()
     }
 
     func fetch() async {
@@ -28,7 +29,7 @@ struct MenuBarView: View {
             print("Failed to clear cache with error:", error)
             return
         }
-        commonState = await khAccess.setup()
+        await setup()
     }
 
     @ViewBuilder
