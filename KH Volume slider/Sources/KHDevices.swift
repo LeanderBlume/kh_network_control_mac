@@ -316,20 +316,25 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
     }
     var devices: [KHDevice] = []
 
+    static private func connectionToDevice(_ connection: SSCConnection) async
+        -> KHDevice?
+    {
+        guard let id = await connection.service?.0 else { return nil }
+        return .init(connection: connection, id: id)
+    }
+
     static private func connectionsToDevices(_ connections: [SSCConnection]) async
         -> [KHDevice]
     {
-        var ids: [String] = []
-        for c in connections {
-            guard let s = await c.service else {
+        var devices = [KHDevice]()
+        for connection in connections {
+            guard let device = await connectionToDevice(connection) else {
                 print("Error getting service from connection")
-                return []
+                continue
             }
-            ids.append(s.0)
+            devices.append(device)
         }
-        return zip(connections, ids).map { (c, id) in
-            KHDevice(connection: c, id: id)
-        }
+        return devices
     }
 
     func scan(seconds: UInt32 = 1) async {

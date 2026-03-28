@@ -8,10 +8,12 @@
 import SwiftUI
 
 struct KHState: Codable, Equatable {
-    var name = "Unknown name"
+    /// TODO these are constants and should probably not be in KHState. They should be properties of devices that they are initialized with.
     var serial = "Unknown serial"
     var product = "Unknown model"
     var version = "Unknown version"
+
+    var name = "Unknown name"
     var volume = 54.0
     var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
     var muted = false
