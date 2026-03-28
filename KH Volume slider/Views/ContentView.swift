@@ -13,11 +13,46 @@ struct ContentView: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
 
+    func setup() async {
+        commonState = await khAccess.setup()
+    }
+
+    func fetch() async {
+        commonState = await khAccess.fetch()
+    }
+
+    func send() async {
+        await khAccess.send(commonState)
+    }
+
+    func rescan() async {
+        await khAccess.scan()
+        await setup()
+    }
+
+    func clearCache() async {
+        do {
+            try SchemaCache().clear()
+            try StateCache().clear()
+        } catch {
+            print("Failed to clear cache with error:", error)
+            return
+        }
+        commonState = await khAccess.setup()
+    }
+
     var bodyiOS: some View {
         TabView {
             Tab("Controls", systemImage: "speaker.wave.3") {
                 NavigationStack {
-                    MainTab(commonState: $commonState)
+                    MainTab(
+                        commonState: $commonState,
+                        fetchCallback: fetch,
+                        sendCallback: send,
+                        connectCallback: setup,
+                        rescanCallback: rescan,
+                        clearCacheCallback: clearCache
+                    )
                     // toolbar is handled in Tab view
                     // .navigationTitle(Text("Controls"))
                 }
@@ -26,7 +61,13 @@ struct ContentView: View {
                 NavigationStack {
                     DevicesView()
                         .toolbar {
-                            BrowserToolbar(commonState: $commonState, showError: $showError)
+                            BrowserToolbar(
+                                showError: $showError,
+                                fetchCallback: fetch,
+                                connectCallback: setup,
+                                rescanCallback: rescan,
+                                clearCacheCallback: clearCache
+                            )
                         }
                     // .navigationTitle(Text("Device browser"))
                 }
@@ -35,32 +76,57 @@ struct ContentView: View {
                 NavigationStack {
                     BackupView(commonState: $commonState)
                         .toolbar {
-                            BrowserToolbar(commonState: $commonState, showError: $showError)
+                            BrowserToolbar(
+                                showError: $showError,
+                                fetchCallback: fetch,
+                                connectCallback: setup,
+                                rescanCallback: rescan,
+                                clearCacheCallback: clearCache
+                            )
                         }
                     // .navigationTitle(Text("Backups"))
                 }
             }
         }
-        .onAppear { Task { commonState = await khAccess.setup() } }
+        .onAppear { Task { await setup() } }
     }
 
     var bodymacOS: some View {
         TabView {
             Tab("Controls", systemImage: "speaker.wave.3") {
                 ScrollView {
-                    MainTab(commonState: $commonState)
+                    MainTab(
+                        commonState: $commonState,
+                        fetchCallback: fetch,
+                        sendCallback: send,
+                        connectCallback: setup,
+                        rescanCallback: rescan,
+                        clearCacheCallback: clearCache
+                    )
                 }
             }
             Tab("Devices", systemImage: "list.bullet.indent") {
                 DevicesView()
                     .toolbar {
-                        BrowserToolbar(commonState: $commonState, showError: $showError)
+                        BrowserToolbar(
+                            showError: $showError,
+                            fetchCallback: fetch,
+                            connectCallback: setup,
+                            rescanCallback: rescan,
+                            clearCacheCallback: clearCache
+                        )
                     }
             }
             Tab("Backups", systemImage: "externaldrive") {
                 BackupView(commonState: $commonState)
                     .toolbar {
-                        BrowserToolbar(commonState: $commonState, showError: $showError)
+                        BrowserToolbar(
+                            showError: $showError,
+                            fetchCallback: fetch,
+                            connectCallback: setup,
+                            rescanCallback: rescan,
+                            clearCacheCallback: clearCache
+                        )
                     }
             }
         }

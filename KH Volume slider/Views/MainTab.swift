@@ -27,11 +27,16 @@ struct DelaySection: View {
 
 struct MainTab: View {
     @Binding var commonState: KHState
+
+    var fetchCallback: () async -> Void
+    var sendCallback: () async -> Void
+    var connectCallback: () async -> Void
+    var rescanCallback: () async -> Void
+    var clearCacheCallback: () async -> Void
+
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @FocusState private var textFieldFocused: Bool
     @State private var showError: Bool = false
-
-    func sendCallback() async { await khAccess.send(commonState) }
 
     @ViewBuilder
     var bodyiOS: some View {
@@ -139,7 +144,13 @@ struct MainTab: View {
         }
         .toolbar(removing: .title)
         .toolbar {
-            MainToolbar(commonState: $commonState, showError: $showError)
+            MainToolbar(
+                showError: $showError,
+                fetchCallback: fetchCallback,
+                connectCallback: connectCallback,
+                rescanCallback: rescanCallback,
+                clearCacheCallback: clearCacheCallback
+            )
             if textFieldFocused {
                 ToolbarDoneAndCancel(
                     textFieldFocused: $textFieldFocused,
@@ -244,7 +255,15 @@ struct MainTab: View {
             }
         }
         .disabled(khAccess.status != .ready)
-        .toolbar { MainToolbar(commonState: $commonState, showError: $showError) }
+        .toolbar {
+            MainToolbar(
+                showError: $showError,
+                fetchCallback: fetchCallback,
+                connectCallback: connectCallback,
+                rescanCallback: rescanCallback,
+                clearCacheCallback: clearCacheCallback
+            )
+        }
     }
 
     var body: some View {

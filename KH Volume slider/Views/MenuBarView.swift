@@ -6,6 +6,30 @@ struct MenuBarView: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+    
+    func setup() async {
+        commonState = await khAccess.setup()
+    }
+
+    func fetch() async {
+        commonState = await khAccess.fetch()
+    }
+
+    func rescan() async {
+        await khAccess.scan()
+        await setup()
+    }
+
+    func clearCache() async {
+        do {
+            try SchemaCache().clear()
+            try StateCache().clear()
+        } catch {
+            print("Failed to clear cache with error:", error)
+            return
+        }
+        commonState = await khAccess.setup()
+    }
 
     @ViewBuilder
     var buttonBarTop: some View {
@@ -23,10 +47,10 @@ struct MenuBarView: View {
             Spacer()
 
             Menu("Actions") {
-                ToolbarFetchButton(commonState: $commonState)
-                ToolbarConnectButton(commonState: $commonState)
-                ToolbarRescanButton(commonState: $commonState)
-                ToolbarClearCacheButton(commonState: $commonState)
+                ToolbarFetchButton(fetchCallback: fetch)
+                ToolbarConnectButton(connectCallback: setup)
+                ToolbarRescanButton(rescanCallback: rescan)
+                ToolbarClearCacheButton(clearCacheCallback: clearCache)
 
                 #if os(macOS)
                     Button("Quit", systemImage: "xmark.rectangle") {
@@ -110,6 +134,6 @@ struct MenuBarView: View {
         }
         .frame(minWidth: 350)
         .scenePadding()
-        .onAppear { Task { commonState = await khAccess.setup() } }
+        .onAppear { Task { await setup() } }
     }
 }
