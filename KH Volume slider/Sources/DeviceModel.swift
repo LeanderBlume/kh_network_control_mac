@@ -10,7 +10,7 @@ protocol DeviceModelProtocol: Codable, Hashable, Identifiable {
     var product: String { get }
     var version: String { get }
 
-    init(_ state: KHState)
+    init(_ device: KHDevice)
 
     func description() -> String
 
@@ -26,9 +26,9 @@ struct DeviceModel: DeviceModelProtocol {
     
     var id: String { description() }
 
-    init(_ state: KHState) {
-        product = state.product
-        version = state.version
+    init(_ device: KHDevice) {
+        product = device.product
+        version = device.version
     }
 
     func description() -> String { product + " / " + version }

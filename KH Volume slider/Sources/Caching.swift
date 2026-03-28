@@ -141,14 +141,14 @@ struct SchemaCache: SchemaCacheProtocol {
     @MainActor
     func getSchema(for device: KHDevice) throws -> JSONSchema? {
         let schemaList = try getFileContents()
-        return schemaList[DeviceModel(device.state)]
+        return schemaList[DeviceModel(device)]
     }
 
     @MainActor
     func saveSchema(_ rootNode: SSCNode, for device: KHDevice) throws {
         let jdc = JSONSchema(rootNode: rootNode)
         var schemaList = try getFileContents()
-        schemaList[DeviceModel(device.state)] = jdc
+        schemaList[DeviceModel(device)] = jdc
         try writeFile(schemaList, prettyPrinted: true)
     }
 }

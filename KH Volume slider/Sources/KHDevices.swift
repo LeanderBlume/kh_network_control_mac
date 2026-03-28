@@ -24,6 +24,15 @@ protocol KHDevicesProtocol {
 }
 
 protocol KHSingleDeviceProtocol: KHDevicesProtocol, Identifiable {
+    var product: String { get }
+    var serial: String { get }
+    var version: String { get }
+    var state: KHState { get set }
+
+    init(connection: SSCConnection, product: String, serial: String, version: String)
+    init(_ connection: SSCConnection) async throws
+
+    func getModel() -> DeviceModel
     func sendNode(path: [String]) async
     func fetchNode(path: [String]) async
 }
@@ -75,17 +84,40 @@ enum KHDeviceStatus: Equatable {
 
 @Observable
 final class KHDevice: @MainActor KHSingleDeviceProtocol {
+    let product: String
+    let serial: String
+    let version: String
     var state: KHState = KHState()
     var status: KHDeviceStatus = .error("Not initialized")
     var parameterTree: SSCNode? = nil
 
     private let connection: SSCConnection
 
-    let id: String
+    var id: String { "\(product)_\(serial)" }
 
-    required init(connection: SSCConnection, id: String) {
+    required init(
+        connection: SSCConnection,
+        product: String,
+        serial: String,
+        version: String
+    ) {
         self.connection = connection
-        self.id = id
+        self.product = product
+        self.serial = serial
+        self.version = version
+    }
+
+    init(_ connection: SSCConnection) async throws {
+        self.connection = connection
+        product = try await connection.fetchSSCValue(path: [
+            "device", "identity", "product",
+        ])
+        serial = try await connection.fetchSSCValue(path: [
+            "device", "identity", "serial",
+        ])
+        version = try await connection.fetchSSCValue(path: [
+            "device", "identity", "version",
+        ])
     }
 
     private func updateCachedState() {
@@ -110,7 +142,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         state = newState
     }
 
-    func getModel() -> DeviceModel { DeviceModel(self.state) }
+    func getModel() -> DeviceModel { DeviceModel(self) }
 
     private func _fetchParameter(_ parameter: KHParameters) async throws {
         do {
@@ -316,23 +348,17 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
     }
     var devices: [KHDevice] = []
 
-    static private func connectionToDevice(_ connection: SSCConnection) async
-        -> KHDevice?
-    {
-        guard let id = await connection.service?.0 else { return nil }
-        return .init(connection: connection, id: id)
-    }
-
     static private func connectionsToDevices(_ connections: [SSCConnection]) async
         -> [KHDevice]
     {
         var devices = [KHDevice]()
         for connection in connections {
-            guard let device = await connectionToDevice(connection) else {
-                print("Error getting service from connection")
+            do {
+                devices.append(try await KHDevice(connection))
+            } catch {
+                print("Error initiating device:", error)
                 continue
             }
-            devices.append(device)
         }
         return devices
     }

@@ -8,11 +8,6 @@
 import SwiftUI
 
 struct KHState: Codable, Equatable {
-    /// TODO these are constants and should probably not be in KHState. They should be properties of devices that they are initialized with.
-    var serial = "Unknown serial"
-    var product = "Unknown model"
-    var version = "Unknown version"
-
     var name = "Unknown name"
     var volume = 54.0
     var eqs = [Eq(numBands: 10), Eq(numBands: 20)]
@@ -188,9 +183,6 @@ where T: Equatable, T: Codable, T: Sendable {
 
 enum KHParameters: String, CaseIterable, Identifiable {
     case name = "Name"
-    case serial = "Serial"
-    case product = "Product"
-    case version = "Version"
     case volume = "Volume"
     case muted = "Mute"
     case logoBrightness = "Logo brightness"
@@ -217,12 +209,6 @@ enum KHParameters: String, CaseIterable, Identifiable {
         switch self {
         case .name:
             ["device", "name"]
-        case .serial:
-            ["device", "identity", "serial"]
-        case .product:
-            ["device", "identity", "product"]
-        case .version:
-            ["device", "identity", "version"]
         case .volume:
             ["audio", "out", "level"]
         case .muted:
@@ -266,12 +252,6 @@ enum KHParameters: String, CaseIterable, Identifiable {
         switch self {
         case .name:
             KHStatePath(keyPath: \.name)
-        case .serial:
-            KHStatePath(keyPath: \.serial)
-        case .product:
-            KHStatePath(keyPath: \.product)
-        case .version:
-            KHStatePath(keyPath: \.version)
         case .volume:
             KHStatePath(keyPath: \.volume)
         case .muted:
@@ -418,9 +398,6 @@ enum KHParameterGroup {
         case .setup:
             return [
                 .name,
-                .serial,
-                .product,
-                .version,
             ]
         }
     }
