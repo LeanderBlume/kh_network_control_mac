@@ -22,11 +22,11 @@ struct ContentView: View {
 
     func fetch() async {
         deviceStates = await khAccess.fetchAll()
-        commonState = deviceStates.first ?? KHState()
+        commonState = deviceStates.first ?? KHState(deviceID: nil)
     }
 
     func send() async {
-        await khAccess.send(commonState)
+        await khAccess.sendToAll(commonState)
     }
 
     func rescan() async {
@@ -151,7 +151,7 @@ struct ContentView: View {
 }
 
 #Preview {
-    @Previewable @State var khState = KHState()
+    @Previewable @State var khState = KHState(deviceID: nil)
     let khAccess = KHAccess()
     ContentView(commonState: $khState).environment(khAccess)
     let _ = Task {

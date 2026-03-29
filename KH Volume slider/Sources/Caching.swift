@@ -170,7 +170,12 @@ struct StateCache: StateCacheProtocol {
     func getState(for device: KHDevice) throws -> (KHState, JSONDataCodable)? {
         let list = try getFileContents()
         guard let jdc = list[device.id] else { return nil }
-        guard let state = KHState(jsonDataCodable: jdc, deviceModel: device.getModel())
+        guard
+            let state = KHState(
+                jsonDataCodable: jdc,
+                deviceModel: device.getModel(),
+                deviceID: device.id
+            )
         else {
             throw StateCacheError.error("JSON Data to State conversion error")
         }
@@ -299,7 +304,8 @@ struct Backupper: BackupperProtocol {
                 guard
                     let newState = KHState(
                         jsonDataCodable: deviceBackup,
-                        deviceModel: device.getModel()
+                        deviceModel: device.getModel(),
+                        deviceID: device.id
                     )
                 else {
                     throw BackupperErrors.error(

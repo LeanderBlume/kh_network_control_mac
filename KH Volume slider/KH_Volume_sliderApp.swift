@@ -12,7 +12,7 @@ typealias ParameterPathDict = [DeviceModel: [String: [String]]]
 @main
 struct KH_Volume_sliderApp: App {
     @State private var khAccess = KHAccess()
-    @State var commonState = KHState()
+    @State var commonState = KHState(deviceID: nil)
 
     // decodes to ParameterPathDict
     @AppStorage("paths") private var paths: Data?

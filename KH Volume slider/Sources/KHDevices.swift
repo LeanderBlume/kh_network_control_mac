@@ -15,7 +15,7 @@ protocol KHDevicesProtocol {
 
     func setup() async
     func fetch() async -> KHState
-    func send(_: KHState) async
+    func sendToAll(_: KHState) async
 
     func sendParameterTree() async
     func fetchParameterTree() async
@@ -91,13 +91,13 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     let product: String
     let serial: String
     let version: String
-    var state: KHState = KHState()
+    var state: KHState
     var status: KHDeviceStatus = .error("Not initialized")
     var parameterTree: SSCNode? = nil
 
     private let connection: SSCConnection
 
-    var id: String { "\(product)_\(serial)" }
+    let id: String
 
     required init(
         connection: SSCConnection,
@@ -109,19 +109,26 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         self.product = product
         self.serial = serial
         self.version = version
+        id = "\(product)_\(serial)"
+        state = .init(deviceID: id)
     }
 
-    init(_ connection: SSCConnection) async throws {
-        self.connection = connection
-        product = try await connection.fetchSSCValue(path: [
+    convenience init(_ connection: SSCConnection) async throws {
+        let product: String = try await connection.fetchSSCValue(path: [
             "device", "identity", "product",
         ])
-        serial = try await connection.fetchSSCValue(path: [
+        let serial: String = try await connection.fetchSSCValue(path: [
             "device", "identity", "serial",
         ])
-        version = try await connection.fetchSSCValue(path: [
+        let version: String = try await connection.fetchSSCValue(path: [
             "device", "identity", "version",
         ])
+        self.init(
+            connection: connection,
+            product: product,
+            serial: serial,
+            version: version
+        )
     }
 
     private func updateCachedState() {
@@ -138,7 +145,12 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
             print("Parameters not populated, cannot update state")
             return
         }
-        guard let newState = KHState(nodeTree: rootNode, deviceModel: getModel())
+        guard
+            let newState = KHState(
+                nodeTree: rootNode,
+                deviceModel: getModel(),
+                deviceID: id
+            )
         else {
             print("Failed to create KHState from parameter tree")
             return
@@ -211,7 +223,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         return state
     }
 
-    func send(_ newState: KHState) async {
+    func sendToAll(_ newState: KHState) async {
         try? await _sendParameterGroup(.send, newState: newState)
     }
 
@@ -404,7 +416,7 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         guard let owner = getDeviceByID(id.deviceID) else { return nil }
         return owner.getNodeByID(id)
     }
-    
+
     private func setupDevices() async {
         // We don't want to do this in parallel (naively) because of file system cache
         for d in devices {
@@ -461,11 +473,11 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
             for await state in group {
                 results.append(state)
             }
-            return results.sorted(by: {$0.name < $1.name})
+            return results
         }
     }
 
-    func fetch() async -> KHState { await fetchAll().first ?? KHState() }
+    func fetch() async -> KHState { await fetchAll().first ?? KHState(deviceID: nil) }
 
     func sendIndividual(_ states: [KHState]) async {
         guard states.count == devices.count else {
@@ -475,15 +487,29 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
             return
         }
         await withTaskGroup { group in
-            for (d, state) in zip(devices, states) {
-                group.addTask { await d.send(state) }
+            for state in states {
+                guard let deviceID = state.deviceID else {
+                    print(
+                        "Could not match state without deviceID to a device, skipping"
+                    )
+                    continue
+                }
+                guard let device = getDeviceByID(deviceID) else {
+                    print("Could not find device with id \(deviceID), skipping")
+                    continue
+                }
+                group.addTask { await device.sendToAll(state) }
             }
             await group.waitForAll()
         }
     }
 
-    func send(_ state: KHState) async {
-        let states = Array(repeating: state, count: devices.count)
-        await sendIndividual(states)
+    func sendToAll(_ state: KHState) async {
+        await withTaskGroup { group in
+            for device in devices {
+                group.addTask { await device.sendToAll(state) }
+            }
+            await group.waitForAll()
+        }
     }
 }

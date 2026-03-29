@@ -18,32 +18,51 @@ struct KHState: Codable, Equatable {
     var delay = 0.0
     var identify = false
 
-    init() {}
+    let deviceID: KHDevice.ID?
 
-    init?(jsonData: JSONData, deviceModel: DeviceModel) {
+    init(deviceID: KHDevice.ID?) {
+        self.deviceID = deviceID
+    }
+
+    init?(jsonData: JSONData, deviceModel: DeviceModel, deviceID: KHDevice.ID?) {
+        var futureSelf: KHState = .init(deviceID: deviceID)
         for p in KHParameters.allCases {
             guard
-                let newState = p.copy(
+                let updated = p.copy(
                     from: jsonData,
-                    into: self,
+                    into: futureSelf,
                     deviceModel: deviceModel
                 )
             else { return nil }
-            self = newState
+            futureSelf = updated
         }
+        self = futureSelf
     }
 
-    init?(jsonDataCodable: JSONDataCodable, deviceModel: DeviceModel) {
+    init?(
+        jsonDataCodable: JSONDataCodable,
+        deviceModel: DeviceModel,
+        deviceID: KHDevice.ID?
+    ) {
         self.init(
             jsonData: JSONData(jsonDataCodable: jsonDataCodable),
-            deviceModel: deviceModel
+            deviceModel: deviceModel,
+            deviceID: deviceID
         )
     }
 
     @MainActor
-    init?(nodeTree: SSCNode, deviceModel: DeviceModel) {
+    init?(
+        nodeTree: SSCNode,
+        deviceModel: DeviceModel,
+        deviceID: KHDevice.ID?
+    ) {
         guard let jd = JSONData(rootNode: nodeTree) else { return nil }
-        self.init(jsonData: jd, deviceModel: deviceModel)
+        self.init(
+            jsonData: jd,
+            deviceModel: deviceModel,
+            deviceID: deviceID
+        )
     }
 }
 
