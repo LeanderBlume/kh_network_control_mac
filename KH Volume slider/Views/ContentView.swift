@@ -26,7 +26,7 @@ struct ContentView: View {
     }
 
     func send() async {
-        await khAccess.sendToAll(commonState)
+        await khAccess.send(commonState)
     }
 
     func rescan() async {

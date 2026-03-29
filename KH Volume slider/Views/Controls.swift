@@ -69,7 +69,7 @@ struct LabeledSliderTextField: View {
             TextField(
                 name,
                 value: $value,
-                format: .number.precision(.fractionLength(1))
+                format: .number.precision(.fractionLength(precision))
             )
             .onSubmit { Task { await sendCallback() } }
             #if os(iOS)
@@ -100,10 +100,14 @@ struct LabeledSliderTextField: View {
                 if !editing { Task { await sendCallback() } }
             }
         }
-        TextField(name, value: $value, format: .number.precision(.fractionLength(1)))
-            .frame(width: 80)
-            .onSubmit { Task { await sendCallback() } }
-            .labelsHidden()
+        TextField(
+            name,
+            value: $value,
+            format: .number.precision(.fractionLength(precision))
+        )
+        .frame(width: 80)
+        .onSubmit { Task { await sendCallback() } }
+        .labelsHidden()
     }
 
     var body: some View {

@@ -15,7 +15,7 @@ protocol KHDevicesProtocol {
 
     func setup() async
     func fetch() async -> KHState
-    func sendToAll(_: KHState) async
+    func send(_: KHState) async
 
     func sendParameterTree() async
     func fetchParameterTree() async
@@ -41,6 +41,7 @@ protocol KHDeviceGroupProtocol: KHDevicesProtocol {
     var devices: [KHDevice] { get }
 
     func fetchAll() async -> [KHState]
+    func sendIdentified(_ state: KHState) async
     func sendIndividual(_ states: [KHState]) async
 
     func getDeviceByID(_: KHDevice.ID) -> KHDevice?
@@ -223,7 +224,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         return state
     }
 
-    func sendToAll(_ newState: KHState) async {
+    func send(_ newState: KHState) async {
         try? await _sendParameterGroup(.send, newState: newState)
     }
 
@@ -479,6 +480,18 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
 
     func fetch() async -> KHState { await fetchAll().first ?? KHState(deviceID: nil) }
 
+    func sendIdentified(_ state: KHState) async {
+        guard let deviceID = state.deviceID else {
+            print("Could not match state without deviceID to a device, skipping")
+            return
+        }
+        guard let device = getDeviceByID(deviceID) else {
+            print("Could not find device with id \(deviceID), skipping")
+            return
+        }
+        await device.send(state)
+    }
+
     func sendIndividual(_ states: [KHState]) async {
         guard states.count == devices.count else {
             statusOverride = .error(
@@ -488,26 +501,16 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         }
         await withTaskGroup { group in
             for state in states {
-                guard let deviceID = state.deviceID else {
-                    print(
-                        "Could not match state without deviceID to a device, skipping"
-                    )
-                    continue
-                }
-                guard let device = getDeviceByID(deviceID) else {
-                    print("Could not find device with id \(deviceID), skipping")
-                    continue
-                }
-                group.addTask { await device.sendToAll(state) }
+                group.addTask { await self.sendIdentified(state) }
             }
             await group.waitForAll()
         }
     }
 
-    func sendToAll(_ state: KHState) async {
+    func send(_ state: KHState) async {
         await withTaskGroup { group in
             for device in devices {
-                group.addTask { await device.sendToAll(state) }
+                group.addTask { await device.send(state) }
             }
             await group.waitForAll()
         }

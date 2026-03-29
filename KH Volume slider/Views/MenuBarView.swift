@@ -89,7 +89,7 @@ struct MenuBarView: View {
                     // .toggleStyle(.button)
                     // .toggleStyle(.switch)
                     .onChange(of: commonState.muted) {
-                        Task { await khAccess.sendToAll(commonState) }
+                        Task { await khAccess.send(commonState) }
                     }
                     .disabled(khAccess.status != .ready)
                     .labelsHidden()
@@ -99,7 +99,7 @@ struct MenuBarView: View {
 
                     Slider(value: $commonState.volume, in: 0...120, step: 3) {
                         editing in
-                        if !editing { Task { await khAccess.sendToAll(commonState) } }
+                        if !editing { Task { await khAccess.send(commonState) } }
                     }
 
                     TextField(
@@ -108,7 +108,7 @@ struct MenuBarView: View {
                         format: .number.precision(.fractionLength(1))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.sendToAll(commonState) } }
+                    .onSubmit { Task { await khAccess.send(commonState) } }
                     .labelsHidden()
                 }
                 GridRow {
@@ -116,7 +116,7 @@ struct MenuBarView: View {
 
                     Slider(value: $commonState.logoBrightness, in: 0...125, step: 5)
                     { editing in
-                        if !editing { Task { await khAccess.sendToAll(commonState) } }
+                        if !editing { Task { await khAccess.send(commonState) } }
                     }
 
                     TextField(
@@ -125,7 +125,7 @@ struct MenuBarView: View {
                         format: .number.rounded()
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.sendToAll(commonState) } }
+                    .onSubmit { Task { await khAccess.send(commonState) } }
                     .labelsHidden()
                 }
             }

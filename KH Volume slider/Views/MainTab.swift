@@ -84,6 +84,77 @@ private struct AutoStandbySection: View {
     }
 }
 
+private struct IndividualDeviceSection: View {
+    @Binding var deviceState: KHState
+    @FocusState.Binding var textFieldFocused: Bool
+
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
+    func send() async {
+        await khAccess.sendIdentified(deviceState)
+    }
+
+    @ViewBuilder
+    var bodyiOS: some View {
+        Toggle("Identify (flash LED)", isOn: $deviceState.identify)
+            .onChange(of: deviceState.identify) {
+                Task { await send() }
+            }
+
+        Grid {
+            LabeledSliderTextField(
+                name: "Delay (1/48 kHz)",
+                value: $deviceState.delay,
+                range: 0...5760,
+                sendCallback: send,
+                precision: 0
+            )
+        }
+    }
+
+    @ViewBuilder
+    var bodymacOS: some View {
+        Grid(alignment: .leading) {
+            GridRow {
+                Text("Identify (flash LED)")
+
+                Toggle("Toggle", isOn: $deviceState.identify)
+                    .onChange(of: deviceState.identify) {
+                        Task { await send() }
+                    }
+                    .toggleStyle(.button)
+
+                Spacer()
+            }
+            GridRow {
+                Text("Delay (1/48 kHz)")
+
+                Slider(value: $deviceState.delay, in: 0...5760) {
+                    editing in
+                    if !editing { Task { await send() } }
+                }
+
+                TextField(
+                    "Delay (1/48 kHz)",
+                    value: $deviceState.delay,
+                    format: .number.precision(.fractionLength(0))
+                )
+                .frame(width: 80)
+                .onSubmit { Task { await send() } }
+                .labelsHidden()
+            }
+        }
+    }
+
+    var body: some View {
+        #if os(iOS)
+            bodyiOS
+        #elseif os(macOS)
+            bodymacOS
+        #endif
+    }
+}
+
 private struct IndividualSection: View {
     @Binding var deviceStates: [KHState]
     @FocusState.Binding var textFieldFocused: Bool
@@ -97,18 +168,10 @@ private struct IndividualSection: View {
     @ViewBuilder
     var bodyiOS: some View {
         ForEach(deviceStates.indices, id: \.self) { i in
-            Toggle(deviceStates[i].name, isOn: $deviceStates[i].identify)
-                .onChange(of: deviceStates[i].identify) {
-                    Task { await sendIndividual() }
-                }
-        }
-        Grid {
-            ForEach(deviceStates.indices, id: \.self) { i in
-                LabeledSliderTextField(
-                    name: "Delay (\(deviceStates[i].name)) (1/48 kHz)",
-                    value: $deviceStates[i].delay,
-                    range: 0...5760,
-                    sendCallback: sendIndividual
+            Section("Device: \(deviceStates[i].name)") {
+                IndividualDeviceSection(
+                    deviceState: $deviceStates[i],
+                    textFieldFocused: $textFieldFocused
                 )
             }
         }
@@ -116,40 +179,12 @@ private struct IndividualSection: View {
 
     @ViewBuilder
     var bodymacOS: some View {
-        Grid(alignment: .leading) {
-            ForEach(deviceStates.indices, id: \.self) { i in
-                GridRow {
-                    Text(i == 0 ? "Identify (flash LED)" : "")
-
-                    Toggle(deviceStates[i].name, isOn: $deviceStates[i].identify)
-                        .onChange(of: deviceStates[i].identify) {
-                            Task { await sendIndividual() }
-                        }
-                        .toggleStyle(.button)
-
-                    Spacer()
-                }
-            }
-        }
-        Grid(alignment: .leading) {
-            ForEach(deviceStates.indices, id: \.self) { i in
-                GridRow {
-                    Text("Delay (\(deviceStates[i].name)) (1/48 kHz)")
-
-                    Slider(value: $deviceStates[i].delay, in: 0...5760) {
-                        editing in
-                        if !editing { Task { await sendIndividual() } }
-                    }
-
-                    TextField(
-                        "Delay (\(deviceStates[i].name)) (1/48 kHz)",
-                        value: $deviceStates[i].delay,
-                        format: .number.precision(.fractionLength(0))
-                    )
-                    .frame(width: 80)
-                    .onSubmit { Task { await sendIndividual() } }
-                    .labelsHidden()
-                }
+        ForEach(deviceStates.indices, id: \.self) { i in
+            Section("Device: \(deviceStates[i].name)") {
+                IndividualDeviceSection(
+                    deviceState: $deviceStates[i],
+                    textFieldFocused: $textFieldFocused
+                )
             }
         }
     }
@@ -176,7 +211,7 @@ struct MainTab: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @FocusState private var textFieldFocused: Bool
     @State private var showError: Bool = false
-    
+
     func sendIndividual() async {
         await khAccess.sendIndividual(deviceStates)
     }
@@ -261,28 +296,10 @@ struct MainTab: View {
                 )
             }
 
-            Section("Identify (flash LED)") {
-                ForEach(deviceStates.indices, id: \.self) { i in
-                    Toggle(deviceStates[i].name, isOn: $deviceStates[i].identify)
-                        .onChange(of: deviceStates[i].identify) {
-                            Task { await sendIndividual() }
-                        }
-                }
-            }
-
-            Section("Delay") {
-                Grid {
-                    ForEach(deviceStates.indices, id: \.self) { i in
-                        LabeledSliderTextField(
-                            name: "Delay (\(deviceStates[i].name)) (1/48 kHz)",
-                            value: $deviceStates[i].delay,
-                            range: 0...5760,
-                            sendCallback: sendIndividual,
-                            precision: 0
-                        )
-                    }
-                }
-            }
+            IndividualSection(
+                deviceStates: $deviceStates,
+                textFieldFocused: $textFieldFocused
+            )
         }
         .toolbar(removing: .title)
         .toolbar {
