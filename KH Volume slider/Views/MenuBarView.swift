@@ -3,6 +3,8 @@ import SwiftUI
 
 struct MenuBarView: View {
     @Binding var commonState: KHState
+    @Binding var deviceStates: [KHState]
+
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
@@ -13,7 +15,8 @@ struct MenuBarView: View {
     }
 
     func fetch() async {
-        commonState = await khAccess.fetch()
+        deviceStates = await khAccess.fetchAll()
+        commonState = deviceStates.first ?? KHState(deviceID: nil)
     }
 
     func rescan() async {

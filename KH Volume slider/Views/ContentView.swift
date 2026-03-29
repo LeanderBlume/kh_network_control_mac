@@ -10,7 +10,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Binding var commonState: KHState
-    @State var deviceStates: [KHState] = []
+    @Binding var deviceStates: [KHState]
 
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
@@ -136,7 +136,7 @@ struct ContentView: View {
                     }
             }
         }
-        .onAppear { Task { await setup() } }
+        // .onAppear { Task { await setup() } }
         .scenePadding()
         .frame(minWidth: 450, minHeight: 600)
     }
@@ -151,10 +151,10 @@ struct ContentView: View {
 }
 
 #Preview {
-    @Previewable @State var khState = KHState(deviceID: nil)
+    @Previewable @State var commonState = KHState(deviceID: nil)
+    @Previewable @State var deviceStates = [KHState]()
     let khAccess = KHAccess()
-    ContentView(commonState: $khState).environment(khAccess)
-    let _ = Task {
-        await khAccess.setup()
-    }
+
+    ContentView(commonState: $commonState, deviceStates: $deviceStates)
+        .environment(khAccess)
 }
