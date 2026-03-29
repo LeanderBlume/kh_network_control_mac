@@ -13,14 +13,13 @@ typealias ParameterPathDict = [DeviceModel: [String: [String]]]
 struct KH_Volume_sliderApp: App {
     @State private var khAccess = KHAccess()
     @State var commonState = KHState(deviceID: nil)
-    @State var deviceStates: [KHState] = []
 
     // decodes to ParameterPathDict
     @AppStorage("paths") private var paths: Data?
 
     init() {
         if let p = paths {
-            if (try? JSONDecoder().decode(ParameterPathDict.self, from: p)) != nil {
+            if let _ = try? JSONDecoder().decode(ParameterPathDict.self, from: p) {
                 return
             }
         }
@@ -31,61 +30,17 @@ struct KH_Volume_sliderApp: App {
             print("Error encoding default paths:", error)
         }
     }
-    
-    func fetch() async {
-        deviceStates = await khAccess.fetchAll()
-        commonState = deviceStates.first ?? KHState(deviceID: nil)
-    }
-
-    func setup() async {
-        await khAccess.setup()
-        await fetch()
-    }
-
-    func send() async {
-        await khAccess.send(commonState)
-    }
-
-    func rescan() async {
-        await khAccess.scan()
-        await setup()
-    }
-
-    func clearCache() async {
-        do {
-            try SchemaCache().clear()
-            try StateCache().clear()
-        } catch {
-            print("Failed to clear cache with error:", error)
-            return
-        }
-        await setup()
-    }
 
     var body: some Scene {
         #if os(macOS)
-            MenuBarExtra("SSC Control", systemImage: "hifispeaker.2") {
-                MenuBarView(
-                    commonState: $commonState,
-                    setupCallback: setup,
-                    fetchCallback: fetch,
-                    rescanCallback: rescan,
-                    clearCacheCallback: clearCache,
-                )
+        MenuBarExtra("SSC Control", systemImage: "hifispeaker.2") {
+            MenuBarView(commonState: $commonState)
                 .environment(khAccess)
-            }
-            .menuBarExtraStyle(.window)
+        }
+        .menuBarExtraStyle(.window)
         #endif
         WindowGroup(id: "main-window") {
-            ContentView(
-                commonState: $commonState,
-                deviceStates: $deviceStates,
-                setupCallback: setup,
-                fetchCallback: fetch,
-                sendCallback: send,
-                rescanCallback: rescan,
-                clearCacheCallback: clearCache,
-            )
+            ContentView(commonState: $commonState)
                 .environment(khAccess)
         }
         .defaultSize(width: 400, height: 400)

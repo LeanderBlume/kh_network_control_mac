@@ -3,18 +3,33 @@ import SwiftUI
 
 struct MenuBarView: View {
     @Binding var commonState: KHState
-
-    var setupCallback: () async -> Void
-    var fetchCallback: () async -> Void
-    var rescanCallback: () async -> Void
-    var clearCacheCallback: () async -> Void
-
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     
-    func send() async {
-        await khAccess.send(commonState)
+    func setup() async {
+        await khAccess.setup()
+        await fetch()
+    }
+
+    func fetch() async {
+        commonState = await khAccess.fetch()
+    }
+
+    func rescan() async {
+        await khAccess.scan()
+        await setup()
+    }
+
+    func clearCache() async {
+        do {
+            try SchemaCache().clear()
+            try StateCache().clear()
+        } catch {
+            print("Failed to clear cache with error:", error)
+            return
+        }
+        await setup()
     }
 
     @ViewBuilder
@@ -33,10 +48,10 @@ struct MenuBarView: View {
             Spacer()
 
             Menu("Actions") {
-                ToolbarFetchButton(fetchCallback: fetchCallback)
-                ToolbarConnectButton(connectCallback: setupCallback)
-                ToolbarRescanButton(rescanCallback: rescanCallback)
-                ToolbarClearCacheButton(clearCacheCallback: clearCacheCallback)
+                ToolbarFetchButton(fetchCallback: fetch)
+                ToolbarConnectButton(connectCallback: setup)
+                ToolbarRescanButton(rescanCallback: rescan)
+                ToolbarClearCacheButton(clearCacheCallback: clearCache)
 
                 #if os(macOS)
                     Button("Quit", systemImage: "xmark.rectangle") {
@@ -73,7 +88,9 @@ struct MenuBarView: View {
                     /// toggleStyle .button might crash the app on macOS 15. Or maybe it's the other thing in the EQ tab.
                     // .toggleStyle(.button)
                     // .toggleStyle(.switch)
-                    .onChange(of: commonState.muted) { Task { await send() } }
+                    .onChange(of: commonState.muted) {
+                        Task { await khAccess.send(commonState) }
+                    }
                     .disabled(khAccess.status != .ready)
                     .labelsHidden()
                 }
@@ -91,7 +108,7 @@ struct MenuBarView: View {
                         format: .number.precision(.fractionLength(1))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await send() } }
+                    .onSubmit { Task { await khAccess.send(commonState) } }
                     .labelsHidden()
                 }
                 GridRow {
@@ -99,7 +116,7 @@ struct MenuBarView: View {
 
                     Slider(value: $commonState.logoBrightness, in: 0...125, step: 5)
                     { editing in
-                        if !editing { Task { await send() } }
+                        if !editing { Task { await khAccess.send(commonState) } }
                     }
 
                     TextField(
@@ -108,7 +125,7 @@ struct MenuBarView: View {
                         format: .number.rounded()
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await send() } }
+                    .onSubmit { Task { await khAccess.send(commonState) } }
                     .labelsHidden()
                 }
             }
@@ -118,6 +135,6 @@ struct MenuBarView: View {
         }
         .frame(minWidth: 350)
         .scenePadding()
-        .onAppear { Task { await setupCallback() } }
+        .onAppear { Task { await setup() } }
     }
 }
