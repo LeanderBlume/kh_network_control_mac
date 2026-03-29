@@ -10,40 +10,16 @@ import SwiftUI
 
 struct ContentView: View {
     @Binding var commonState: KHState
-    @State var deviceStates: [KHState] = []
+    @Binding var deviceStates: [KHState]
 
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
 
-    func setup() async {
-        await khAccess.setup()
-        await fetch()
-    }
-
-    func fetch() async {
-        deviceStates = await khAccess.fetchAll()
-        commonState = deviceStates.first ?? KHState(deviceID: nil)
-    }
-
-    func send() async {
-        await khAccess.send(commonState)
-    }
-
-    func rescan() async {
-        await khAccess.scan()
-        await setup()
-    }
-
-    func clearCache() async {
-        do {
-            try SchemaCache().clear()
-            try StateCache().clear()
-        } catch {
-            print("Failed to clear cache with error:", error)
-            return
-        }
-        await setup()
-    }
+    var setupCallback: () async -> Void
+    var fetchCallback: () async -> Void
+    var sendCallback: () async -> Void
+    var rescanCallback: () async -> Void
+    var clearCacheCallback: () async -> Void
 
     var bodyiOS: some View {
         TabView {
@@ -52,11 +28,11 @@ struct ContentView: View {
                     MainTab(
                         commonState: $commonState,
                         deviceStates: $deviceStates,
-                        fetchCallback: fetch,
-                        sendCallback: send,
-                        connectCallback: setup,
-                        rescanCallback: rescan,
-                        clearCacheCallback: clearCache
+                        fetchCallback: fetchCallback,
+                        sendCallback: sendCallback,
+                        connectCallback: setupCallback,
+                        rescanCallback: rescanCallback,
+                        clearCacheCallback: clearCacheCallback
                     )
                     // toolbar is handled in Tab view
                     // .navigationTitle(Text("Controls"))
@@ -68,10 +44,10 @@ struct ContentView: View {
                         .toolbar {
                             BrowserToolbar(
                                 showError: $showError,
-                                fetchCallback: fetch,
-                                connectCallback: setup,
-                                rescanCallback: rescan,
-                                clearCacheCallback: clearCache
+                                fetchCallback: fetchCallback,
+                                connectCallback: setupCallback,
+                                rescanCallback: rescanCallback,
+                                clearCacheCallback: clearCacheCallback
                             )
                         }
                     // .navigationTitle(Text("Device browser"))
@@ -83,17 +59,17 @@ struct ContentView: View {
                         .toolbar {
                             BrowserToolbar(
                                 showError: $showError,
-                                fetchCallback: fetch,
-                                connectCallback: setup,
-                                rescanCallback: rescan,
-                                clearCacheCallback: clearCache
+                                fetchCallback: fetchCallback,
+                                connectCallback: setupCallback,
+                                rescanCallback: rescanCallback,
+                                clearCacheCallback: clearCacheCallback
                             )
                         }
                     // .navigationTitle(Text("Backups"))
                 }
             }
         }
-        .onAppear { Task { await setup() } }
+        .onAppear { Task { await setupCallback() } }
     }
 
     var bodymacOS: some View {
@@ -103,11 +79,11 @@ struct ContentView: View {
                     MainTab(
                         commonState: $commonState,
                         deviceStates: $deviceStates,
-                        fetchCallback: fetch,
-                        sendCallback: send,
-                        connectCallback: setup,
-                        rescanCallback: rescan,
-                        clearCacheCallback: clearCache
+                        fetchCallback: fetchCallback,
+                        sendCallback: sendCallback,
+                        connectCallback: setupCallback,
+                        rescanCallback: rescanCallback,
+                        clearCacheCallback: clearCacheCallback
                     )
                 }
             }
@@ -116,10 +92,10 @@ struct ContentView: View {
                     .toolbar {
                         BrowserToolbar(
                             showError: $showError,
-                            fetchCallback: fetch,
-                            connectCallback: setup,
-                            rescanCallback: rescan,
-                            clearCacheCallback: clearCache
+                            fetchCallback: fetchCallback,
+                            connectCallback: setupCallback,
+                            rescanCallback: rescanCallback,
+                            clearCacheCallback: clearCacheCallback
                         )
                     }
             }
@@ -128,15 +104,15 @@ struct ContentView: View {
                     .toolbar {
                         BrowserToolbar(
                             showError: $showError,
-                            fetchCallback: fetch,
-                            connectCallback: setup,
-                            rescanCallback: rescan,
-                            clearCacheCallback: clearCache
+                            fetchCallback: fetchCallback,
+                            connectCallback: setupCallback,
+                            rescanCallback: rescanCallback,
+                            clearCacheCallback: clearCacheCallback
                         )
                     }
             }
         }
-        .onAppear { Task { await setup() } }
+        // .onAppear { Task { await setupCallback() } }
         .scenePadding()
         .frame(minWidth: 450, minHeight: 600)
     }
@@ -151,10 +127,43 @@ struct ContentView: View {
 }
 
 #Preview {
-    @Previewable @State var khState = KHState(deviceID: nil)
+    @Previewable @State var commonState = KHState(deviceID: nil)
+    @Previewable @State var deviceStates: [KHState] = []
     let khAccess = KHAccess()
-    ContentView(commonState: $khState).environment(khAccess)
-    let _ = Task {
-        await khAccess.setup()
-    }
+
+    ContentView(
+        commonState: $commonState,
+        deviceStates: $deviceStates,
+        setupCallback: {
+            await khAccess.setup()
+            deviceStates = await khAccess.fetchAll()
+            commonState = deviceStates.first ?? KHState(deviceID: nil)
+        },
+        fetchCallback: {
+            deviceStates = await khAccess.fetchAll()
+            commonState = deviceStates.first ?? KHState(deviceID: nil)
+        },
+        sendCallback: {
+            await khAccess.send(commonState)
+        },
+        rescanCallback: {
+            await khAccess.scan()
+            await khAccess.setup()
+            deviceStates = await khAccess.fetchAll()
+            commonState = deviceStates.first ?? KHState(deviceID: nil)
+        },
+        clearCacheCallback: {
+            do {
+                try SchemaCache().clear()
+                try StateCache().clear()
+                await khAccess.setup()
+                deviceStates = await khAccess.fetchAll()
+                commonState = deviceStates.first ?? KHState(deviceID: nil)
+            } catch {
+                print("Failed to clear cache with error:", error)
+            }
+        }
+    ).environment(khAccess)
+
+    let _ = Task { await khAccess.setup() }
 }
