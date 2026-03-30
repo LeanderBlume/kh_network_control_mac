@@ -22,7 +22,6 @@ struct ContentView: View {
 
     func fetch() async {
         deviceStates = await khAccess.fetchAll().sorted(by: { $0.name < $1.name })
-        commonState.updateIfAllAgree(deviceStates)
     }
 
     func rescan() async {
@@ -39,6 +38,14 @@ struct ContentView: View {
             return
         }
         await setup()
+    }
+
+    func syncCommonToDeviceStates() {
+        // TODO
+    }
+
+    func syncDeviceStatesToCommon() {
+        commonState.updateIfAllAgree(deviceStates)
     }
 
     var bodyiOS: some View {
@@ -136,11 +143,15 @@ struct ContentView: View {
     }
 
     var body: some View {
-        #if os(iOS)
-            bodyiOS
-        #elseif os(macOS)
-            bodymacOS
-        #endif
+        Group {
+            #if os(iOS)
+                bodyiOS
+            #elseif os(macOS)
+                bodymacOS
+            #endif
+        }
+        .onChange(of: deviceStates) { syncDeviceStatesToCommon() }
+        .onChange(of: commonState) { syncCommonToDeviceStates() }
     }
 }
 
