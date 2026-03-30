@@ -21,12 +21,8 @@ struct ContentView: View {
     }
 
     func fetch() async {
-        deviceStates = await khAccess.fetchAll()
-        commonState = deviceStates.first ?? KHState(deviceID: nil)
-    }
-
-    func send() async {
-        await khAccess.send(commonState)
+        deviceStates = await khAccess.fetchAll().sorted(by: { $0.name < $1.name })
+        commonState.updateIfAllAgree(deviceStates)
     }
 
     func rescan() async {
@@ -53,7 +49,6 @@ struct ContentView: View {
                         commonState: $commonState,
                         deviceStates: $deviceStates,
                         fetchCallback: fetch,
-                        sendCallback: send,
                         connectCallback: setup,
                         rescanCallback: rescan,
                         clearCacheCallback: clearCache
@@ -104,7 +99,6 @@ struct ContentView: View {
                         commonState: $commonState,
                         deviceStates: $deviceStates,
                         fetchCallback: fetch,
-                        sendCallback: send,
                         connectCallback: setup,
                         rescanCallback: rescan,
                         clearCacheCallback: clearCache

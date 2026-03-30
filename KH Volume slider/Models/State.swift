@@ -64,6 +64,13 @@ struct KHState: Codable, Equatable {
             deviceID: deviceID
         )
     }
+
+    mutating func updateIfAllAgree(_ states: [KHState]) {
+        guard !states.isEmpty else { return }
+        for p in KHParameters.allCases.filter({ $0.allEqual(states) }) {
+            self = p.copy(from: states.first!, into: self)
+        }
+    }
 }
 
 private protocol KHStatePathProtocol: Equatable {
@@ -89,6 +96,8 @@ private protocol KHStatePathProtocol: Equatable {
         devicePath: [String],
         parameterTree: SSCNode?
     ) async throws
+
+    func allEqual(_ states: [KHState]) -> Bool
 }
 
 private struct KHStatePath<T>: KHStatePathProtocol
@@ -203,6 +212,12 @@ where T: Equatable, T: Codable, T: Sendable {
         if let parameterTree {
             copy(from: newState, into: parameterTree, devicePath: devicePath)
         }
+    }
+
+    func allEqual(_ states: [KHState]) -> Bool {
+        let vals = states.map { get(from: $0) }
+        guard let first = vals.first else { return true }
+        return vals.allSatisfy { $0 == first }
     }
 }
 
@@ -380,6 +395,8 @@ enum KHParameters: String, CaseIterable, Identifiable {
             parameterTree: parameterTree
         )
     }
+
+    func allEqual(_ states: [KHState]) -> Bool { getPathObject().allEqual(states) }
 }
 
 enum KHParameterGroup {
