@@ -59,19 +59,23 @@ private struct EqTypePicker: View {
 }
 
 private struct EqBandPanel: View {
+    var eqIndex: Int
+    var eqName: String
     var enabled: Bool
     @Binding var type: String
     @Binding var frequency: Double
     @Binding var q: Double
     @Binding var boost: Double
     @Binding var gain: Double
-    var sendCallback: () async -> Void
+    var sendCallback: (KHParameters) async -> Void
+    @FocusState.Binding var textFieldFocused: KHParameters?
 
     private struct SliderParams: Identifiable {
         var name: String
         var value: Binding<Double>
         var range: ClosedRange<Double>
         var logarithmic: Bool
+        var eqParameter: EQParameters
 
         var id: String { name }
     }
@@ -82,25 +86,29 @@ private struct EqBandPanel: View {
                 name: "Frequency (Hz)",
                 value: $frequency,
                 range: 10...24000,
-                logarithmic: true
+                logarithmic: true,
+                eqParameter: .frequency
             ),
             .init(
                 name: "Q",
                 value: $q,
                 range: 0.1...16,
-                logarithmic: true
+                logarithmic: true,
+                eqParameter: .q,
             ),
             .init(
                 name: "Boost (dB)",
                 value: $boost,
                 range: -99...24,
-                logarithmic: false
+                logarithmic: false,
+                eqParameter: .boost,
             ),
             .init(
                 name: "Makeup (dB)",
                 value: $gain,
                 range: -99...24,
-                logarithmic: false
+                logarithmic: false,
+                eqParameter: .gain
             ),
         ]
     }
@@ -108,7 +116,9 @@ private struct EqBandPanel: View {
     @ViewBuilder
     var bodyiOS: some View {
         EqTypePicker(bandEnabled: enabled, type: $type)
-            .onChange(of: type) { Task { await sendCallback() } }
+            .onChange(of: type) {
+                Task { await sendCallback(.eq(eqIndex, eqName, .type)) }
+            }
 
         Grid(alignment: .leading) {
             ForEach(sliders.indices, id: \.self) { i in
@@ -117,8 +127,15 @@ private struct EqBandPanel: View {
                     value: sliders[i].value,
                     range: sliders[i].range,
                     logarithmic: sliders[i].logarithmic,
-                    sendCallback: sendCallback
+                    sendCallback: {
+                        await sendCallback(.eq(eqIndex, eqName, sliders[i].eqParameter))
+                    }
                 )
+                .focused(
+                    $textFieldFocused,
+                    equals: .eq(eqIndex, eqName, sliders[i].eqParameter)
+                )
+
                 if i + 1 != sliders.count {
                     Divider()
                 }
@@ -131,7 +148,9 @@ private struct EqBandPanel: View {
         Grid(alignment: .topLeading) {
             GridRow {
                 EqTypePicker(bandEnabled: enabled, type: $type)
-                    .onChange(of: type) { Task { await sendCallback() } }
+                    .onChange(of: type) {
+                        Task { await sendCallback(.eq(eqIndex, eqName, .type)) }
+                    }
                     .padding(.bottom, 5)
             }
             ForEach(sliders.indices, id: \.self) { i in
@@ -141,7 +160,11 @@ private struct EqBandPanel: View {
                         value: sliders[i].value,
                         range: sliders[i].range,
                         logarithmic: sliders[i].logarithmic,
-                        sendCallback: sendCallback
+                        sendCallback: {
+                            await sendCallback(
+                                .eq(eqIndex, eqName, sliders[i].eqParameter)
+                            )
+                        }
                     )
                 }
             }
@@ -219,10 +242,13 @@ private struct BandPicker: View {
 }
 
 private struct EqPanel: View {
+    var eqIndex: Int
+    var eqName: String
     @Binding var eq: Eq
     @Binding var selectedEqBand: Int
     // @State var position = ScrollPosition
-    var sendCallback: () async -> Void
+    var sendCallback: (KHParameters) async -> Void
+    @FocusState.Binding var textFieldFocused: KHParameters?
 
     var body: some View {
         BandPicker(
@@ -231,20 +257,23 @@ private struct EqPanel: View {
             enabled: $eq.enabled
         )
         .onChange(of: eq.enabled) {
-            Task { await sendCallback() }
+            Task { await sendCallback(.eq(eqIndex, eqName, .enabled)) }
         }
 
         if selectedEqBand >= eq.numBands ?? -1 {
             Text("Band index out of range")
         } else {
             EqBandPanel(
+                eqIndex: eqIndex,
+                eqName: eqName,
                 enabled: eq.enabled[selectedEqBand],
                 type: $eq.type[selectedEqBand],
                 frequency: $eq.frequency[selectedEqBand],
                 q: $eq.q[selectedEqBand],
                 boost: $eq.boost[selectedEqBand],
                 gain: $eq.gain[selectedEqBand],
-                sendCallback: sendCallback
+                sendCallback: sendCallback,
+                textFieldFocused: $textFieldFocused
             )
         }
     }
@@ -252,9 +281,12 @@ private struct EqPanel: View {
 
 struct EqTab: View {
     @Binding var eqs: [Eq]
+    var sendCallback: (KHParameters) async -> Void
+    var deviceModel: DeviceModel
+    @FocusState.Binding var textFieldFocused: KHParameters?
+
     @State private var selectedEq: Int = 0
     @State var selectedBands: [Int] = [0, 0]
-    var sendCallback: () async -> Void
 
     var body: some View {
         EqChart(eqs: eqs).frame(height: 150)
@@ -268,9 +300,12 @@ struct EqTab: View {
         .pickerStyle(.segmented)
 
         EqPanel(
+            eqIndex: selectedEq,
+            eqName: deviceModel.eqName(selectedEq),
             eq: $eqs[selectedEq],
             selectedEqBand: $selectedBands[selectedEq],
-            sendCallback: sendCallback
+            sendCallback: sendCallback,
+            textFieldFocused: $textFieldFocused
         )
     }
 }

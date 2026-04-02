@@ -10,14 +10,14 @@ import SwiftUI
 
 private struct AutoStandbySection: View {
     @Binding var uiState: KHState
-    var sendCallback: () async -> Void
-    @FocusState.Binding var textFieldFocused: Bool
+    var sendCallback: (KHParameters) async -> Void
+    @FocusState.Binding var textFieldFocused: KHParameters?
 
     @ViewBuilder
     var bodyiOS: some View {
         Toggle("Enable", isOn: $uiState.standbyEnabled)
             .onChange(of: uiState.standbyEnabled) {
-                Task { await sendCallback() }
+                Task { await sendCallback(.standbyEnabled) }
             }
 
         LabeledContent {
@@ -26,8 +26,8 @@ private struct AutoStandbySection: View {
                 value: $uiState.standbyTimeout,
                 format: .number.precision(.fractionLength(0))
             )
-            .focused($textFieldFocused)
-            .onSubmit { Task { await sendCallback() } }
+            .focused($textFieldFocused, equals: .standbyTimeout)
+            .onSubmit { Task { await sendCallback(.standbyTimeout) } }
             #if os(iOS)
                 .keyboardType(.numberPad)
             #endif
@@ -54,7 +54,7 @@ private struct AutoStandbySection: View {
                 Toggle("Enable auto-standby", isOn: $uiState.standbyEnabled)
                     .labelsHidden()
                     .onChange(of: uiState.standbyEnabled) {
-                        Task { await sendCallback() }
+                        Task { await sendCallback(.standbyEnabled) }
                     }
 
                 Spacer()
@@ -68,7 +68,7 @@ private struct AutoStandbySection: View {
                     format: .number.precision(.fractionLength(0))
                 )
                 .frame(width: 80)
-                .onSubmit { Task { await sendCallback() } }
+                .onSubmit { Task { await sendCallback(.standbyTimeout) } }
 
                 Spacer()
             }
@@ -86,19 +86,20 @@ private struct AutoStandbySection: View {
 
 private struct IndividualDeviceSection: View {
     @Binding var uiState: KHState
-    var sendCallback: () async -> Void
+    var sendCallback: (KHParameters) async -> Void
 
-    @FocusState.Binding var textFieldFocused: Bool
+    @FocusState.Binding var textFieldFocused: KHParameters?
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     @ViewBuilder
     var bodyiOS: some View {
         TextField("Name", text: $uiState.name)
-            .onSubmit { Task { await sendCallback() } }
+            .focused($textFieldFocused, equals: .name)
+            .onSubmit { Task { await sendCallback(.name) } }
 
         Toggle("Identify (flash LED)", isOn: $uiState.identify)
             .onChange(of: uiState.identify) {
-                Task { await sendCallback() }
+                Task { await sendCallback(.identify) }
             }
 
         Grid {
@@ -106,9 +107,10 @@ private struct IndividualDeviceSection: View {
                 name: "Delay (1/48 kHz)",
                 value: $uiState.delay,
                 range: 0...5760,
-                sendCallback: sendCallback,
+                sendCallback: { await sendCallback(.delay) },
                 precision: 0
             )
+            .focused($textFieldFocused, equals: .delay)
         }
     }
 
@@ -119,7 +121,7 @@ private struct IndividualDeviceSection: View {
 
                 TextField("Name", text: $uiState.name)
                     .frame(width: 80)
-                    .onSubmit { Task { await sendCallback() } }
+                    .onSubmit { Task { await sendCallback(.name) } }
                     .labelsHidden()
 
                 Spacer()
@@ -129,7 +131,7 @@ private struct IndividualDeviceSection: View {
 
                 Toggle("Toggle", isOn: $uiState.identify)
                     .onChange(of: uiState.identify) {
-                        Task { await sendCallback() }
+                        Task { await sendCallback(.identify) }
                     }
                     .toggleStyle(.button)
 
@@ -140,7 +142,7 @@ private struct IndividualDeviceSection: View {
 
                 Slider(value: $uiState.delay, in: 0...5760) {
                     editing in
-                    if !editing { Task { await sendCallback() } }
+                    if !editing { Task { await sendCallback(.delay) } }
                 }
 
                 TextField(
@@ -149,7 +151,7 @@ private struct IndividualDeviceSection: View {
                     format: .number.precision(.fractionLength(0))
                 )
                 .frame(width: 80)
-                .onSubmit { Task { await sendCallback() } }
+                .onSubmit { Task { await sendCallback(.delay) } }
                 .labelsHidden()
             }
         }
@@ -166,18 +168,27 @@ private struct IndividualDeviceSection: View {
 
 private enum SelectedDevice: Hashable {
     case all
-    case specific(Int)
+    case specific(_ deviceIndex: Int)
 }
 
 private struct MainTab_: View {
     @Binding var uiState: KHState
     var selectedDevice: SelectedDevice
-
-    var sendCallback: () async -> Void
+    var sendCallback: (KHParameters) async -> Void
 
     @Environment(KHAccess.self) private var khAccess: KHAccess
-    @FocusState private var textFieldFocused: Bool
+    @FocusState.Binding var textFieldFocused: KHParameters?
     @State private var showError: Bool = false
+    
+    func getActiveDeviceModel() -> DeviceModel? {
+        switch selectedDevice {
+        case .all:
+            khAccess.devices.first?.getModel()
+        case .specific(let i):
+            khAccess.devices[i].getModel()
+
+        }
+    }
 
     @ViewBuilder
     var bodyiOS: some View {
@@ -198,7 +209,7 @@ private struct MainTab_: View {
                     value: $uiState.volume,
                     format: .number.precision(.fractionLength(1))
                 )
-                .onSubmit { Task { await sendCallback() } }
+                .onSubmit { Task { await sendCallback(.volume) } }
                 #if os(iOS)
                     .keyboardType(.numberPad)
                 #endif
@@ -209,7 +220,7 @@ private struct MainTab_: View {
             Slider(value: $uiState.volume, in: 0...120, step: 3) {
                 Text("")
             } onEditingChanged: { editing in
-                if !editing { Task { await sendCallback() } }
+                if !editing { Task { await sendCallback(.volume) } }
             }
 
             Stepper(
@@ -220,7 +231,7 @@ private struct MainTab_: View {
             ) {
                 editing in
                 if editing { return }
-                Task { await sendCallback() }
+                Task { await sendCallback(.volume) }
             }
 
             Toggle(
@@ -229,9 +240,9 @@ private struct MainTab_: View {
                 isOn: $uiState.muted
             )
             // .toggleStyle(.button)
-            .onChange(of: uiState.muted) { Task { await sendCallback() } }
+            .onChange(of: uiState.muted) { Task { await sendCallback(.muted) } }
         }
-        .focused($textFieldFocused)
+        .focused($textFieldFocused, equals: .volume)
         .disabled(khAccess.status != .ready)
 
         Section("Logo brightness") {
@@ -240,7 +251,7 @@ private struct MainTab_: View {
                 value: $uiState.logoBrightness,
                 format: .percent.scale(1).precision(.fractionLength(0))
             )
-            .onSubmit { Task { await sendCallback() } }
+            .onSubmit { Task { await sendCallback(.logoBrightness) } }
             #if os(iOS)
                 .keyboardType(.numberPad)
             #endif
@@ -248,16 +259,25 @@ private struct MainTab_: View {
             Slider(value: $uiState.logoBrightness, in: 0...125, step: 5) {
                 Text("")
             } onEditingChanged: { editing in
-                if !editing { Task { await sendCallback() } }
+                if !editing { Task { await sendCallback(.logoBrightness) } }
             }
         }
-        .focused($textFieldFocused)
+        .focused($textFieldFocused, equals: .logoBrightness)
         .disabled(khAccess.status != .ready)
 
         Section("EQ") {
-            EqTab(eqs: $uiState.eqs, sendCallback: sendCallback)
+            // TODO this is cursed right now and should be changed somehow.
+            if let deviceModel = getActiveDeviceModel() {
+                EqTab(
+                    eqs: $uiState.eqs,
+                    sendCallback: sendCallback,
+                    deviceModel: deviceModel,
+                    textFieldFocused: $textFieldFocused,
+                )
+            } else {
+                Text("Device model could not be determined")
+            }
         }
-        .focused($textFieldFocused)
         .disabled(khAccess.status != .ready)
 
         Section("Auto-standby") {
@@ -298,7 +318,7 @@ private struct MainTab_: View {
                 .toggleStyle(.button)
                 // .toggleStyle(.switch)
                 .onChange(of: uiState.muted) {
-                    Task { await sendCallback() }
+                    Task { await sendCallback(.muted) }
                 }
                 .disabled(khAccess.status != .ready)
                 .labelsHidden()
@@ -309,7 +329,7 @@ private struct MainTab_: View {
 
                 Slider(value: $uiState.volume, in: 0...120, step: 3) {
                     editing in
-                    if !editing { Task { await sendCallback() } }
+                    if !editing { Task { await sendCallback(.volume) } }
                 }
 
                 TextField(
@@ -318,7 +338,7 @@ private struct MainTab_: View {
                     format: .number.precision(.fractionLength(1))
                 )
                 .frame(width: 80)
-                .onSubmit { Task { await sendCallback() } }
+                .onSubmit { Task { await sendCallback(.volume) } }
                 .labelsHidden()
             }
             GridRow {
@@ -326,7 +346,7 @@ private struct MainTab_: View {
 
                 Slider(value: $uiState.logoBrightness, in: 0...125, step: 5) {
                     editing in
-                    if !editing { Task { await sendCallback() } }
+                    if !editing { Task { await sendCallback(.logoBrightness) } }
                 }
 
                 TextField(
@@ -335,7 +355,7 @@ private struct MainTab_: View {
                     format: .percent.scale(1).precision(.fractionLength(0))
                 )
                 .frame(width: 80)
-                .onSubmit { Task { await sendCallback() } }
+                .onSubmit { Task { await sendCallback(.logoBrightness) } }
                 .labelsHidden()
             }
         }
@@ -343,7 +363,16 @@ private struct MainTab_: View {
         Text("EQ").font(.title2)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-        EqTab(eqs: $uiState.eqs, sendCallback: sendCallback)
+        if let deviceModel = getActiveDeviceModel() {
+            EqTab(
+                eqs: $uiState.eqs,
+                sendCallback: sendCallback,
+                deviceModel: deviceModel,
+                textFieldFocused: $textFieldFocused
+            )
+        } else {
+            Text("Device model could not be determined")
+        }
 
         Text("Auto-standby").font(.title2)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -374,15 +403,31 @@ struct MainTab: View {
 
     @State private var selectedDevice: SelectedDevice = .all
     @State private var showError: Bool = false
-    @FocusState private var textFieldFocused: Bool
-    @Environment(KHAccess.self) private var khAccess: KHAccess
 
-    func sendCallback() async {
+    @FocusState private var textFieldFocused: KHParameters?
+
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+    
+    func syncCommonToDeviceStates(_ parameter: KHParameters) {
+        deviceStates = deviceStates.map { state in
+            parameter.copy(from: commonState, into: state)
+        }
+    }
+
+    func syncDeviceStatesToCommon() {
+        commonState.updateIfAllAgree(deviceStates)
+    }
+
+    func sendCallback(_ parameter: KHParameters) async {
         switch selectedDevice {
         case .all:
             await khAccess.send(commonState)
+            guard khAccess.status == .ready else { return }
+            syncCommonToDeviceStates(parameter)
         case .specific(let i):
             await khAccess.sendIdentified(deviceStates[i])
+            guard khAccess.status == .ready else { return }
+            syncDeviceStatesToCommon()
         }
     }
 
@@ -402,13 +447,15 @@ struct MainTab: View {
                 MainTab_(
                     uiState: $commonState,
                     selectedDevice: selectedDevice,
-                    sendCallback: sendCallback
+                    sendCallback: sendCallback,
+                    textFieldFocused: $textFieldFocused
                 )
             case .specific(let i):
                 MainTab_(
                     uiState: $deviceStates[i],
                     selectedDevice: selectedDevice,
-                    sendCallback: sendCallback
+                    sendCallback: sendCallback,
+                    textFieldFocused: $textFieldFocused
                 )
             }
         }
@@ -421,7 +468,7 @@ struct MainTab: View {
                 rescanCallback: rescanCallback,
                 clearCacheCallback: clearCacheCallback
             )
-            if textFieldFocused {
+            if textFieldFocused != nil {
                 ToolbarDoneAndCancel(
                     textFieldFocused: $textFieldFocused,
                     sendCallback: sendCallback
@@ -446,13 +493,15 @@ struct MainTab: View {
                 MainTab_(
                     uiState: $commonState,
                     selectedDevice: selectedDevice,
-                    sendCallback: sendCallback
+                    sendCallback: sendCallback,
+                    textFieldFocused: $textFieldFocused
                 )
             case .specific(let i):
                 MainTab_(
                     uiState: $deviceStates[i],
                     selectedDevice: selectedDevice,
-                    sendCallback: sendCallback
+                    sendCallback: sendCallback,
+                    textFieldFocused: $textFieldFocused
                 )
             }
         }

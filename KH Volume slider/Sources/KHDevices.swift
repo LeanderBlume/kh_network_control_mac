@@ -201,7 +201,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     }
 
     private func _fetchParameterGroup(_ parameterGroup: KHParameterGroup) async throws {
-        for p in parameterGroup.parameters() {
+        for p in parameterGroup.parameters(getModel()) {
             try await _fetchParameter(p)
         }
         status = .ready
@@ -211,7 +211,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         _ parameterGroup: KHParameterGroup,
         newState: KHState
     ) async throws {
-        for p in parameterGroup.parameters() {
+        for p in parameterGroup.parameters(getModel()) {
             try await _sendParameter(p, newState: newState)
         }
         status = .ready

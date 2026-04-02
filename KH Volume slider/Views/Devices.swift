@@ -315,7 +315,7 @@ private struct NodeView: View {
         }
         let deviceModel = device.getModel()
         // Check if this path is already mapped to a parameter.
-        return KHParameters.allCases.filter {
+        return deviceModel.allParameters().filter {
             deviceModel.getDevicePath(for: $0) == node.pathToNode()
         }
     }
@@ -348,7 +348,7 @@ private struct NodeView: View {
 
             Section("UI Mapping") {
                 LabeledContent {
-                    Text(getMappedParameters().first?.rawValue ?? "None")
+                    Text(getMappedParameters().first?.description() ?? "None")
                 } label: {
                     Text("Mapped to:")
                 }
@@ -455,7 +455,7 @@ private struct ParameterMapper: View {
     var body: some View {
         VStack {
             #if os(macOS)
-                Text("Remapping UI element: \(parameter.rawValue)").font(.title2)
+                Text("Remapping UI element: \(parameter.description())").font(.title2)
             #endif
 
             List(
@@ -467,7 +467,7 @@ private struct ParameterMapper: View {
                     node.limits?.units != nil ? " (" + node.limits!.units! + ")" : ""
                 Text(node.name + unitString)
             }
-            .navigationTitle(Text(parameter.rawValue))
+            .navigationTitle(Text(parameter.description()))
             .overlay(alignment: .bottom) {
                 Button(action: setParameter) {
                     if let selection {
@@ -538,19 +538,19 @@ private struct ParameterMapperLink: View {
                 )
             )
         } label: {
-            Text(parameter.rawValue)
+            Text(parameter.description())
         }
     }
 }
 
 private struct ParameterMappingForDeviceModel: View {
     var deviceModel: DeviceModel
-    @State private var pathStrings: [String: String] = [:]
+    @State private var pathStrings: [KHParameters.ID: String] = [:]
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     private func updatePathStrings() {
-        for parameter in KHParameters.allCases {
-            pathStrings[parameter.rawValue] = deviceModel.getPathString(for: parameter)
+        for parameter in deviceModel.allParameters() {
+            pathStrings[parameter.id] = deviceModel.getPathString(for: parameter)
         }
     }
 
@@ -571,11 +571,11 @@ private struct ParameterMappingForDeviceModel: View {
                     updatePathStrings()
                 }
                 if let rootNode = getMatchingRootNode() {
-                    ForEach(KHParameters.allCases) { parameter in
+                    ForEach(deviceModel.allParameters()) { parameter in
                         ParameterMapperLink(
                             parameter: parameter,
                             rootNode: rootNode,
-                            pathString: $pathStrings[parameter.rawValue]
+                            pathString: $pathStrings[parameter.id]
                         )
                     }
                     .onAppear(perform: updatePathStrings)
