@@ -26,7 +26,7 @@ struct KHState: Codable, Equatable {
 
     init?(jsonData: JSONData, deviceModel: DeviceModel, deviceID: KHDevice.ID?) {
         var futureSelf: KHState = .init(deviceID: deviceID)
-        for p in KHParameters.allCases {
+        for p in deviceModel.allParameters() {
             guard
                 let updated = p.copy(
                     from: jsonData,
@@ -67,7 +67,7 @@ struct KHState: Codable, Equatable {
 
     mutating func updateIfAllAgree(_ states: [KHState]) {
         guard !states.isEmpty else { return }
-        for p in KHParameters.allCases.filter({ $0.allEqual(states) }) {
+        for p in KHParameters.allDefaultParameters.filter({ $0.allEqual(states) }) {
             self = p.copy(from: states.first!, into: self)
         }
     }
@@ -221,31 +221,73 @@ where T: Equatable, T: Codable, T: Sendable {
     }
 }
 
-enum KHParameters: String, CaseIterable, Identifiable {
-    case name = "Name"
-    case volume = "Volume"
-    case muted = "Mute"
-    case logoBrightness = "Logo brightness"
-    case standbyEnabled = "Enable auto-standby"
-    case standbyTimeout = "Auto-standby timeout"
-    case delay = "Delay"
-    case identify = "Identify (flash LED)"
+enum EQParameters: CaseIterable, Equatable {
+    case boost
+    case enabled
+    case frequency
+    case gain
+    case q
+    case type
 
-    case eq0boost = "EQ 1 Boost"
-    case eq0enabled = "EQ 1 Enabled"
-    case eq0frequency = "EQ 1 Frequency"
-    case eq0gain = "EQ 1 Gain"
-    case eq0q = "EQ 1 Q"
-    case eq0type = "EQ 1 Type"
+    func description() -> String { finalPathComponent().capitalized }
 
-    case eq1boost = "EQ 2 Boost"
-    case eq1enabled = "EQ 2 Enabled"
-    case eq1frequency = "EQ 2 Frequency"
-    case eq1gain = "EQ 2 Gain"
-    case eq1q = "EQ 2 Q"
-    case eq1type = "EQ 2 Type"
+    func finalPathComponent() -> String {
+        switch self {
+        case .boost: "boost"
+        case .enabled: "enabled"
+        case .frequency: "frequency"
+        case .gain: "gain"
+        case .q: "q"
+        case .type: "type"
+        }
+    }
+}
 
-    var id: String { self.rawValue }
+enum KHParameters: Identifiable, Equatable, Hashable {
+    case name
+    case volume
+    case muted
+    case logoBrightness
+    case standbyEnabled
+    case standbyTimeout
+    case delay
+    case identify
+    case eq(_ index: Int, _ name: String, _ eqParameter: EQParameters)
+
+    var id: String { self.description() }
+    
+    static var allDefaultParameters: [KHParameters] {
+        var result: [KHParameters] = [
+            .name,
+            .volume,
+            .muted,
+            .logoBrightness,
+            .standbyEnabled,
+            .standbyTimeout,
+            .delay,
+            .identify,
+        ]
+        for (i, n) in [(0, "eq2"), (1, "eq3")] {
+            for p in EQParameters.allCases {
+                result.append(.eq(i, n, p))
+            }
+        }
+        return result
+    }
+
+    func description() -> String {
+        return switch self {
+        case .name: "Name"
+        case .volume: "Volume"
+        case .muted: "Mute"
+        case .logoBrightness: "Logo brightness"
+        case .standbyEnabled: "Enable auto-standby"
+        case .standbyTimeout: "Auto-standby timeout"
+        case .delay: "Delay"
+        case .identify: "Identify (flash LED)"
+        case .eq(let i, _, let p): "EQ \(i) \(p.description())"
+        }
+    }
 
     func getDevicePathFallback() -> [String] {
         switch self {
@@ -265,79 +307,30 @@ enum KHParameters: String, CaseIterable, Identifiable {
             ["audio", "out", "delay"]
         case .identify:
             ["device", "identification", "visual"]
-
-        case .eq0boost:
-            ["audio", "out", "eq2", "boost"]
-        case .eq0enabled:
-            ["audio", "out", "eq2", "enabled"]
-        case .eq0frequency:
-            ["audio", "out", "eq2", "frequency"]
-        case .eq0gain:
-            ["audio", "out", "eq2", "gain"]
-        case .eq0q:
-            ["audio", "out", "eq2", "q"]
-        case .eq0type:
-            ["audio", "out", "eq2", "type"]
-
-        case .eq1boost:
-            ["audio", "out", "eq3", "boost"]
-        case .eq1enabled:
-            ["audio", "out", "eq3", "enabled"]
-        case .eq1frequency:
-            ["audio", "out", "eq3", "frequency"]
-        case .eq1gain:
-            ["audio", "out", "eq3", "gain"]
-        case .eq1q:
-            ["audio", "out", "eq3", "q"]
-        case .eq1type:
-            ["audio", "out", "eq3", "type"]
+        case .eq(_, let n, let p):
+            ["audio", "out", n, p.finalPathComponent()]
         }
     }
 
     private func getPathObject() -> any KHStatePathProtocol {
-        switch self {
-        case .name:
-            KHStatePath(\.name)
-        case .volume:
-            KHStatePath(\.volume)
-        case .muted:
-            KHStatePath(\.muted)
-        case .logoBrightness:
-            KHStatePath(\.logoBrightness)
-        case .standbyEnabled:
-            KHStatePath(\.standbyEnabled)
-        case .standbyTimeout:
-            KHStatePath(\.standbyTimeout)
-        case .delay:
-            KHStatePath(\.delay)
-        case .identify:
-            KHStatePath(\.identify)
-
-        case .eq0boost:
-            KHStatePath(\.eqs[0].boost)
-        case .eq0enabled:
-            KHStatePath(\.eqs[0].enabled)
-        case .eq0frequency:
-            KHStatePath(\.eqs[0].frequency)
-        case .eq0gain:
-            KHStatePath(\.eqs[0].gain)
-        case .eq0q:
-            KHStatePath(\.eqs[0].q)
-        case .eq0type:
-            KHStatePath(\.eqs[0].type)
-
-        case .eq1boost:
-            KHStatePath(\.eqs[1].boost)
-        case .eq1enabled:
-            KHStatePath(\.eqs[1].enabled)
-        case .eq1frequency:
-            KHStatePath(\.eqs[1].frequency)
-        case .eq1gain:
-            KHStatePath(\.eqs[1].gain)
-        case .eq1q:
-            KHStatePath(\.eqs[1].q)
-        case .eq1type:
-            KHStatePath(\.eqs[1].type)
+        return switch self {
+        case .name: KHStatePath(\.name)
+        case .volume: KHStatePath(\.volume)
+        case .muted: KHStatePath(\.muted)
+        case .logoBrightness: KHStatePath(\.logoBrightness)
+        case .standbyEnabled: KHStatePath(\.standbyEnabled)
+        case .standbyTimeout: KHStatePath(\.standbyTimeout)
+        case .delay: KHStatePath(\.delay)
+        case .identify: KHStatePath(\.identify)
+        case .eq(let i, _, let p):
+            switch p {
+            case .boost: KHStatePath(\.eqs[i].boost)
+            case .enabled: KHStatePath(\.eqs[i].enabled)
+            case .frequency: KHStatePath(\.eqs[i].frequency)
+            case .gain: KHStatePath(\.eqs[i].gain)
+            case .q: KHStatePath(\.eqs[i].q)
+            case .type: KHStatePath(\.eqs[i].type)
+            }
         }
     }
 
@@ -404,59 +397,14 @@ enum KHParameterGroup {
     case fetch
     case send
 
-    func parameters() -> [KHParameters] {
+    func parameters(_ deviceModel: DeviceModel) -> [KHParameters] {
         switch self {
         case .fetch:
-            return [
-                .volume,
-                .muted,
-                .logoBrightness,
-                .name,
-                .standbyEnabled,
-                .standbyTimeout,
-                .delay,
-                .identify,
-
-                .eq0boost,
-                .eq0enabled,
-                .eq0frequency,
-                .eq0gain,
-                .eq0q,
-                .eq0type,
-                .eq1boost,
-                .eq1enabled,
-                .eq1frequency,
-                .eq1gain,
-                .eq1q,
-                .eq1type,
-            ]
+            deviceModel.allParameters()
         case .send:
-            return [
-                .volume,
-                .muted,
-                .logoBrightness,
-                .standbyEnabled,
-                .standbyTimeout,
-                .delay,
-                .identify,
-
-                .eq0boost,
-                .eq0enabled,
-                .eq0frequency,
-                .eq0gain,
-                .eq0q,
-                .eq0type,
-                .eq1boost,
-                .eq1enabled,
-                .eq1frequency,
-                .eq1gain,
-                .eq1q,
-                .eq1type,
-            ]
+            deviceModel.allParameters().filter { $0 != .name }
         case .setup:
-            return [
-                .name
-            ]
+            [.name]
         }
     }
 }

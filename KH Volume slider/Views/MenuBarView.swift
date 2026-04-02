@@ -37,8 +37,6 @@ struct MenuBarView: View {
 
     @ViewBuilder
     var buttonBarTop: some View {
-        @Bindable var khAccess = khAccess
-
         HStack {
             Button("Main window", systemImage: "macwindow") {
                 openWindow(id: "main-window")
@@ -75,8 +73,6 @@ struct MenuBarView: View {
     }
 
     var body: some View {
-        @Bindable var khAccess = khAccess
-
         VStack(spacing: 20) {
             buttonBarTop
 

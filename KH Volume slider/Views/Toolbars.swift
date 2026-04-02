@@ -226,20 +226,24 @@ struct BrowserToolbar: ToolbarContent {
 
 // iOS only
 struct ToolbarDoneAndCancel: ToolbarContent {
-    @FocusState.Binding var textFieldFocused: Bool
-    var sendCallback: () async -> Void
+    @FocusState.Binding var textFieldFocused: KHParameters?
+    var sendCallback: (KHParameters) async -> Void
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .confirmationAction) {
             Button("Done", systemImage: "checkmark") {
-                Task { await sendCallback() }
-                textFieldFocused = false
+                guard let p = textFieldFocused else {
+                    print("Impossible case: No text field is focused.")
+                    return
+                }
+                Task { await sendCallback(p) }
+                textFieldFocused = nil
             }
             .buttonStyle(.borderedProminent)
         }
         ToolbarItem(placement: .cancellationAction) {
             Button("Cancel", systemImage: "keyboard.chevron.compact.down") {
-                textFieldFocused = false
+                textFieldFocused = nil
             }
         }
     }
