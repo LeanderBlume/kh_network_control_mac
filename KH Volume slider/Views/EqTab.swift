@@ -67,15 +67,15 @@ private struct EqBandPanel: View {
     @Binding var q: Double
     @Binding var boost: Double
     @Binding var gain: Double
-    var sendCallback: (KHParameters) async -> Void
-    @FocusState.Binding var textFieldFocused: KHParameters?
+    var sendCallback: (SSCParameter) async -> Void
+    @FocusState.Binding var textFieldFocused: SSCParameter?
 
     private struct SliderParams: Identifiable {
         var name: String
         var value: Binding<Double>
         var range: ClosedRange<Double>
         var logarithmic: Bool
-        var eqParameter: EQParameters
+        var eqParameter: EQParameter
 
         var id: String { name }
     }
@@ -247,8 +247,8 @@ private struct EqPanel: View {
     @Binding var eq: Eq
     @Binding var selectedEqBand: Int
     // @State var position = ScrollPosition
-    var sendCallback: (KHParameters) async -> Void
-    @FocusState.Binding var textFieldFocused: KHParameters?
+    var sendCallback: (SSCParameter) async -> Void
+    @FocusState.Binding var textFieldFocused: SSCParameter?
 
     var body: some View {
         BandPicker(
@@ -281,9 +281,9 @@ private struct EqPanel: View {
 
 struct EqTab: View {
     @Binding var eqs: [Eq]
-    var sendCallback: (KHParameters) async -> Void
+    var sendCallback: (SSCParameter) async -> Void
     var deviceModel: DeviceModel
-    @FocusState.Binding var textFieldFocused: KHParameters?
+    @FocusState.Binding var textFieldFocused: SSCParameter?
 
     @State private var selectedEq: Int = 0
     @State var selectedBands: [Int] = [0, 0]

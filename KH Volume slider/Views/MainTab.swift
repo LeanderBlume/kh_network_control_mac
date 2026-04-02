@@ -10,8 +10,8 @@ import SwiftUI
 
 private struct AutoStandbySection: View {
     @Binding var uiState: KHState
-    var sendCallback: (KHParameters) async -> Void
-    @FocusState.Binding var textFieldFocused: KHParameters?
+    var sendCallback: (SSCParameter) async -> Void
+    @FocusState.Binding var textFieldFocused: SSCParameter?
 
     @ViewBuilder
     var bodyiOS: some View {
@@ -86,9 +86,9 @@ private struct AutoStandbySection: View {
 
 private struct IndividualDeviceSection: View {
     @Binding var uiState: KHState
-    var sendCallback: (KHParameters) async -> Void
+    var sendCallback: (SSCParameter) async -> Void
 
-    @FocusState.Binding var textFieldFocused: KHParameters?
+    @FocusState.Binding var textFieldFocused: SSCParameter?
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     @ViewBuilder
@@ -174,10 +174,10 @@ private enum SelectedDevice: Hashable {
 private struct MainTab_: View {
     @Binding var uiState: KHState
     var selectedDevice: SelectedDevice
-    var sendCallback: (KHParameters) async -> Void
+    var sendCallback: (SSCParameter) async -> Void
 
     @Environment(KHAccess.self) private var khAccess: KHAccess
-    @FocusState.Binding var textFieldFocused: KHParameters?
+    @FocusState.Binding var textFieldFocused: SSCParameter?
     @State private var showError: Bool = false
     
     func getActiveDeviceModel() -> DeviceModel? {
@@ -404,11 +404,11 @@ struct MainTab: View {
     @State private var selectedDevice: SelectedDevice = .all
     @State private var showError: Bool = false
 
-    @FocusState private var textFieldFocused: KHParameters?
+    @FocusState private var textFieldFocused: SSCParameter?
 
     @Environment(KHAccess.self) private var khAccess: KHAccess
     
-    func syncCommonToDeviceStates(_ parameter: KHParameters) {
+    func syncCommonToDeviceStates(_ parameter: SSCParameter) {
         deviceStates = deviceStates.map { state in
             parameter.copy(from: commonState, into: state)
         }
@@ -418,7 +418,7 @@ struct MainTab: View {
         commonState.updateIfAllAgree(deviceStates)
     }
 
-    func sendCallback(_ parameter: KHParameters) async {
+    func sendCallback(_ parameter: SSCParameter) async {
         switch selectedDevice {
         case .all:
             await khAccess.send(commonState)

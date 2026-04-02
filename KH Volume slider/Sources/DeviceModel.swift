@@ -14,9 +14,9 @@ protocol DeviceModelProtocol: Codable, Hashable, Identifiable {
 
     func description() -> String
 
-    func getDevicePath(for: KHParameters) -> [String]
-    func setDevicePath(for: KHParameters, to path: [String]?)
-    func resetDevicePath(for: KHParameters)
+    func getDevicePath(for: SSCParameter) -> [String]
+    func setDevicePath(for: SSCParameter, to path: [String]?)
+    func resetDevicePath(for: SSCParameter)
     func resetAllDevicePaths()
 }
 
@@ -49,11 +49,11 @@ struct DeviceModel: DeviceModelProtocol {
         return names[eqIndex]
     }
 
-    func allParameters() -> [KHParameters] {
+    func allParameters() -> [SSCParameter] {
         switch (product, version) {
         case ("KH 120 II", "1_1_14"): fallthrough
         default:
-            var result: [KHParameters] = [
+            var result: [SSCParameter] = [
                 .name,
                 .volume,
                 .muted,
@@ -64,7 +64,7 @@ struct DeviceModel: DeviceModelProtocol {
                 .identify,
             ]
             for i in 0..<numEqs() {
-                for p in EQParameters.allCases {
+                for p in EQParameter.allCases {
                     result.append(.eq(i, eqName(i), p))
                 }
             }
@@ -81,16 +81,16 @@ struct DeviceModel: DeviceModelProtocol {
         return try? decoder.decode(ParameterPathDict.self, from: data)
     }
 
-    func getDevicePath(for parameter: KHParameters) -> [String] {
+    func getDevicePath(for parameter: SSCParameter) -> [String] {
         Self.getPathDict()?[self]?[parameter.description()]
             ?? parameter.getDevicePathFallback()
     }
 
-    func getPathString(for parameter: KHParameters) -> String {
+    func getPathString(for parameter: SSCParameter) -> String {
         "/" + getDevicePath(for: parameter).joined(separator: "/")
     }
 
-    func setDevicePath(for parameter: KHParameters, to path: [String]?) {
+    func setDevicePath(for parameter: SSCParameter, to path: [String]?) {
         guard var topDict = Self.getPathDict() else {
             print("Error getting path dict when setting")
             return
@@ -105,7 +105,7 @@ struct DeviceModel: DeviceModelProtocol {
         AppStorage("paths").wrappedValue = data
     }
 
-    func resetDevicePath(for parameter: KHParameters) {
+    func resetDevicePath(for parameter: SSCParameter) {
         setDevicePath(for: parameter, to: nil)
     }
 

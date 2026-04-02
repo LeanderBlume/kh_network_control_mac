@@ -308,7 +308,7 @@ private struct NodeView: View {
         values = .init(fromNode: node)
     }
 
-    private func getMappedParameters() -> [KHParameters] {
+    private func getMappedParameters() -> [SSCParameter] {
         guard let device = khAccess.getDeviceByID(node.id.deviceID) else {
             print("Device with id \(node.id.deviceID) not found")
             return []
@@ -434,7 +434,7 @@ private struct DeviceBrowser: View {
 }
 
 private struct ParameterMapper: View {
-    var parameter: KHParameters
+    var parameter: SSCParameter
     var rootNode: SSCNode
     @Binding var pathString: String?
     @State var selection: SSCNode.ID? = nil
@@ -523,7 +523,7 @@ private struct DeviceBrowserLink: View {
 }
 
 private struct ParameterMapperLink: View {
-    var parameter: KHParameters
+    var parameter: SSCParameter
     var rootNode: SSCNode
     @Binding var pathString: String?
 
@@ -545,7 +545,7 @@ private struct ParameterMapperLink: View {
 
 private struct ParameterMappingForDeviceModel: View {
     var deviceModel: DeviceModel
-    @State private var pathStrings: [KHParameters.ID: String] = [:]
+    @State private var pathStrings: [SSCParameter.ID: String] = [:]
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     private func updatePathStrings() {

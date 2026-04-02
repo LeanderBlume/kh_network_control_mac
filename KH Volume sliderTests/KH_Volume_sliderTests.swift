@@ -254,7 +254,7 @@ struct TestJSONEncoding {
 
 struct TestKHParameter {
     @Test func main() {
-        let vol = KHParameters.volume
+        let vol = SSCParameter.volume
         #expect(vol.getDevicePath() == ["audio", "out", "level"])
         vol.setDevicePath(to: ["bla", "blub"])
         #expect(vol.getDevicePath() == ["bla", "blub"])

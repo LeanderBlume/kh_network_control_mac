@@ -226,8 +226,8 @@ struct BrowserToolbar: ToolbarContent {
 
 // iOS only
 struct ToolbarDoneAndCancel: ToolbarContent {
-    @FocusState.Binding var textFieldFocused: KHParameters?
-    var sendCallback: (KHParameters) async -> Void
+    @FocusState.Binding var textFieldFocused: SSCParameter?
+    var sendCallback: (SSCParameter) async -> Void
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .confirmationAction) {

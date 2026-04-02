@@ -161,7 +161,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
 
     func getModel() -> DeviceModel { DeviceModel(self) }
 
-    private func _fetchParameter(_ parameter: KHParameters) async throws {
+    private func _fetchParameter(_ parameter: SSCParameter) async throws {
         do {
             state = try await parameter.fetch(
                 into: state,
@@ -178,7 +178,7 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         }
     }
 
-    private func _sendParameter(_ parameter: KHParameters, newState: KHState)
+    private func _sendParameter(_ parameter: SSCParameter, newState: KHState)
         async throws
     {
         do {

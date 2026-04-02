@@ -67,7 +67,7 @@ struct KHState: Codable, Equatable {
 
     mutating func updateIfAllAgree(_ states: [KHState]) {
         guard !states.isEmpty else { return }
-        for p in KHParameters.allDefaultParameters.filter({ $0.allEqual(states) }) {
+        for p in SSCParameter.allDefaultParameters.filter({ $0.allEqual(states) }) {
             self = p.copy(from: states.first!, into: self)
         }
     }
@@ -221,7 +221,7 @@ where T: Equatable, T: Codable, T: Sendable {
     }
 }
 
-enum EQParameters: CaseIterable, Equatable {
+enum EQParameter: CaseIterable, Equatable {
     case boost
     case enabled
     case frequency
@@ -243,7 +243,7 @@ enum EQParameters: CaseIterable, Equatable {
     }
 }
 
-enum KHParameters: Identifiable, Equatable, Hashable {
+enum SSCParameter: Identifiable, Equatable, Hashable {
     case name
     case volume
     case muted
@@ -252,12 +252,12 @@ enum KHParameters: Identifiable, Equatable, Hashable {
     case standbyTimeout
     case delay
     case identify
-    case eq(_ index: Int, _ name: String, _ eqParameter: EQParameters)
+    case eq(_ index: Int, _ name: String, _ eqParameter: EQParameter)
 
     var id: String { self.description() }
     
-    static var allDefaultParameters: [KHParameters] {
-        var result: [KHParameters] = [
+    static var allDefaultParameters: [SSCParameter] {
+        var result: [SSCParameter] = [
             .name,
             .volume,
             .muted,
@@ -268,7 +268,7 @@ enum KHParameters: Identifiable, Equatable, Hashable {
             .identify,
         ]
         for (i, n) in [(0, "eq2"), (1, "eq3")] {
-            for p in EQParameters.allCases {
+            for p in EQParameter.allCases {
                 result.append(.eq(i, n, p))
             }
         }
@@ -397,7 +397,7 @@ enum KHParameterGroup {
     case fetch
     case send
 
-    func parameters(_ deviceModel: DeviceModel) -> [KHParameters] {
+    func parameters(_ deviceModel: DeviceModel) -> [SSCParameter] {
         switch self {
         case .fetch:
             deviceModel.allParameters()
