@@ -433,14 +433,16 @@ struct MainTab: View {
 
     var bodyiOS: some View {
         Form {
-            Picker("Device:", selection: $selectedDevice) {
-                Text("All").tag(SelectedDevice.all)
-
-                ForEach(deviceStates.indices, id: \.self) { i in
-                    Text(deviceStates[i].name).tag(SelectedDevice.specific(i))
+            Section("Select device") {
+                Picker("Device:", selection: $selectedDevice) {
+                    Text("All").tag(SelectedDevice.all)
+                    
+                    ForEach(deviceStates.indices, id: \.self) { i in
+                        Text(deviceStates[i].name).tag(SelectedDevice.specific(i))
+                    }
                 }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
 
             switch selectedDevice {
             case .all:
@@ -459,7 +461,7 @@ struct MainTab: View {
                 )
             }
         }
-        .toolbar(removing: .title)
+        // .toolbar(removing: .title)
         .toolbar {
             MainToolbar(
                 showError: $showError,
