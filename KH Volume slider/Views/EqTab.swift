@@ -113,16 +113,14 @@ private struct EqBandPanel: View {
         ]
     }
 
+    @ViewBuilder
     var bodyiOS: some View {
+        EqTypePicker(bandEnabled: enabled, type: $type)
+            .onChange(of: type) {
+                Task { await sendCallback(.eq(eqIndex, eqName, .type)) }
+            }
+
         Grid(alignment: .leading) {
-            EqTypePicker(bandEnabled: enabled, type: $type)
-                .onChange(of: type) {
-                    Task { await sendCallback(.eq(eqIndex, eqName, .type)) }
-                }
-                .padding(.vertical, 5)
-
-            Divider()
-
             ForEach(sliders.indices, id: \.self) { i in
                 LabeledSliderTextField(
                     name: sliders[i].name,
@@ -145,6 +143,7 @@ private struct EqBandPanel: View {
         }
     }
 
+    @ViewBuilder
     var bodymacOS: some View {
         Grid(alignment: .topLeading) {
             GridRow {
@@ -152,7 +151,7 @@ private struct EqBandPanel: View {
                     .onChange(of: type) {
                         Task { await sendCallback(.eq(eqIndex, eqName, .type)) }
                     }
-                    .padding(.vertical, 5)
+                    .padding(.bottom, 5)
             }
             ForEach(sliders.indices, id: \.self) { i in
                 GridRow {
@@ -252,42 +251,30 @@ private struct EqPanel: View {
     @FocusState.Binding var textFieldFocused: SSCParameter?
 
     var body: some View {
-        VStack {
-            BandPicker(
-                numBands: eq.numBands ?? 0,
-                selectedEqBand: $selectedEqBand,
-                enabled: $eq.enabled
-            )
-            .onChange(of: eq.enabled) {
-                Task { await sendCallback(.eq(eqIndex, eqName, .enabled)) }
-            }
-            #if os(iOS)
-                .padding(.bottom, 7)
-            #elseif os(macOS)
-                .padding(.bottom, 15)
-            #endif
+        BandPicker(
+            numBands: eq.numBands ?? 0,
+            selectedEqBand: $selectedEqBand,
+            enabled: $eq.enabled
+        )
+        .onChange(of: eq.enabled) {
+            Task { await sendCallback(.eq(eqIndex, eqName, .enabled)) }
+        }
 
-            #if os(iOS)
-                Divider()
-            #endif
-            
-            ZStack {
-                ForEach(0..<(eq.numBands ?? -1), id: \.self) { i in
-                    EqBandPanel(
-                        eqIndex: eqIndex,
-                        eqName: eqName,
-                        enabled: eq.enabled[i],
-                        type: $eq.type[i],
-                        frequency: $eq.frequency[i],
-                        q: $eq.q[i],
-                        boost: $eq.boost[i],
-                        gain: $eq.gain[i],
-                        sendCallback: sendCallback,
-                        textFieldFocused: $textFieldFocused
-                    )
-                    .opacity(i == selectedEqBand ? 1 : 0)
-                }
-            }
+        if selectedEqBand >= eq.numBands ?? -1 {
+            Text("Band index out of range")
+        } else {
+            EqBandPanel(
+                eqIndex: eqIndex,
+                eqName: eqName,
+                enabled: eq.enabled[selectedEqBand],
+                type: $eq.type[selectedEqBand],
+                frequency: $eq.frequency[selectedEqBand],
+                q: $eq.q[selectedEqBand],
+                boost: $eq.boost[selectedEqBand],
+                gain: $eq.gain[selectedEqBand],
+                sendCallback: sendCallback,
+                textFieldFocused: $textFieldFocused
+            )
         }
     }
 }
@@ -312,18 +299,13 @@ struct EqTab: View {
         }
         .pickerStyle(.segmented)
 
-        ZStack {
-            ForEach(eqs.indices, id: \.self) { i in
-                EqPanel(
-                    eqIndex: i,
-                    eqName: deviceModel.eqName(i),
-                    eq: $eqs[i],
-                    selectedEqBand: $selectedBands[i],
-                    sendCallback: sendCallback,
-                    textFieldFocused: $textFieldFocused
-                )
-                .opacity(i == selectedEq ? 1 : 0)
-            }
-        }
+        EqPanel(
+            eqIndex: selectedEq,
+            eqName: deviceModel.eqName(selectedEq),
+            eq: $eqs[selectedEq],
+            selectedEqBand: $selectedBands[selectedEq],
+            sendCallback: sendCallback,
+            textFieldFocused: $textFieldFocused
+        )
     }
 }
