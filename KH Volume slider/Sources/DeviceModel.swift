@@ -52,23 +52,7 @@ struct DeviceModel: DeviceModelProtocol {
     func allParameters() -> [SSCParameter] {
         switch (product, version) {
         case ("KH 120 II", "1_1_14"): fallthrough
-        default:
-            var result: [SSCParameter] = [
-                .name,
-                .volume,
-                .muted,
-                .logoBrightness,
-                .standbyEnabled,
-                .standbyTimeout,
-                .delay,
-                .identify,
-            ]
-            for i in 0..<numEqs() {
-                for p in EQParameter.allCases {
-                    result.append(.eq(i, eqName(i), p))
-                }
-            }
-            return result
+        default: SSCParameter.allDefaultParameters
         }
 
     }
@@ -82,8 +66,7 @@ struct DeviceModel: DeviceModelProtocol {
     }
 
     func getDevicePath(for parameter: SSCParameter) -> [String] {
-        Self.getPathDict()?[self]?[parameter.description()]
-            ?? parameter.getDevicePathFallback()
+        Self.getPathDict()?[self]?[parameter.id] ?? parameter.getDevicePathFallback()
     }
 
     func getPathString(for parameter: SSCParameter) -> String {
