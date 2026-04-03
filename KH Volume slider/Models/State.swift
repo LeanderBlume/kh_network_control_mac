@@ -393,7 +393,6 @@ enum SSCParameter: Identifiable, Equatable, Hashable {
 }
 
 enum KHParameterGroup {
-    case setup
     case fetch
     case send
 
@@ -403,8 +402,6 @@ enum KHParameterGroup {
             deviceModel.allParameters()
         case .send:
             deviceModel.allParameters().filter { $0 != .name }
-        case .setup:
-            [.name]
         }
     }
 }
