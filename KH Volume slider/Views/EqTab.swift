@@ -274,7 +274,7 @@ private struct EqPanel: View {
                 gain: $eq.gain[selectedEqBand],
                 sendCallback: sendCallback,
                 textFieldFocused: $textFieldFocused
-            )
+            ).id(selectedEqBand)
         }
     }
 }
@@ -306,6 +306,6 @@ struct EqTab: View {
             selectedEqBand: $selectedBands[selectedEq],
             sendCallback: sendCallback,
             textFieldFocused: $textFieldFocused
-        )
+        ).id(selectedEq)
     }
 }
