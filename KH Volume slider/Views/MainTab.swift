@@ -472,24 +472,21 @@ struct MainTab: View {
                 .pickerStyle(.segmented)
             }
 
-            switch selectedDevice {
-            case .all:
-                MainTab_(
-                    uiState: $commonState,
-                    selectedDevice: selectedDevice,
-                    mismatchedParameters: $mismatchedParameters,
-                    sendCallback: sendCallback,
-                    textFieldFocused: $textFieldFocused
-                )
-            case .specific(let i):
-                MainTab_(
-                    uiState: $deviceStates[i],
-                    selectedDevice: selectedDevice,
-                    mismatchedParameters: $mismatchedParameters,
-                    sendCallback: sendCallback,
-                    textFieldFocused: $textFieldFocused
-                )
-            }
+            let uiStateBinding =
+                switch selectedDevice {
+                case .all:
+                    $commonState
+                case .specific(let i):
+                    $deviceStates[i]
+                }
+
+            MainTab_(
+                uiState: uiStateBinding,
+                selectedDevice: selectedDevice,
+                mismatchedParameters: $mismatchedParameters,
+                sendCallback: sendCallback,
+                textFieldFocused: $textFieldFocused
+            ).id(selectedDevice)
         }
         // .toolbar(removing: .title)
         .toolbar {
@@ -520,24 +517,21 @@ struct MainTab: View {
             }
             .pickerStyle(.segmented)
 
-            switch selectedDevice {
-            case .all:
-                MainTab_(
-                    uiState: $commonState,
-                    selectedDevice: selectedDevice,
-                    mismatchedParameters: $mismatchedParameters,
-                    sendCallback: sendCallback,
-                    textFieldFocused: $textFieldFocused
-                )
-            case .specific(let i):
-                MainTab_(
-                    uiState: $deviceStates[i],
-                    selectedDevice: selectedDevice,
-                    mismatchedParameters: $mismatchedParameters,
-                    sendCallback: sendCallback,
-                    textFieldFocused: $textFieldFocused
-                )
-            }
+            let uiStateBinding =
+                switch selectedDevice {
+                case .all:
+                    $commonState
+                case .specific(let i):
+                    $deviceStates[i]
+                }
+
+            MainTab_(
+                uiState: uiStateBinding,
+                selectedDevice: selectedDevice,
+                mismatchedParameters: $mismatchedParameters,
+                sendCallback: sendCallback,
+                textFieldFocused: $textFieldFocused
+            ).id(selectedDevice)
         }
         .disabled(khAccess.status != .ready)
         .toolbar {
