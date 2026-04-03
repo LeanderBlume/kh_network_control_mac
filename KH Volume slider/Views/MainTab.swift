@@ -390,7 +390,7 @@ private struct MainTab_: View {
         sectionTitleMacOS(
             title: "EQ",
             parametersInSection: Set(SSCParameter.allDefaultParameters).filter({
-                if case .eq(_, _, _) = $0 { true } else { false }
+                if case .eq = $0 { true } else { false }
             }),
         )
 
@@ -449,7 +449,6 @@ struct MainTab: View {
     }
 
     func sendCallback(_ parameter: SSCParameter) async {
-        print("Sending", parameter)
         switch selectedDevice {
         case .all:
             syncCommonToDeviceStates(parameter)
