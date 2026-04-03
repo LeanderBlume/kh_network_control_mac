@@ -374,7 +374,7 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
             do {
                 devices.append(try await KHDevice(connection))
             } catch {
-                print("Error initiating device:", error)
+                print("Error initializing device:", error)
                 continue
             }
         }
