@@ -60,6 +60,7 @@ private struct EqTypePicker: View {
 
 private struct EqBandPanel: View {
     var eqIndex: Int
+    var band: Int
     var eqName: String
     var enabled: Bool
     @Binding var type: String
@@ -117,7 +118,7 @@ private struct EqBandPanel: View {
     var bodyiOS: some View {
         EqTypePicker(bandEnabled: enabled, type: $type)
             .onChange(of: type) {
-                Task { await sendCallback(.eq(eqIndex, eqName, .type)) }
+                Task { await sendCallback(.eq(eqIndex, band, eqName, .type)) }
             }
 
         Grid(alignment: .leading) {
@@ -128,12 +129,12 @@ private struct EqBandPanel: View {
                     range: sliders[i].range,
                     logarithmic: sliders[i].logarithmic,
                     sendCallback: {
-                        await sendCallback(.eq(eqIndex, eqName, sliders[i].eqParameter))
+                        await sendCallback(.eq(eqIndex, band, eqName, sliders[i].eqParameter))
                     }
                 )
                 .focused(
                     $textFieldFocused,
-                    equals: .eq(eqIndex, eqName, sliders[i].eqParameter)
+                    equals: .eq(eqIndex, band, eqName, sliders[i].eqParameter)
                 )
 
                 if i + 1 != sliders.count {
@@ -149,7 +150,7 @@ private struct EqBandPanel: View {
             GridRow {
                 EqTypePicker(bandEnabled: enabled, type: $type)
                     .onChange(of: type) {
-                        Task { await sendCallback(.eq(eqIndex, eqName, .type)) }
+                        Task { await sendCallback(.eq(eqIndex, band, eqName, .type)) }
                     }
                     .padding(.bottom, 5)
             }
@@ -162,7 +163,7 @@ private struct EqBandPanel: View {
                         logarithmic: sliders[i].logarithmic,
                         sendCallback: {
                             await sendCallback(
-                                .eq(eqIndex, eqName, sliders[i].eqParameter)
+                                .eq(eqIndex, band, eqName, sliders[i].eqParameter)
                             )
                         }
                     )
@@ -257,7 +258,7 @@ private struct EqPanel: View {
             enabled: $eq.enabled
         )
         .onChange(of: eq.enabled) {
-            Task { await sendCallback(.eq(eqIndex, eqName, .enabled)) }
+            Task { await sendCallback(.eq(eqIndex, selectedEqBand, eqName, .enabled)) }
         }
 
         if selectedEqBand >= eq.numBands ?? -1 {
@@ -265,6 +266,7 @@ private struct EqPanel: View {
         } else {
             EqBandPanel(
                 eqIndex: eqIndex,
+                band: selectedEqBand,
                 eqName: eqName,
                 enabled: eq.enabled[selectedEqBand],
                 type: $eq.type[selectedEqBand],

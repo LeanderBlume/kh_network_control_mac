@@ -66,10 +66,9 @@ struct KHState: Codable, Equatable {
     }
 }
 
-private protocol KHStatePathProtocol: Equatable {
-    associatedtype T: Equatable, Codable, Sendable
-
-    var keyPath: WritableKeyPath<KHState, T> { get }
+private protocol StateParameterBridgeProtocol: Equatable {
+    // associatedtype T: Equatable, Codable, Sendable
+    // var keyPath: WritableKeyPath<KHState, T> { get }
 
     func copy(from: KHState, into: KHState) -> KHState
     func copy(from: JSONData, into: KHState, devicePath: [String]) -> KHState?
@@ -93,28 +92,32 @@ private protocol KHStatePathProtocol: Equatable {
     func allEqual(_ states: [KHState]) -> Bool
 }
 
-private struct KHStatePath<T>: KHStatePathProtocol
-where T: Equatable, T: Codable, T: Sendable {
-    let keyPath: WritableKeyPath<KHState, T>
+private struct StateParameterBridge<
+    TState: Codable & Equatable & Sendable,
+    TDevice: Codable & Equatable & Sendable
+>:
+    StateParameterBridgeProtocol
+{
+    private let keyPath: WritableKeyPath<KHState, TState>
 
-    init(_ keyPath: WritableKeyPath<KHState, T>) {
+    init(_ keyPath: WritableKeyPath<KHState, TState>) {
         self.keyPath = keyPath
     }
 
-    private func get(from state: KHState) -> T {
+    private func get(from state: KHState) -> TState {
         state[keyPath: keyPath]
     }
 
-    private func get(from jsonData: JSONData) -> T? {
+    private func get(from jsonData: JSONData) -> TState? {
         switch jsonData {
         case .array:
-            jsonData.asArrayAny() as? T
+            jsonData.asArrayAny() as? TState
         default:
-            jsonData.asAny() as? T
+            jsonData.asAny() as? TState
         }
     }
 
-    private func set(_ value: T, into state: KHState) -> KHState {
+    private func set(_ value: TState, into state: KHState) -> KHState {
         var newState = state
         newState[keyPath: keyPath] = value
         return newState
@@ -178,7 +181,7 @@ where T: Equatable, T: Codable, T: Sendable {
         devicePath: [String],
         parameterTree: SSCNode? = nil
     ) async throws -> KHState {
-        let newValue: T = try await connection.fetchSSCValue(path: devicePath)
+        let newValue: TState = try await connection.fetchSSCValue(path: devicePath)
         var newState = state
         newState[keyPath: keyPath] = newValue
         if let parameterTree {
@@ -245,10 +248,15 @@ enum SSCParameter: Identifiable, Equatable, Hashable {
     case standbyTimeout
     case delay
     case identify
-    case eq(_ index: Int, _ name: String, _ eqParameter: EQParameter)
+    case eq(
+        _ eqIndex: Int,
+        _ bandIndex: Int,
+        _ eqName: String,
+        _ eqParameter: EQParameter
+    )
 
     var id: String { self.description() }
-    
+
     static var allDefaultParameters: [SSCParameter] {
         var result: [SSCParameter] = [
             .name,
@@ -260,9 +268,11 @@ enum SSCParameter: Identifiable, Equatable, Hashable {
             .delay,
             .identify,
         ]
-        for (i, n) in [(0, "eq2"), (1, "eq3")] {
-            for p in EQParameter.allCases {
-                result.append(.eq(i, n, p))
+        for (i, name, numBands) in [(0, "eq2", 10), (1, "eq3", 20)] {
+            for band in 0..<numBands {
+                for p in EQParameter.allCases {
+                    result.append(.eq(i, band, name, p))
+                }
             }
         }
         return result
@@ -278,7 +288,7 @@ enum SSCParameter: Identifiable, Equatable, Hashable {
         case .standbyTimeout: "Auto-standby timeout"
         case .delay: "Delay"
         case .identify: "Identify (flash LED)"
-        case .eq(let i, _, let p): "EQ \(i) \(p.description())"
+        case .eq(let i, let b, _, let p): "EQ \(i + 1) band \(b + 1) \(p.description())"
         }
     }
 
@@ -300,29 +310,43 @@ enum SSCParameter: Identifiable, Equatable, Hashable {
             ["audio", "out", "delay"]
         case .identify:
             ["device", "identification", "visual"]
-        case .eq(_, let n, let p):
+        case .eq(_, _, let n, let p):
             ["audio", "out", n, p.finalPathComponent()]
         }
     }
 
-    private func getPathObject() -> any KHStatePathProtocol {
+    private func getPathObject() -> any StateParameterBridgeProtocol {
         return switch self {
-        case .name: KHStatePath(\.name)
-        case .volume: KHStatePath(\.volume)
-        case .muted: KHStatePath(\.muted)
-        case .logoBrightness: KHStatePath(\.logoBrightness)
-        case .standbyEnabled: KHStatePath(\.standbyEnabled)
-        case .standbyTimeout: KHStatePath(\.standbyTimeout)
-        case .delay: KHStatePath(\.delay)
-        case .identify: KHStatePath(\.identify)
-        case .eq(let i, _, let p):
+        case .name:
+            StateParameterBridge<String, String>(\.name)
+        case .volume:
+            StateParameterBridge<Double, Double>(\.volume)
+        case .muted:
+            StateParameterBridge<Bool, Bool>(\.muted)
+        case .logoBrightness:
+            StateParameterBridge<Double, Double>(\.logoBrightness)
+        case .standbyEnabled:
+            StateParameterBridge<Bool, Bool>(\.standbyEnabled)
+        case .standbyTimeout:
+            StateParameterBridge<Double, Double>(\.standbyTimeout)
+        case .delay:
+            StateParameterBridge<Double, Double>(\.delay)
+        case .identify:
+            StateParameterBridge<Bool, Bool>(\.identify)
+        case .eq(let i, let b, _, let p):
             switch p {
-            case .boost: KHStatePath(\.eqs[i].boost)
-            case .enabled: KHStatePath(\.eqs[i].enabled)
-            case .frequency: KHStatePath(\.eqs[i].frequency)
-            case .gain: KHStatePath(\.eqs[i].gain)
-            case .q: KHStatePath(\.eqs[i].q)
-            case .type: KHStatePath(\.eqs[i].type)
+            case .boost:
+                StateParameterBridge<Double, [Double]>(\.eqs[i].boost[b])
+            case .enabled:
+                StateParameterBridge<Bool, [Bool]>(\.eqs[i].enabled[b])
+            case .frequency:
+                StateParameterBridge<Double, [Double]>(\.eqs[i].frequency[b])
+            case .gain:
+                StateParameterBridge<Double, [Double]>(\.eqs[i].gain[b])
+            case .q:
+                StateParameterBridge<Double, [Double]>(\.eqs[i].q[b])
+            case .type:
+                StateParameterBridge<String, [String]>(\.eqs[i].type[b])
             }
         }
     }
