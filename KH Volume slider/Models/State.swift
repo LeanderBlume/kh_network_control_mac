@@ -64,13 +64,6 @@ struct KHState: Codable, Equatable {
             deviceID: deviceID
         )
     }
-
-    mutating func updateIfAllAgree(_ states: [KHState]) {
-        guard !states.isEmpty else { return }
-        for p in SSCParameter.allDefaultParameters.filter({ $0.allEqual(states) }) {
-            self = p.copy(from: states.first!, into: self)
-        }
-    }
 }
 
 private protocol KHStatePathProtocol: Equatable {

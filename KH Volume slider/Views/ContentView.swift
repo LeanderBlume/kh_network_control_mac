@@ -12,6 +12,7 @@ struct ContentView: View {
     @Binding var commonState: KHState
     @Binding var deviceStates: [KHState]
 
+    @State private var mismatchedParameters: Set<SSCParameter> = []
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
 
@@ -19,9 +20,17 @@ struct ContentView: View {
         await khAccess.setup()
         await fetch()
     }
-    
+
     func syncDeviceStatesToCommon() {
-        commonState.updateIfAllAgree(deviceStates)
+        guard !deviceStates.isEmpty else { return }
+        for p in SSCParameter.allDefaultParameters {
+            if p.allEqual(deviceStates) {
+                commonState = p.copy(from: deviceStates.first!, into: commonState)
+                mismatchedParameters.remove(p)
+            } else {
+                mismatchedParameters.insert(p)
+            }
+        }
     }
 
     func fetch() async {
@@ -52,10 +61,12 @@ struct ContentView: View {
                     MainTab(
                         commonState: $commonState,
                         deviceStates: $deviceStates,
+                        mismatchedParameters: $mismatchedParameters,
                         fetchCallback: fetch,
                         connectCallback: setup,
                         rescanCallback: rescan,
-                        clearCacheCallback: clearCache
+                        clearCacheCallback: clearCache,
+                        syncDeviceStatesToCommon: syncDeviceStatesToCommon
                     )
                     // toolbar is handled in Tab view
                     // .navigationTitle(Text("Controls"))
@@ -102,10 +113,12 @@ struct ContentView: View {
                     MainTab(
                         commonState: $commonState,
                         deviceStates: $deviceStates,
+                        mismatchedParameters: $mismatchedParameters,
                         fetchCallback: fetch,
                         connectCallback: setup,
                         rescanCallback: rescan,
-                        clearCacheCallback: clearCache
+                        clearCacheCallback: clearCache,
+                        syncDeviceStatesToCommon: syncDeviceStatesToCommon
                     )
                 }
             }

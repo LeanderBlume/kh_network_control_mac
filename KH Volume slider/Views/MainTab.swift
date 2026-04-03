@@ -174,12 +174,13 @@ private enum SelectedDevice: Hashable {
 private struct MainTab_: View {
     @Binding var uiState: KHState
     var selectedDevice: SelectedDevice
+    @Binding var mismatchedParameters: Set<SSCParameter>
     var sendCallback: (SSCParameter) async -> Void
 
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @FocusState.Binding var textFieldFocused: SSCParameter?
     @State private var showError: Bool = false
-    
+
     func getActiveDeviceModel() -> DeviceModel? {
         switch selectedDevice {
         case .all:
@@ -188,6 +189,31 @@ private struct MainTab_: View {
             khAccess.devices[i].getModel()
 
         }
+    }
+
+    @ViewBuilder
+    func sectionTitleMacOS(
+        title: String,
+        parametersInSection: Set<SSCParameter>,
+    ) -> some View {
+        let mps = parametersInSection.filter {
+            mismatchedParameters.contains($0)
+        }
+
+        HStack(spacing: 15) {
+            Text(title)
+                .font(.title2)
+
+            if selectedDevice == .all && !mps.isEmpty {
+                Text(
+                    "⚠️ Device mismatch: "
+                        + mps.map({ $0.description() }).sorted().joined(separator: ", ")
+                )
+            }
+
+            Spacer()
+        }
+        // .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -303,9 +329,10 @@ private struct MainTab_: View {
             )
         }
 
-        Text("Basic controls")
-            .font(.title2)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        sectionTitleMacOS(
+            title: "Basic controls",
+            parametersInSection: [.muted, .volume, .logoBrightness],
+        )
 
         Grid(alignment: .leading) {
             GridRow {
@@ -360,8 +387,12 @@ private struct MainTab_: View {
             }
         }
 
-        Text("EQ").font(.title2)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        sectionTitleMacOS(
+            title: "EQ",
+            parametersInSection: Set(SSCParameter.allDefaultParameters).filter({
+                if case .eq(_, _, _) = $0 { true } else { false }
+            }),
+        )
 
         if let deviceModel = getActiveDeviceModel() {
             EqTab(
@@ -374,8 +405,10 @@ private struct MainTab_: View {
             Text("Device model could not be determined")
         }
 
-        Text("Auto-standby").font(.title2)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        sectionTitleMacOS(
+            title: "Auto-standby",
+            parametersInSection: [.standbyEnabled, .standbyTimeout]
+        )
 
         AutoStandbySection(
             uiState: $uiState,
@@ -396,39 +429,34 @@ private struct MainTab_: View {
 struct MainTab: View {
     @Binding var commonState: KHState
     @Binding var deviceStates: [KHState]
+    @Binding var mismatchedParameters: Set<SSCParameter>
     var fetchCallback: () async -> Void
     var connectCallback: () async -> Void
     var rescanCallback: () async -> Void
     var clearCacheCallback: () async -> Void
+    var syncDeviceStatesToCommon: () -> Void
 
     @State private var selectedDevice: SelectedDevice = .all
     @State private var showError: Bool = false
-
     @FocusState private var textFieldFocused: SSCParameter?
-
     @Environment(KHAccess.self) private var khAccess: KHAccess
-    
-    func syncCommonToDeviceStates(_ parameter: SSCParameter) {
-        deviceStates = deviceStates.map { state in
-            parameter.copy(from: commonState, into: state)
-        }
-    }
 
-    func syncDeviceStatesToCommon() {
-        commonState.updateIfAllAgree(deviceStates)
+    func syncCommonToDeviceStates(_ p: SSCParameter) {
+        deviceStates = deviceStates.map { state in
+            p.copy(from: commonState, into: state)
+        }
+        mismatchedParameters.remove(p)
     }
 
     func sendCallback(_ parameter: SSCParameter) async {
+        print("Sending", parameter)
         switch selectedDevice {
         case .all:
-            await khAccess.send(commonState)
-            guard khAccess.status == .ready else { return }
             syncCommonToDeviceStates(parameter)
-        case .specific(let i):
-            await khAccess.sendIdentified(deviceStates[i])
-            guard khAccess.status == .ready else { return }
+        case .specific:
             syncDeviceStatesToCommon()
         }
+        await khAccess.sendIndividual(deviceStates)
     }
 
     var bodyiOS: some View {
@@ -436,7 +464,7 @@ struct MainTab: View {
             Section("Select device") {
                 Picker("Device:", selection: $selectedDevice) {
                     Text("All").tag(SelectedDevice.all)
-                    
+
                     ForEach(deviceStates.indices, id: \.self) { i in
                         Text(deviceStates[i].name).tag(SelectedDevice.specific(i))
                     }
@@ -449,6 +477,7 @@ struct MainTab: View {
                 MainTab_(
                     uiState: $commonState,
                     selectedDevice: selectedDevice,
+                    mismatchedParameters: $mismatchedParameters,
                     sendCallback: sendCallback,
                     textFieldFocused: $textFieldFocused
                 )
@@ -456,6 +485,7 @@ struct MainTab: View {
                 MainTab_(
                     uiState: $deviceStates[i],
                     selectedDevice: selectedDevice,
+                    mismatchedParameters: $mismatchedParameters,
                     sendCallback: sendCallback,
                     textFieldFocused: $textFieldFocused
                 )
@@ -495,6 +525,7 @@ struct MainTab: View {
                 MainTab_(
                     uiState: $commonState,
                     selectedDevice: selectedDevice,
+                    mismatchedParameters: $mismatchedParameters,
                     sendCallback: sendCallback,
                     textFieldFocused: $textFieldFocused
                 )
@@ -502,6 +533,7 @@ struct MainTab: View {
                 MainTab_(
                     uiState: $deviceStates[i],
                     selectedDevice: selectedDevice,
+                    mismatchedParameters: $mismatchedParameters,
                     sendCallback: sendCallback,
                     textFieldFocused: $textFieldFocused
                 )
