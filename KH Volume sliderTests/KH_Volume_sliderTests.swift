@@ -27,6 +27,26 @@ struct KH_Volume_sliderTests_Offline {
 }
 
 struct TestSSC {
+    let connection: SSCConnection
+
+    private enum Errors: Error {
+        case noDevicesFound
+    }
+
+    private init() async throws {
+        let scan = await SSCConnection.scan()
+        if scan.isEmpty {
+            throw Errors.noDevicesFound
+        }
+        connection = scan[0]
+    }
+
+    @Test func testSendJSONData() async throws {
+        let jd: JSONData = .null.wrap(in: ["audio", "out", "mute"])
+        let result = try await connection.sendJSONData(jd)
+        #expect(result == .bool(false).wrap(in: ["audio", "out", "mute"]))
+    }
+
     @Test func testJsonPath() async throws {
         let s = try SSCConnection.pathToJSONString(path: ["asdf", "jkl"], value: 3.0)
         #expect(s == "{\"asdf\":{\"jkl\":3}}")
@@ -122,21 +142,25 @@ struct TestSSC {
         let node = SSCNode(name: "root", deviceID: deviceID, parent: nil)
         // try await node.connect()
         let result = try await node.getSchema(connection: connection, path: ["audio"])
-        #expect(result == ["out": [:], "in2": [:], "in1": [:], "in": [:]])
+        #expect(
+            result == .object(["out": .object([:]), "in": .object([:])])
+        )
         sleep(1)
         let result2 = try await node.getSchema(connection: connection, path: [])
         #expect(
-            result2 == [
-                "audio": [:], "device": [:], "m": [:], "osc": [:], "ui": [:],
-                "warnings": nil,
-            ]
+            result2
+                == .object([
+                    "audio": .object([:]), "device": .object([:]), "m": .object([:]),
+                    "osc": .object([:]), "ui": .object([:]),
+                    "warnings": .null,
+                ])
         )
         sleep(1)
         let result3 = try await node.getSchema(
             connection: connection,
             path: ["ui", "logo", "brightness"]
         )
-        #expect(result3 == nil)
+        #expect(result3 == .null)
     }
 
     @Test func testGetLimits() async throws {
@@ -269,7 +293,7 @@ struct TestJSONEncoding {
             .bool(true),
             .null,
             .array([]),
-            .object([:])
+            .object([:]),
         ]
         testCases.append(.array(testCases))
         var objectDictionary: [String: JSONData] = [:]

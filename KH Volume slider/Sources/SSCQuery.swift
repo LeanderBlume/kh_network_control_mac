@@ -60,6 +60,18 @@ struct OSCLimits: Equatable, Codable {
         option = dict["option"] as? [String]
         count = dict["count"] as? Int
     }
+
+    init(fromJSONObject jd: JSONData) {
+        guard case .object(let dictionary) = jd else {
+            self.init(fromDict: [:])
+            return
+        }
+        var newDict = [String: Any?]()
+        for (k, v) in dictionary {
+            newDict[k] = v.asAny()
+        }
+        self.init(fromDict: newDict)
+    }
 }
 
 enum SSCNodeError: Error {
@@ -133,66 +145,54 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
     func getNodeByID(_ id: SSCNode.ID) -> SSCNode? { first(where: { $0.id == id }) }
 
     private func queryAux(connection: SSCConnection, query: [String], path: [String])
-        async throws -> [String: Any]
+        async throws -> JSONData
     {
         // Queries device with
         // {query[0]: { ... { query[-1]: [ pathToNode() ] } ... }
         // and returns unwrapped result.
         // In reality, query will be either ["osc", "schema"] or ["osc", "limits"].
-        var pathString = try SSCConnection.pathToJSONString(
-            path: path,
-            value: nil as String?
-        )
+        var pathJD: JSONData = .null.wrap(in: path)
+        /// We only want to wrap in an array if there is an actual path. To query the root node, we just send null.
         if !path.isEmpty {
-            pathString = "[" + pathString + "]"
+            pathJD = .array([pathJD])
         }
-        var queryCommand = pathString
-        for p in query.reversed() {
-            queryCommand = "{\"\(p)\":\(queryCommand)}"
+        let queryCommand: JSONData = pathJD.wrap(in: query)
+        let response = try await connection.sendJSONData(queryCommand)
+        guard case .array(let vs) = response.unwrap() else {
+            throw SSCNodeError.error("Malformed response from query")
         }
-        let response: String = try await connection.sendSSCCommand(
-            command: queryCommand
-        )
-        guard let data = response.data(using: .utf8) else {
-            throw SSCNodeError.error("No data from response")
+        guard !vs.isEmpty else {
+            throw SSCNodeError.error("Empty array from query")
         }
-        let result =
-            try JSONSerialization.jsonObject(with: data, options: [])
-            as! [String: [String: [[String: Any]]]]
-        return result[query[0]]![query[1]]![0]
+        return vs[0]
     }
 
     func getSchema(
         connection: SSCConnection,
         path: [String]
-    ) async throws -> [String: [String: String]?]? {
-        var result = try await queryAux(
+    ) async throws -> JSONData {
+        var response = try await queryAux(
             connection: connection,
             query: ["osc", "schema"],
             path: path
         )
-        if path.isEmpty {
-            return result as? [String: [String: String]?]
-        }
-        for p in path.dropLast() {
-            result = result[p] as! [String: Any]
-        }
-        return result[path.last!] as? [String: [String: String]?]
+        return path.reduce(response) { jd, p in jd[p]! }
     }
 
     func getLimits(connection: SSCConnection, path: [String]) async throws -> OSCLimits
     {
-        var result = try await queryAux(
+        let result = try await queryAux(
             connection: connection,
             query: ["osc", "limits"],
             path: path
         )
-        for p in path.dropLast() {
-            result = result[p] as! [String: Any]
+        guard case .array(let vs) = result.unwrap() else {
+            throw SSCNodeError.error("Malformed response")
         }
-        let result_ = result[path.last!] as! [[String: Any?]]
-        let result__ = result_[0]
-        return OSCLimits(fromDict: result__)
+        guard case .object = vs.first else {
+            throw SSCNodeError.error("Malformed array from schema request")
+        }
+        return OSCLimits(fromJSONObject: vs.first!)
     }
 
     private func populateLeaf(connection: SSCConnection) async throws {
@@ -208,22 +208,19 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
 
     private func populateInternal(connection: SSCConnection) async throws {
         // We are not at a leaf node and need to discover subcommands.
-        guard
-            let resultStripped = try await getSchema(
-                connection: connection,
-                path: pathToNode()
-            )
-        else {
-            throw SSCNodeError.error(
-                "Populating internal node did not result in a sub-dictionary."
-            )
+        let schema = try await getSchema(
+            connection: connection,
+            path: pathToNode()
+        )
+        guard case .object(let dict) = schema else {
+            throw SSCNodeError.error("osc/schema \(schema) is not an object.")
         }
         var subNodeArray: [SSCNode] = []
-        for (k, v) in resultStripped {
+        for (k, v) in dict {
             let subNodeValue: NodeData
-            if v == nil {
+            if v == .null {
                 subNodeValue = .unknownValue
-            } else if v == [:] {
+            } else if v == .object([:]) {
                 subNodeValue = .unknownChildren
             } else {
                 throw SSCNodeError.malformedResponse(
