@@ -125,7 +125,7 @@ enum JSONDataCodable: Equatable, Codable {
     }
 }
 
-enum JSONData: Equatable, Encodable {
+enum JSONData: Equatable, Codable {
     case string(String)
     case number(Double)
     case bool(Bool)
@@ -195,6 +195,23 @@ enum JSONData: Equatable, Encodable {
             }
             self = .object(dict)
         default:
+            self = .null
+        }
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let vDict = try? container.decode([String: JSONData].self) {
+            self = .object(vDict)
+        } else if let vArray = try? container.decode([JSONData].self) {
+            self = .array(vArray)
+        } else if let vString = try? container.decode(String.self) {
+            self = .string(vString)
+        } else if let vBool = try? container.decode(Bool.self) {
+            self = .bool(vBool)
+        } else if let vNumber = try? container.decode(Double.self) {
+            self = .number(vNumber)
+        } else {
             self = .null
         }
     }

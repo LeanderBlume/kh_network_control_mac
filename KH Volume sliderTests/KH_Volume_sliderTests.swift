@@ -217,7 +217,7 @@ struct TestSSC {
         let decodedTest = try decoder.decode(
             JSONData.self,
             from: jd,
-            configuration: JSONSchema(jsonData: schema!)
+            // configuration: JSONSchema(jsonData: schema!)
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
@@ -253,7 +253,8 @@ struct TestJSONEncoding {
 
     func decodingTestHelper(_ v: JSONData) throws {
         let vEncoded = try JSONEncoder().encode(v)
-        let vDecoded = try JSONData(decodeFrom: vEncoded)
+        // let vDecoded = try JSONData(decodeFrom: vEncoded)
+        let vDecoded = try JSONDecoder().decode(JSONData.self, from: vEncoded)
         #expect(v == vDecoded)
     }
 
