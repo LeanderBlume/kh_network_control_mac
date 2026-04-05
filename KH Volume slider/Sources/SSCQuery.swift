@@ -200,7 +200,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         limits = try await getLimits(connection: connection, path: path)
         do {
             let data = try await connection.fetchSSCValueData(path: path)
-            value = .value(try .init(decodeFrom: data))
+            value = .value(try .init(decodeFrom: data).unwrap())
         } catch SSCConnection.DeviceError.notAcceptable {
             value = .error("Unfetchable node")
         }
