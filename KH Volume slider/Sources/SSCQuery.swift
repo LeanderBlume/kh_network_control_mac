@@ -97,7 +97,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         self.parent = parent
         self.limits = limits
     }
-    
+
     func isLeaf() -> Bool { value.isLeaf() }
 
     func rootNode() -> SSCNode {
@@ -200,7 +200,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         limits = try await getLimits(connection: connection, path: path)
         do {
             let data = try await connection.fetchSSCValueData(path: path)
-            value = .value(try .init(decodeFrom: data).unwrap())
+            value = .value(try JSONDecoder().decode(JSONData.self, from: data).unwrap())
         } catch SSCConnection.DeviceError.notAcceptable {
             value = .error("Unfetchable node")
         }
@@ -349,11 +349,6 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         }
     }
 
-    func load(from jsonDataCodable: JSONDataCodable) throws {
-        try load(from: JSONData(jsonDataCodable: jsonDataCodable))
-    }
-    
-    
     func load(from state: KHState) throws {
         // TODO
     }

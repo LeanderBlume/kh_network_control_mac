@@ -39,18 +39,6 @@ struct KHState: Codable, Equatable {
         self = futureSelf
     }
 
-    init?(
-        jsonDataCodable: JSONDataCodable,
-        deviceModel: DeviceModel,
-        deviceID: KHDevice.ID?
-    ) {
-        self.init(
-            jsonData: JSONData(jsonDataCodable: jsonDataCodable),
-            deviceModel: deviceModel,
-            deviceID: deviceID
-        )
-    }
-
     @MainActor
     init?(
         nodeTree: SSCNode,

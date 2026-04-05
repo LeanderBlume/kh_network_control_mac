@@ -303,9 +303,9 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
                 try await node.send(connection: connection)
             } catch
                 SSCConnection.DeviceError.notAcceptable,
-                SSCConnection.DeviceError.methodNotAllowed
-                // SSCConnection.DeviceError.partialSuccess,
-                // SSCConnection.DeviceError.parameterAddressNotFound
+                SSCConnection.DeviceError.methodNotAllowed,
+                SSCConnection.DeviceError.partialSuccess,
+                SSCConnection.DeviceError.parameterAddressNotFound
             {
                 continue
             } catch {

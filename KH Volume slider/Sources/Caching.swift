@@ -63,7 +63,7 @@ protocol SchemaCacheProtocol: SingleFileAccess {
 }
 
 protocol StateCacheProtocol: SingleFileAccess {
-    @MainActor func getState(for device: KHDevice) throws -> (KHState, JSONDataCodable)?
+    @MainActor func getState(for device: KHDevice) throws -> (KHState, JSONData)?
     @MainActor func saveState(for device: KHDevice) throws
 }
 
@@ -160,26 +160,26 @@ struct StateCache: StateCacheProtocol {
         try Self.ensureFileExists()
     }
 
-    typealias FileSchema = [KHDevice.ID: JSONDataCodable]
+    typealias FileSchema = [KHDevice.ID: JSONData]
 
     private enum StateCacheError: Error {
         case error(String)
     }
 
     @MainActor
-    func getState(for device: KHDevice) throws -> (KHState, JSONDataCodable)? {
+    func getState(for device: KHDevice) throws -> (KHState, JSONData)? {
         let list = try getFileContents()
-        guard let jdc = list[device.id] else { return nil }
+        guard let jd = list[device.id] else { return nil }
         guard
             let state = KHState(
-                jsonDataCodable: jdc,
+                jsonData: jd,
                 deviceModel: device.getModel(),
                 deviceID: device.id
             )
         else {
             throw StateCacheError.error("JSON Data to State conversion error")
         }
-        return (state, jdc)
+        return (state, jd)
     }
 
     @MainActor
@@ -187,11 +187,11 @@ struct StateCache: StateCacheProtocol {
         guard let rootNode = device.parameterTree else {
             throw StateCacheError.error("Parameters not populated")
         }
-        guard let jdc = JSONDataCodable(rootNode: rootNode) else {
+        guard let jd = JSONData(rootNode: rootNode) else {
             throw StateCacheError.error("Parameter tree to JSON Conversion failed")
         }
         var contents = try getFileContents()
-        contents[device.id] = jdc
+        contents[device.id] = jd
         try writeFile(contents, prettyPrinted: true)
     }
 }
@@ -215,7 +215,7 @@ struct Backupper: BackupperProtocol {
         try Self.ensureFileExists()
     }
 
-    private typealias FileSchema = [KHDevice.ID: JSONDataCodable]
+    private typealias FileSchema = [KHDevice.ID: JSONData]
 
     private enum BackupperErrors: Error {
         case error(String)
@@ -287,7 +287,7 @@ struct Backupper: BackupperProtocol {
                     "Could not write backup, JSONData conversion failed."
                 )
             }
-            newBackup[device.id] = JSONDataCodable(jsonData: jsonData)
+            newBackup[device.id] = jsonData
         }
 
         try saveBackup(name: name, backup: newBackup)
@@ -303,7 +303,7 @@ struct Backupper: BackupperProtocol {
                 try rootNode.load(from: deviceBackup)
                 guard
                     let newState = KHState(
-                        jsonDataCodable: deviceBackup,
+                        jsonData: deviceBackup,
                         deviceModel: device.getModel(),
                         deviceID: device.id
                     )

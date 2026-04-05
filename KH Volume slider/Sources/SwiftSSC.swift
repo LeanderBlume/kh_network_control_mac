@@ -205,7 +205,7 @@ actor SSCConnection {
         let data = try JSONEncoder().encode(jsonData)
         try await sendDataFireAndForget(data)
         let RXData = try await receiveData()
-        return try .init(decodeFrom: RXData)
+        return try JSONDecoder().decode(JSONData.self, from: RXData)
     }
 
     static func pathToJSONString<T>(path: [String], value: T) throws -> String
@@ -257,6 +257,6 @@ actor SSCConnection {
 
     func fetchJSONData(path: [String], schema: JSONSchema) async throws -> JSONData {
         let data = try await fetchSSCValueData(path: path)
-        return try .init(decodeFrom: data).unwrap()
+        return try JSONDecoder().decode(JSONData.self, from: data).unwrap()
     }
 }

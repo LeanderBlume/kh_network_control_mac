@@ -83,48 +83,6 @@ enum JSONSchema: Codable {
     }
 }
 
-enum JSONDataCodable: Equatable, Codable {
-    case string(String)
-    case number(Double)
-    case bool(Bool)
-    case array([JSONDataCodable])
-    case null
-    case object([String: JSONDataCodable])
-
-    init(jsonData: JSONData) {
-        switch jsonData {
-        case .null:
-            self = .null
-        case .string(let string):
-            self = .string(string)
-        case .number(let number):
-            self = .number(number)
-        case .bool(let bool):
-            self = .bool(bool)
-        case .array(let array):
-            self = .array(array.map({ .init(jsonData: $0) }))
-        case .object(let object):
-            self = .object(object.mapValues({ .init(jsonData: $0) }))
-        }
-    }
-
-    @MainActor
-    init?(rootNode: SSCNode) {
-        switch rootNode.value {
-        case .value(let value):
-            self.init(jsonData: value)
-        case .children(let children):
-            var dict: [String: JSONDataCodable] = [:]
-            children.forEach { child in
-                dict[child.name] = JSONDataCodable(rootNode: child)
-            }
-            self = .object(dict)
-        default:
-            self = .null
-        }
-    }
-}
-
 enum JSONData: Equatable, Codable {
     case string(String)
     case number(Double)
@@ -144,23 +102,6 @@ enum JSONData: Equatable, Codable {
     init(singleValue: [String]) { self = .array(singleValue.map({ .string($0) })) }
     init(singleValue: [Double]) { self = .array(singleValue.map({ .number($0) })) }
     init(singleValue: [Bool]) { self = .array(singleValue.map({ .bool($0) })) }
-
-    init(jsonDataCodable: JSONDataCodable) {
-        switch jsonDataCodable {
-        case .null:
-            self = .null
-        case .string(let string):
-            self = .string(string)
-        case .number(let number):
-            self = .number(number)
-        case .bool(let bool):
-            self = .bool(bool)
-        case .array(let array):
-            self = .array(array.map(JSONData.init))
-        case .object(let object):
-            self = .object(object.mapValues(JSONData.init))
-        }
-    }
 
     init(schema: JSONSchema) {
         switch schema {
@@ -213,41 +154,6 @@ enum JSONData: Equatable, Codable {
             self = .number(vNumber)
         } else {
             self = .null
-        }
-    }
-
-    init(decodeFrom data: Data) throws {
-        let v = try JSONSerialization.jsonObject(
-            with: data,
-            options: [.fragmentsAllowed]
-        )
-        try self.init(fromAny: v)
-    }
-
-    init(fromAny v: Any) throws {
-        if let vDict = v as? [String: Any] {
-            var objectDict = [String: JSONData]()
-            for (k, v) in vDict {
-                objectDict[k] = try JSONData(fromAny: v)
-            }
-            self = .object(objectDict)
-        } else if let vArray = v as? [Any] {
-            let jsonArray: [JSONData] = try vArray.map { try JSONData(fromAny: $0) }
-            self = .array(jsonArray)
-        } else if let vString = v as? String {
-            self = .string(vString)
-        } else if let vNumber = v as? NSNumber {
-            if vNumber === kCFBooleanTrue || vNumber === kCFBooleanFalse {
-                self = .bool(vNumber.boolValue)
-            } else {
-                self = .number(vNumber.doubleValue)
-            }
-        } else if v as? NSNull != nil {
-            self = .null
-        } else {
-            throw JSONDataError.decodingError(
-                "Converting of \(v) from Any fell through."
-            )
         }
     }
 
