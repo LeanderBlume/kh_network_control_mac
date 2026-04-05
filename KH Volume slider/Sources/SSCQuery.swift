@@ -311,11 +311,8 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         switch value {
         case .error:
             return
-        case .value(let T):
-            let schema = JSONSchema(jsonData: T)
-            value = .value(
-                try await connection.fetchJSONData(path: pathToNode(), schema: schema)
-            )
+        case .value:
+            value = .value(try await connection.fetchJSONData(path: pathToNode()))
         case .children, .unknown, .unknownChildren, .unknownValue:
             throw SSCNodeError.error("Node is not a populated leaf")
         }
