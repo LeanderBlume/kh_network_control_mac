@@ -32,10 +32,12 @@ actor SSCConnection {
 
     // Connection succeeds, but device returns an error
     enum DeviceError: Int, CaseIterable, Error {
+        case partialSuccess = 210
         case messageNotUnderstood = 400
-        case addressNotFound = 404
+        case notFound = 404
         case methodNotAllowed = 405
         case notAcceptable = 406
+        case parameterAddressNotFound = 454
         case unknownError = -1
     }
 
@@ -200,15 +202,12 @@ actor SSCConnection {
     }
 
     func sendJSONData(_ jsonData: JSONData) async throws -> JSONData {
-        let data = try JSONEncoder().encode(jsonData)
+        var data = try JSONEncoder().encode(jsonData)
+        data.append(0x0D)  // CR
+        data.append(0x0A)  // LF
         try await sendDataFireAndForget(data)
         let RXData = try await receiveData()
-        let schema = JSONSchema(jsonData: jsonData)
-        return try JSONDecoder().decode(
-            JSONData.self,
-            from: RXData,
-            configuration: schema
-        )
+        return try JSONDecoder().decode(JSONData.self, from: RXData)
     }
 
     static func pathToJSONString<T>(path: [String], value: T) throws -> String
@@ -258,13 +257,8 @@ actor SSCConnection {
         return retval
     }
 
-    func fetchJSONData(path: [String], schema: JSONSchema) async throws -> JSONData {
+    func fetchJSONData(path: [String]) async throws -> JSONData {
         let data = try await fetchSSCValueData(path: path)
-        let decoder = JSONDecoder()
-        return try decoder.decode(
-            JSONData.self,
-            from: data,
-            configuration: schema.wrap(in: path)
-        ).unwrap()
+        return try JSONDecoder().decode(JSONData.self, from: data).unwrap()
     }
 }

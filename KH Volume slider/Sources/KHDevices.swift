@@ -301,8 +301,11 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
         for node in nodes {
             do {
                 try await node.send(connection: connection)
-            } catch SSCConnection.DeviceError.notAcceptable, SSCConnection.DeviceError
-                .methodNotAllowed
+            } catch
+                SSCConnection.DeviceError.notAcceptable,
+                SSCConnection.DeviceError.methodNotAllowed,
+                SSCConnection.DeviceError.partialSuccess,
+                SSCConnection.DeviceError.parameterAddressNotFound
             {
                 continue
             } catch {
@@ -418,7 +421,7 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         guard let owner = getDeviceByID(id.deviceID) else { return nil }
         return owner.getNodeByID(id)
     }
-    
+
     private func populateDevices() async {
         guard devices.isEmpty else { return }
         var connections: [SSCConnection] = []

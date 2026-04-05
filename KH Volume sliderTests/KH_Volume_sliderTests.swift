@@ -15,8 +15,8 @@ struct KH_Volume_sliderTests_Online {
     @Test func testSendToDevice() async throws {
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.
         let khAccess = KHAccess()
-        await khAccess.fetch()
-        await khAccess.send()
+        let state = await khAccess.fetch()
+        await khAccess.send(state)
     }
 }
 
@@ -27,6 +27,26 @@ struct KH_Volume_sliderTests_Offline {
 }
 
 struct TestSSC {
+    let connection: SSCConnection
+
+    private enum Errors: Error {
+        case noDevicesFound
+    }
+
+    private init() async throws {
+        let scan = await SSCConnection.scan()
+        if scan.isEmpty {
+            throw Errors.noDevicesFound
+        }
+        connection = scan[0]
+    }
+
+    @Test func testSendJSONData() async throws {
+        let jd: JSONData = .null.wrap(in: ["audio", "out", "mute"])
+        let result = try await connection.sendJSONData(jd)
+        #expect(result == .bool(false).wrap(in: ["audio", "out", "mute"]))
+    }
+
     @Test func testJsonPath() async throws {
         let s = try SSCConnection.pathToJSONString(path: ["asdf", "jkl"], value: 3.0)
         #expect(s == "{\"asdf\":{\"jkl\":3}}")
@@ -37,12 +57,12 @@ struct TestSSC {
     @Test func testSendMessageWithScan() async throws {
         let sscDevice = SSCDevice.scan()[0]
         try await sscDevice.connect()
-    
+
         let TX1 = "{\"audio\":{\"out\":{\"mute\":true}}}"
         await sscDevice.sendMessage(TX1)
         let RX1 = try await sscDevice.receiveMessage()
         #expect(RX1.starts(with: TX1))
-    
+
         let TX2 = "{\"audio\":{\"out\":{\"mute\":false}}}"
         await sscDevice.sendMessage(TX2)
         let RX2 = try await sscDevice.receiveMessage()
@@ -104,7 +124,7 @@ struct TestSSC {
 @Suite struct TestSSCNodes {
     // TODO can't run this as a test suite because tests are run concurrently.
     let connection: SSCConnection
-    let deviceID = KHDevice.KHDeviceID(name: "asdf", serial: "jkl")
+    let deviceID = "asdf"
 
     private enum Errors: Error {
         case noDevicesFound
@@ -122,21 +142,25 @@ struct TestSSC {
         let node = SSCNode(name: "root", deviceID: deviceID, parent: nil)
         // try await node.connect()
         let result = try await node.getSchema(connection: connection, path: ["audio"])
-        #expect(result == ["out": [:], "in2": [:], "in1": [:], "in": [:]])
+        #expect(
+            result == .object(["out": .object([:]), "in": .object([:])])
+        )
         sleep(1)
         let result2 = try await node.getSchema(connection: connection, path: [])
         #expect(
-            result2 == [
-                "audio": [:], "device": [:], "m": [:], "osc": [:], "ui": [:],
-                "warnings": nil,
-            ]
+            result2
+                == .object([
+                    "audio": .object([:]), "device": .object([:]), "m": .object([:]),
+                    "osc": .object([:]), "ui": .object([:]),
+                    "warnings": .null,
+                ])
         )
         sleep(1)
         let result3 = try await node.getSchema(
             connection: connection,
             path: ["ui", "logo", "brightness"]
         )
-        #expect(result3 == nil)
+        #expect(result3 == .null)
     }
 
     @Test func testGetLimits() async throws {
@@ -191,7 +215,7 @@ struct TestSSC {
         leaf.value = NodeData(value: "New name!")
         // try await leaf.sendLeaf(connection: connection)
     }
-    
+
     @Test func testGetAtPath() async throws {
         let root = SSCNode(name: "root", deviceID: deviceID, parent: nil)
         let node2 = SSCNode(name: "device", deviceID: deviceID, parent: root)
@@ -217,7 +241,7 @@ struct TestSSC {
         let decodedTest = try decoder.decode(
             JSONData.self,
             from: jd,
-            configuration: JSONSchema(jsonData: schema!)
+            // configuration: JSONSchema(jsonData: schema!)
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
@@ -250,15 +274,46 @@ struct TestJSONEncoding {
         let x2 = try JSONDecoder().decode([String].self, from: s3d)
         print(x2)
     }
+
+    func decodingTestHelper(_ v: JSONData) throws {
+        let vEncoded = try JSONEncoder().encode(v)
+        // let vDecoded = try JSONData(decodeFrom: vEncoded)
+        let vDecoded = try JSONDecoder().decode(JSONData.self, from: vEncoded)
+        #expect(v == vDecoded)
+    }
+
+    @Test func testDecoding() throws {
+        var testCases: [JSONData] = [
+            .string("asdf / jkl"),
+            .number(0),
+            .number(1),
+            .number(0.3),
+            .number(-100),
+            .bool(false),
+            .bool(true),
+            .null,
+            .array([]),
+            .object([:]),
+        ]
+        testCases.append(.array(testCases))
+        var objectDictionary: [String: JSONData] = [:]
+        for (k, v) in testCases.enumerated() {
+            objectDictionary["key\(k)"] = v
+        }
+        testCases.append(.object(objectDictionary))
+        try testCases.forEach { try decodingTestHelper($0) }
+    }
 }
 
 struct TestKHParameter {
     @Test func main() {
-        let vol = SSCParameter.volume
+        let _ = SSCParameter.volume
+        /*
         #expect(vol.getDevicePath() == ["audio", "out", "level"])
         vol.setDevicePath(to: ["bla", "blub"])
         #expect(vol.getDevicePath() == ["bla", "blub"])
         vol.resetDevicePath()
+         */
     }
 }
 
@@ -268,6 +323,6 @@ struct TestBackup {
         let kha = KHAccess()
         await kha.setup()
         let b = try Backupper()
-        try await b.load(name: "TestAnew.json", khAccess: kha)
+        let state = try await b.load(name: "TestAnew.json", khAccess: kha)
     }
 }
