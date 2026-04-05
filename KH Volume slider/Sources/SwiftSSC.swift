@@ -202,7 +202,9 @@ actor SSCConnection {
     }
 
     func sendJSONData(_ jsonData: JSONData) async throws -> JSONData {
-        let data = try JSONEncoder().encode(jsonData)
+        var data = try JSONEncoder().encode(jsonData)
+        data.append(0x0D)  // CR
+        data.append(0x0A)  // LF
         try await sendDataFireAndForget(data)
         let RXData = try await receiveData()
         return try JSONDecoder().decode(JSONData.self, from: RXData)
