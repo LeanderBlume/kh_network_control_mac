@@ -32,10 +32,12 @@ actor SSCConnection {
 
     // Connection succeeds, but device returns an error
     enum DeviceError: Int, CaseIterable, Error {
+        case partialSuccess = 210
         case messageNotUnderstood = 400
-        case addressNotFound = 404
+        case notFound = 404
         case methodNotAllowed = 405
         case notAcceptable = 406
+        case parameterAddressNotFound = 454
         case unknownError = -1
     }
 
