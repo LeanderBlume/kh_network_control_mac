@@ -66,7 +66,7 @@ struct KHState: Codable, Equatable {
     }
 }
 
-private protocol StateParameterBridgeProtocol: Equatable {
+private protocol StateParameterBridgeProtocol {
     // associatedtype T: Equatable, Codable, Sendable
     // var keyPath: WritableKeyPath<KHState, T> { get }
 
@@ -94,26 +94,34 @@ private protocol StateParameterBridgeProtocol: Equatable {
 
 private struct StateParameterBridge<
     TState: Codable & Equatable & Sendable,
-    TDevice: Codable & Equatable & Sendable
+    TDevice: Codable & Sendable
 >:
     StateParameterBridgeProtocol
 {
-    private let keyPath: WritableKeyPath<KHState, TState>
+    let keyPath: WritableKeyPath<KHState, TState>
+    let UIToDevice: (TState, TDevice) -> TDevice
+    let deviceToUI: (TState, TDevice) -> TState
 
-    init(_ keyPath: WritableKeyPath<KHState, TState>) {
+    init(
+        _ keyPath: WritableKeyPath<KHState, TState>,
+        UIToDevice: @escaping (TState, TDevice) -> TDevice = { _, d in d },
+        deviceToUI: @escaping (TState, TDevice) -> TState = { s, _ in s }
+    ) {
         self.keyPath = keyPath
+        self.UIToDevice = UIToDevice
+        self.deviceToUI = deviceToUI
     }
 
     private func get(from state: KHState) -> TState {
         state[keyPath: keyPath]
     }
 
-    private func get(from jsonData: JSONData) -> TState? {
+    private func get(from jsonData: JSONData) -> TDevice? {
         switch jsonData {
         case .array:
-            jsonData.asArrayAny() as? TState
+            jsonData.asArrayAny() as? TDevice
         default:
-            jsonData.asAny() as? TState
+            jsonData.asAny() as? TDevice
         }
     }
 
@@ -125,7 +133,8 @@ private struct StateParameterBridge<
 
     private func set(_ jsonData: JSONData, into state: KHState) -> KHState? {
         guard let value = get(from: jsonData) else { return nil }
-        return set(value, into: state)
+        let converted = deviceToUI(state[keyPath: keyPath], value)
+        return set(converted, into: state)
     }
 
     func copy(from sourceState: KHState, into targetState: KHState) -> KHState {
@@ -181,9 +190,9 @@ private struct StateParameterBridge<
         devicePath: [String],
         parameterTree: SSCNode? = nil
     ) async throws -> KHState {
-        let newValue: TState = try await connection.fetchSSCValue(path: devicePath)
+        let newValue: TDevice = try await connection.fetchSSCValue(path: devicePath)
         var newState = state
-        newState[keyPath: keyPath] = newValue
+        newState[keyPath: keyPath] = deviceToUI(state[keyPath: keyPath], newValue)
         if let parameterTree {
             copy(from: newState, into: parameterTree, devicePath: devicePath)
         }
@@ -336,7 +345,14 @@ enum SSCParameter: Identifiable, Equatable, Hashable {
         case .eq(let i, let b, _, let p):
             switch p {
             case .boost:
-                StateParameterBridge<Double, [Double]>(\.eqs[i].boost[b])
+                StateParameterBridge<Double, [Double]>(
+                    \.eqs[i].boost[b],
+                     UIToDevice: { v, A in
+                         var newA = A
+                         newA.insert(v, at: b)
+                         return newA
+                     }
+                )
             case .enabled:
                 StateParameterBridge<Bool, [Bool]>(\.eqs[i].enabled[b])
             case .frequency:
