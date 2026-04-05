@@ -56,8 +56,7 @@ enum JSONSchema: Codable {
         guard case .object(let dict) = self else { return nil }
         return dict[index]
     }
-    
-    
+
     func getAtPath(_ path: [String]) -> Self? {
         var curr = self
         for p in path {
@@ -66,7 +65,7 @@ enum JSONSchema: Codable {
         }
         return curr
     }
-    
+
     func wrap(in path: [String]) -> Self {
         return path.reversed().reduce(self) { (partial, key) in
             .object([key: partial])
@@ -164,7 +163,7 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
             self = .object(object.mapValues(JSONData.init))
         }
     }
-    
+
     init(schema: JSONSchema) {
         switch schema {
         case .null:
@@ -264,6 +263,41 @@ enum JSONData: Equatable, Encodable, DecodableWithConfiguration {
                     "Nested arrays and null arrays not supported (yet)"
                 )
             }
+        }
+    }
+
+    init(decodeFrom data: Data) throws {
+        let v = try JSONSerialization.jsonObject(
+            with: data,
+            options: [.fragmentsAllowed]
+        )
+        try self.init(fromAny: v)
+    }
+
+    init(fromAny v: Any) throws {
+        if let vDict = v as? [String: Any] {
+            var objectDict = [String: JSONData]()
+            for (k, v) in vDict {
+                objectDict[k] = try JSONData(fromAny: v)
+            }
+            self = .object(objectDict)
+        } else if let vArray = v as? [Any] {
+            let jsonArray: [JSONData] = try vArray.map { try JSONData(fromAny: $0) }
+            self = .array(jsonArray)
+        } else if let vString = v as? String {
+            self = .string(vString)
+        } else if let vNumber = v as? NSNumber {
+            if vNumber === kCFBooleanTrue || vNumber === kCFBooleanFalse {
+                self = .bool(vNumber.boolValue)
+            } else {
+                self = .number(vNumber.doubleValue)
+            }
+        } else if v as? NSNull != nil {
+            self = .null
+        } else {
+            throw JSONDataError.decodingError(
+                "Converting of \(v) from Any fell through."
+            )
         }
     }
 
