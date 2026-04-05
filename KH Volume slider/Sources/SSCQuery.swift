@@ -198,46 +198,12 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
     private func populateLeaf(connection: SSCConnection) async throws {
         let path = pathToNode()
         limits = try await getLimits(connection: connection, path: path)
-        let decoder = JSONDecoder()
-        var schemata: [JSONSchema]
-        switch limits!.type {
-        case "Number":
-            schemata = [.number(), .array(type: .number())]
-        case "String":
-            schemata = [.string(), .array(type: .string())]
-        case "Boolean":
-            schemata = [.bool(), .array(type: .bool())]
-        case .none:
-            schemata = [
-                .bool(),
-                .number(),
-                .string(),
-                .array(type: .bool()),
-                .array(type: .number()),
-                .array(type: .string()),
-            ]
-        default:
-            throw SSCNodeError.unknownTypeFromLimits(limits!.type)
-        }
-        var data: Data? = nil
         do {
-            data = try await connection.fetchSSCValueData(path: path)
+            let data = try await connection.fetchSSCValueData(path: path)
+            value = .value(try .init(decodeFrom: data))
         } catch SSCConnection.DeviceError.notAcceptable {
-            value = .error("Node cannot be fetched")
-            return
+            value = .error("Unfetchable node")
         }
-        guard let data else { throw SSCNodeError.error("Impossible error") }
-        for schema in schemata {
-            if let v = try? decoder.decode(
-                JSONData.self,
-                from: data,
-                configuration: schema.wrap(in: path)
-            ) {
-                value = .value(v.unwrap())
-                return
-            }
-        }
-        value = .error("Populating leaf fell through")
     }
 
     private func populateInternal(connection: SSCConnection) async throws {
