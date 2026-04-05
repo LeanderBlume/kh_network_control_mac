@@ -112,7 +112,13 @@ struct BackupView: View {
                         systemImage:
                             "clock.arrow.trianglehead.counterclockwise.rotate.90"
                     ) {
-                        Task { try await loadSelected() }
+                        Task {
+                            do {
+                                try await loadSelected()
+                            } catch {
+                                print("Loading backup failed:", error)
+                            }
+                        }
                     }
                     Button("Delete", systemImage: "trash", action: deleteSelected)
                 }
