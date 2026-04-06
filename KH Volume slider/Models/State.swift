@@ -94,12 +94,7 @@ where T: Equatable, T: Codable, T: Sendable {
     }
 
     private func get(from jsonData: JSONData) -> T? {
-        switch jsonData {
-        case .array:
-            jsonData.asArrayAny() as? T
-        default:
-            jsonData.asAny() as? T
-        }
+        jsonData.asType()
     }
 
     private func set(_ value: T, into state: KHState) -> KHState {

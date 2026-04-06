@@ -57,8 +57,7 @@ struct OSCLimits: Equatable, Codable {
         subscr = jd["subscr"]?.asType()
         const = jd["const"]?.asType()
         writeable = jd["writeable"]?.asType()
-
-        option = jd["option"]?.asArrayType()
+        option = jd["option"]?.asType()
 
         if let countDouble: Double = jd["count"]?.asType() {
             count = Int(countDouble)
@@ -165,10 +164,9 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         return first
     }
 
-    static func getSchema(
-        connection: SSCConnection,
-        path: [String]
-    ) async throws -> JSONData {
+    static func getSchema(connection: SSCConnection, path: [String]) async throws
+        -> JSONData
+    {
         let response = try await Self.queryAux(
             connection: connection,
             query: ["osc", "schema"],

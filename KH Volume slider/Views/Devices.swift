@@ -34,13 +34,13 @@ private enum UILeafNodeType {
         case .array(let a):
             switch a.first {
             case .bool:
-                guard let raw: [Bool] = jsonData.asArrayType() else { return nil }
+                guard let raw: [Bool] = jsonData.asType() else { return nil }
                 self = .arrayBool(raw, raw.count)
             case .number:
-                guard let raw: [Double] = jsonData.asArrayType() else { return nil }
+                guard let raw: [Double] = jsonData.asType() else { return nil }
                 self = .arrayNumber(raw, raw.count)
             case .string:
-                guard let raw: [String] = jsonData.asArrayType() else { return nil }
+                guard let raw: [String] = jsonData.asType() else { return nil }
                 if let options = limits?.option {
                     self = .arrayStringPicker(raw, raw.count, options)
                 } else {
