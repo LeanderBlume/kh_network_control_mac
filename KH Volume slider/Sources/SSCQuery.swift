@@ -138,7 +138,11 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
 
     func getNodeByID(_ id: SSCNode.ID) -> SSCNode? { first(where: { $0.id == id }) }
 
-    private func queryAux(connection: SSCConnection, query: [String], path: [String])
+    static private func queryAux(
+        connection: SSCConnection,
+        query: [String],
+        path: [String]
+    )
         async throws -> JSONData
     {
         // Queries device with
@@ -155,17 +159,17 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         guard case .array(let vs) = response.unwrap() else {
             throw SSCNodeError.error("Malformed response from query")
         }
-        guard !vs.isEmpty else {
+        guard let first = vs.first else {
             throw SSCNodeError.error("Empty array from query")
         }
-        return vs[0]
+        return first
     }
 
-    func getSchema(
+    static func getSchema(
         connection: SSCConnection,
         path: [String]
     ) async throws -> JSONData {
-        let response = try await queryAux(
+        let response = try await Self.queryAux(
             connection: connection,
             query: ["osc", "schema"],
             path: path
@@ -173,14 +177,15 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         return path.reduce(response) { jd, p in jd[p]! }
     }
 
-    func getLimits(connection: SSCConnection, path: [String]) async throws -> OSCLimits?
+    static func getLimits(connection: SSCConnection, path: [String]) async throws
+        -> OSCLimits?
     {
-        let result = try await queryAux(
+        let response = try await Self.queryAux(
             connection: connection,
             query: ["osc", "limits"],
             path: path
         )
-        guard case .array(let vs) = result.unwrap() else {
+        guard case .array(let vs) = response.unwrap() else {
             throw SSCNodeError.error("Malformed response")
         }
         guard case .object = vs.first else {
@@ -191,7 +196,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
 
     private func populateLeaf(connection: SSCConnection) async throws {
         let path = pathToNode()
-        limits = try await getLimits(connection: connection, path: path)
+        limits = try await Self.getLimits(connection: connection, path: path)
         do {
             let data = try await connection.fetchSSCValueData(path: path)
             value = .value(try JSONDecoder().decode(JSONData.self, from: data).unwrap())
@@ -202,7 +207,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
 
     private func populateInternal(connection: SSCConnection) async throws {
         // We are not at a leaf node and need to discover subcommands.
-        let schema = try await getSchema(
+        let schema = try await Self.getSchema(
             connection: connection,
             path: pathToNode()
         )
@@ -243,10 +248,9 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
             try await populateInternal(connection: connection)
             try await populate(connection: connection, recursive: recursive)
         case .children(let subNodeArray):
-            if recursive {
-                for n in subNodeArray {
-                    try await n.populate(connection: connection, recursive: true)
-                }
+            if !recursive { return }
+            for n in subNodeArray {
+                try await n.populate(connection: connection, recursive: true)
             }
         case .unknownValue:
             try await populateLeaf(connection: connection)
