@@ -186,6 +186,8 @@ enum JSONData: Equatable, Codable {
         }
     }
 
+    func asType<T>() -> T? { asAny() as? T }
+
     func asArrayAny() -> [Any?]? {
         if case .array(let vs) = self {
             return vs.map({ $0.asAny() })
@@ -193,9 +195,7 @@ enum JSONData: Equatable, Codable {
         return nil
     }
 
-    func asArrayNumber() -> [Double]? { asArrayAny() as? [Double] }
-    func asArrayString() -> [String]? { asArrayAny() as? [String] }
-    func asArrayBool() -> [Bool]? { asArrayAny() as? [Bool] }
+    func asArrayType<T>() -> [T]? { asArrayAny() as? [T] }
 
     func stringify() -> String {
         switch self {

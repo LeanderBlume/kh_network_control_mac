@@ -33,6 +33,7 @@ enum NodeData {
 }
 
 struct OSCLimits: Equatable, Codable {
+    let desc: String?
     let type: String?
     let units: String?
     let max: Double?
@@ -40,37 +41,30 @@ struct OSCLimits: Equatable, Codable {
     let inc: Double?
     let subscr: Bool?
     let const: Bool?
-    let desc: String?
     let writeable: Bool?
-    let option: [String]?
     let count: Int?
+    let option: [String]?
 
     var isWriteable: Bool { !(writeable == false || const == true) }
 
-    init(fromDict dict: [String: Any?]) {
-        type = dict["type"] as? String
-        units = dict["units"] as? String
-        max = dict["max"] as? Double
-        min = dict["min"] as? Double
-        inc = dict["inc"] as? Double
-        subscr = dict["subscr"] as? Bool
-        const = dict["const"] as? Bool
-        desc = dict["desc"] as? String
-        writeable = dict["writeable"] as? Bool
-        option = dict["option"] as? [String]
-        count = dict["count"] as? Int
-    }
+    init?(fromJSONObject jd: JSONData) {
+        desc = jd["desc"]?.asType()
+        type = jd["type"]?.asType()
+        units = jd["units"]?.asType()
+        max = jd["max"]?.asType()
+        min = jd["min"]?.asType()
+        inc = jd["inc"]?.asType()
+        subscr = jd["subscr"]?.asType()
+        const = jd["const"]?.asType()
+        writeable = jd["writeable"]?.asType()
 
-    init(fromJSONObject jd: JSONData) {
-        guard case .object(let dictionary) = jd else {
-            self.init(fromDict: [:])
-            return
+        option = jd["option"]?.asArrayType()
+
+        if let countDouble: Double = jd["count"]?.asType() {
+            count = Int(countDouble)
+        } else {
+            count = nil
         }
-        var newDict = [String: Any?]()
-        for (k, v) in dictionary {
-            newDict[k] = v.asAny()
-        }
-        self.init(fromDict: newDict)
     }
 }
 
@@ -171,7 +165,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         connection: SSCConnection,
         path: [String]
     ) async throws -> JSONData {
-        var response = try await queryAux(
+        let response = try await queryAux(
             connection: connection,
             query: ["osc", "schema"],
             path: path
@@ -179,7 +173,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
         return path.reduce(response) { jd, p in jd[p]! }
     }
 
-    func getLimits(connection: SSCConnection, path: [String]) async throws -> OSCLimits
+    func getLimits(connection: SSCConnection, path: [String]) async throws -> OSCLimits?
     {
         let result = try await queryAux(
             connection: connection,
