@@ -143,7 +143,6 @@ private struct EqBandPanel: View {
         }
     }
 
-    @ViewBuilder
     var bodymacOS: some View {
         Grid(alignment: .topLeading) {
             GridRow {
@@ -256,26 +255,23 @@ private struct EqPanel: View {
             selectedEqBand: $selectedEqBand,
             enabled: $eq.enabled
         )
+        .id(eq)
         .onChange(of: eq.enabled) {
             Task { await sendCallback(.eq(eqIndex, eqName, .enabled)) }
         }
 
-        if selectedEqBand >= eq.numBands ?? -1 {
-            Text("Band index out of range")
-        } else {
-            EqBandPanel(
-                eqIndex: eqIndex,
-                eqName: eqName,
-                enabled: eq.enabled[selectedEqBand],
-                type: $eq.type[selectedEqBand],
-                frequency: $eq.frequency[selectedEqBand],
-                q: $eq.q[selectedEqBand],
-                boost: $eq.boost[selectedEqBand],
-                gain: $eq.gain[selectedEqBand],
-                sendCallback: sendCallback,
-                textFieldFocused: $textFieldFocused
-            ).id(selectedEqBand)
-        }
+        EqBandPanel(
+            eqIndex: eqIndex,
+            eqName: eqName,
+            enabled: eq.enabled[selectedEqBand],
+            type: $eq.type[selectedEqBand],
+            frequency: $eq.frequency[selectedEqBand],
+            q: $eq.q[selectedEqBand],
+            boost: $eq.boost[selectedEqBand],
+            gain: $eq.gain[selectedEqBand],
+            sendCallback: sendCallback,
+            textFieldFocused: $textFieldFocused
+        ).id(selectedEqBand)
     }
 }
 

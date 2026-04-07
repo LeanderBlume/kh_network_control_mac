@@ -137,7 +137,7 @@ enum EqType: String, CaseIterable, Identifiable {
     }
 }
 
-struct Eq: Codable, Equatable {
+struct Eq: Codable, Equatable, Hashable {
     var desc: String = ""
     var boost: [Double]
     var enabled: [Bool]
