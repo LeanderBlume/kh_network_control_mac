@@ -105,12 +105,7 @@ private struct StateParameterBridge<
     }
 
     private func get(from jsonData: JSONData) -> TDevice? {
-        switch jsonData {
-        case .array:
-            jsonData.asArrayAny() as? TDevice
-        default:
-            jsonData.asAny() as? TDevice
-        }
+        jsonData.asType()
     }
 
     private func set(_ value: TState, into state: KHState) -> KHState {

@@ -181,21 +181,12 @@ enum JSONData: Equatable, Codable {
         case .number(let w): w
         case .string(let w): w
         case .bool(let w): w
-        case .array(let w): w
-        case .object(let w): w
+        case .object(let w): w.mapValues { $0.asAny() }
+        case .array(let w): w.map { $0.asAny() }
         }
     }
 
-    func asArrayAny() -> [Any?]? {
-        if case .array(let vs) = self {
-            return vs.map({ $0.asAny() })
-        }
-        return nil
-    }
-
-    func asArrayNumber() -> [Double]? { asArrayAny() as? [Double] }
-    func asArrayString() -> [String]? { asArrayAny() as? [String] }
-    func asArrayBool() -> [Bool]? { asArrayAny() as? [Bool] }
+    func asType<T>() -> T? { asAny() as? T }
 
     func stringify() -> String {
         switch self {
@@ -210,10 +201,7 @@ enum JSONData: Equatable, Codable {
         case .array(let vs):
             return "[" + vs.map({ $0.stringify() }).joined(separator: ", ") + "]"
         case .object(let vs):
-            var result: [String: String] = [:]
-            for (k, v) in vs {
-                result[k] = v.stringify()
-            }
+            let result = vs.mapValues { $0.stringify() }
             return String(describing: result)
         }
     }
