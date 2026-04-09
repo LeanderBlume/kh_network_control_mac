@@ -2,58 +2,13 @@ import Foundation
 import SwiftUI
 
 struct MenuBarView: View {
-    @Binding var commonState: KHState
-    @Binding var deviceStates: [KHState]
+    @Binding var stateManager: StateManager
 
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
-
-    func syncCommonToDeviceStates(_ p: SSCParameter) {
-        deviceStates = deviceStates.map { state in
-            p.copy(from: commonState, into: state)
-        }
-    }
     
-    func syncDeviceStatesToCommon() {
-        guard !deviceStates.isEmpty else { return }
-        for p in SSCParameter.allDefaultParameters {
-            if p.allEqual(deviceStates) {
-                commonState = p.copy(from: deviceStates.first!, into: commonState)
-            }
-        }
-    }
-
-    func send(_ parameter: SSCParameter) async {
-        syncCommonToDeviceStates(parameter)
-        await khAccess.sendIndividual(deviceStates)
-    }
-
-    func setup() async {
-        await khAccess.setup()
-        await fetch()
-    }
-
-    func fetch() async {
-        deviceStates = await khAccess.fetchAll().sorted(by: { $0.name < $1.name })
-        syncDeviceStatesToCommon()
-    }
-
-    func rescan() async {
-        await khAccess.scan()
-        await setup()
-    }
-
-    func clearCache() async {
-        do {
-            try SchemaCache().clear()
-            try StateCache().clear()
-        } catch {
-            print("Failed to clear cache with error:", error)
-            return
-        }
-        await setup()
-    }
+    func fetch() async { await stateManager.fetch() }
 
     @ViewBuilder
     var buttonBarTop: some View {
@@ -70,9 +25,9 @@ struct MenuBarView: View {
 
             Menu("Actions") {
                 ToolbarFetchButton(fetchCallback: fetch)
-                ToolbarConnectButton(connectCallback: setup)
-                ToolbarRescanButton(rescanCallback: rescan)
-                ToolbarClearCacheButton(clearCacheCallback: clearCache)
+                ToolbarConnectButton(connectCallback: { await stateManager.setup() })
+                ToolbarRescanButton(rescanCallback: { await stateManager.rescan() })
+                ToolbarClearCacheButton(clearCacheCallback: { await stateManager.clearCache() })
 
                 #if os(macOS)
                     Button("Quit", systemImage: "xmark.rectangle") {
@@ -117,13 +72,13 @@ struct MenuBarView: View {
                     Toggle(
                         "Toggle",
                         systemImage: "speaker.slash.fill",
-                        isOn: $commonState.muted
+                        isOn: $stateManager.commonState.muted
                     )
                     /// toggleStyle .button might crash the app on macOS 15. Or maybe it's the other thing in the EQ tab.
                     // .toggleStyle(.button)
                     // .toggleStyle(.switch)
-                    .onChange(of: commonState.muted) {
-                        Task { await send(.muted) }
+                    .onChange(of: stateManager.commonState.muted) {
+                        Task { await stateManager.sendToAll(.muted) }
                     }
                     .disabled(khAccess.status != .ready)
                     .labelsHidden()

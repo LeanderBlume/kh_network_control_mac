@@ -12,8 +12,7 @@ typealias ParameterPathDict = [DeviceModel: [String: [String]]]
 @main
 struct KH_Volume_sliderApp: App {
     @State private var khAccess = KHAccess()
-    @State var commonState = KHState(deviceID: nil)
-    @State var deviceStates = [KHState]()
+    @State private var stateManager: StateManager
 
     // decodes to ParameterPathDict
     @AppStorage("paths") private var paths: Data?
@@ -30,6 +29,8 @@ struct KH_Volume_sliderApp: App {
         } catch {
             print("Error encoding default paths:", error)
         }
+        
+        stateManager = StateManager(khAccess: khAccess)
     }
 
     var body: some Scene {

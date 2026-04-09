@@ -9,46 +9,10 @@ import Foundation
 import SwiftUI
 
 struct ContentView: View {
-    @Binding var commonState: KHState
-    @Binding var deviceStates: [KHState]
+    @Binding var stateManager: StateManager
 
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
-
-    func setup() async {
-        await khAccess.setup()
-        await fetch()
-    }
-
-    func syncDeviceStatesToCommon() {
-        guard !deviceStates.isEmpty else { return }
-        for p in SSCParameter.allDefaultParameters {
-            if p.allEqual(deviceStates) {
-                commonState = p.copy(from: deviceStates.first!, into: commonState)
-            }
-        }
-    }
-
-    func fetch() async {
-        deviceStates = await khAccess.fetchAll().sorted(by: { $0.name < $1.name })
-        syncDeviceStatesToCommon()
-    }
-
-    func rescan() async {
-        await khAccess.scan()
-        await setup()
-    }
-
-    func clearCache() async {
-        do {
-            try SchemaCache().clear()
-            try StateCache().clear()
-        } catch {
-            print("Failed to clear cache with error:", error)
-            return
-        }
-        await setup()
-    }
 
     var bodyiOS: some View {
         TabView {
