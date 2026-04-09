@@ -39,6 +39,10 @@ struct ToolbarStatusDisplay: View {
 
                             StatusDisplayText(status: ds)
                                 .padding(.bottom, 10)
+                            
+                            if device.id != khAccess.devices.last?.id {
+                                Divider()
+                            }
                         }
                     }
                 }

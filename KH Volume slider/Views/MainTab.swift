@@ -200,10 +200,13 @@ private struct MainTabForDevice: View {
             mismatchedParameters.contains($0)
         }
         if selectedDevice == .all && !mps.isEmpty {
-            Text(
-                "⚠️ Device mismatch: "
-                    + mps.map({ $0.description() }).sorted().joined(separator: ", ")
-            )
+            HStack {
+                Image(systemName: "info.circle")
+                Text(
+                    "Device mismatch: "
+                        + mps.map({ $0.description() }).sorted().joined(separator: ", ")
+                )
+            }
         }
     }
 

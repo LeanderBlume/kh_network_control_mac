@@ -23,11 +23,7 @@ actor SSCConnection {
 
     // Something goes wrong with the connection itself
     enum ConnectionError: Error {
-        case connectingTimedOut
-        case emptyResponse
-        case typeError
-        case codingError
-        case impossibleError
+        case connectingTimedOut, emptyResponse, typeError, codingError, impossibleError
     }
 
     // Connection succeeds, but device returns an error

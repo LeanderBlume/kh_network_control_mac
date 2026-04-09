@@ -8,9 +8,7 @@
 import Foundation
 
 enum NodeData {
-    case unknown
-    case unknownChildren
-    case unknownValue
+    case unknown, unknownChildren, unknownValue
     case children([SSCNode])
     case value(JSONData)
     case error(String)

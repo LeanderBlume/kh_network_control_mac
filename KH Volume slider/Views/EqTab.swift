@@ -121,22 +121,22 @@ private struct EqBandPanel: View {
             }
 
         Grid(alignment: .leading) {
-            ForEach(sliders.indices, id: \.self) { i in
+            ForEach(sliders) { slider in
                 LabeledSliderTextField(
-                    name: sliders[i].name,
-                    value: sliders[i].value,
-                    range: sliders[i].range,
-                    logarithmic: sliders[i].logarithmic,
+                    name: slider.name,
+                    value: slider.value,
+                    range: slider.range,
+                    logarithmic: slider.logarithmic,
                     sendCallback: {
-                        await sendCallback(.eq(eqIndex, eqName, sliders[i].eqParameter))
+                        await sendCallback(.eq(eqIndex, eqName, slider.eqParameter))
                     }
                 )
                 .focused(
                     $textFieldFocused,
-                    equals: .eq(eqIndex, eqName, sliders[i].eqParameter)
+                    equals: .eq(eqIndex, eqName, slider.eqParameter)
                 )
 
-                if i + 1 != sliders.count {
+                if slider.id != sliders.last?.id {
                     Divider()
                 }
             }
@@ -152,16 +152,16 @@ private struct EqBandPanel: View {
                     }
                     .padding(.bottom, 5)
             }
-            ForEach(sliders.indices, id: \.self) { i in
+            ForEach(sliders) { slider in
                 GridRow {
                     LabeledSliderTextField(
-                        name: sliders[i].name,
-                        value: sliders[i].value,
-                        range: sliders[i].range,
-                        logarithmic: sliders[i].logarithmic,
+                        name: slider.name,
+                        value: slider.value,
+                        range: slider.range,
+                        logarithmic: slider.logarithmic,
                         sendCallback: {
                             await sendCallback(
-                                .eq(eqIndex, eqName, sliders[i].eqParameter)
+                                .eq(eqIndex, eqName, slider.eqParameter)
                             )
                         }
                     )

@@ -139,14 +139,16 @@ struct TestSSC {
     }
 
     @Test func testGetSchema() async throws {
-        let node = SSCNode(name: "root", deviceID: deviceID, parent: nil)
         // try await node.connect()
-        let result = try await node.getSchema(connection: connection, path: ["audio"])
+        let result = try await SSCNode.getSchema(
+            connection: connection,
+            path: ["audio"]
+        )
         #expect(
             result == .object(["out": .object([:]), "in": .object([:])])
         )
         sleep(1)
-        let result2 = try await node.getSchema(connection: connection, path: [])
+        let result2 = try await SSCNode.getSchema(connection: connection, path: [])
         #expect(
             result2
                 == .object([
@@ -156,7 +158,7 @@ struct TestSSC {
                 ])
         )
         sleep(1)
-        let result3 = try await node.getSchema(
+        let result3 = try await SSCNode.getSchema(
             connection: connection,
             path: ["ui", "logo", "brightness"]
         )
@@ -164,25 +166,25 @@ struct TestSSC {
     }
 
     @Test func testGetLimits() async throws {
-        let node = SSCNode(name: "root", deviceID: deviceID, parent: nil)
-        let result = try await node.getLimits(
+        let result = try await SSCNode.getLimits(
             connection: connection,
             path: ["ui", "logo", "brightness"]
         )
-        print(result)
         #expect(
             result
-                == OSCLimits(fromDict: [
-                    "type": "Number",
-                    "units": "%",
-                    "max": 125.0,
-                    "min": 0.0,
-                    "inc": 1.0,
-                    "subscr": true,
-                    // "const": nil,
-                    "desc": nil,
-                    "writeable": nil,
-                ])
+                == OSCLimits(
+                    fromJSONObject: .object([
+                        "type": .string("Number"),
+                        "units": .string("%"),
+                        "max": .number(125.0),
+                        "min": .number(0.0),
+                        "inc": .number(1.0),
+                        "subscr": .bool(true),
+                        // "const": nil,
+                        "desc": .null,
+                        "writeable": .null,
+                    ])
+                )
         )
     }
 
@@ -236,7 +238,6 @@ struct TestSSC {
         let treeData = JSONData(rootNode: rootNode)!
         let jd = try JSONEncoder().encode(treeData)
         let decoder = JSONDecoder()
-        let schema = JSONData(rootNode: rootNode)
         // decoder.userInfo[.schemaJSONData] = schema
         let decodedTest = try decoder.decode(
             JSONData.self,
@@ -323,6 +324,6 @@ struct TestBackup {
         let kha = KHAccess()
         await kha.setup()
         let b = try Backupper()
-        let state = try await b.load(name: "TestAnew.json", khAccess: kha)
+        let _ = try await b.load(name: "TestAnew.json", khAccess: kha)
     }
 }

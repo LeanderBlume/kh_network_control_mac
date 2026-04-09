@@ -198,12 +198,7 @@ where T: Equatable, T: Codable, T: Sendable {
 }
 
 enum EQParameter: CaseIterable, Equatable {
-    case boost
-    case enabled
-    case frequency
-    case gain
-    case q
-    case type
+    case boost, enabled, frequency, gain, q, type
 
     func description() -> String { finalPathComponent().capitalized }
 
@@ -220,18 +215,12 @@ enum EQParameter: CaseIterable, Equatable {
 }
 
 enum SSCParameter: Identifiable, Equatable, Hashable {
-    case name
-    case volume
-    case muted
-    case logoBrightness
-    case standbyEnabled
-    case standbyTimeout
-    case delay
-    case identify
+    case name, volume, muted, logoBrightness, standbyEnabled, standbyTimeout, delay,
+        identify
     case eq(_ index: Int, _ name: String, _ eqParameter: EQParameter)
 
     var id: String { self.description() }
-    
+
     static var allDefaultParameters: [SSCParameter] {
         var result: [SSCParameter] = [
             .name,
@@ -369,8 +358,7 @@ enum SSCParameter: Identifiable, Equatable, Hashable {
 }
 
 enum KHParameterGroup {
-    case fetch
-    case send
+    case fetch, send
 
     func parameters(_ deviceModel: DeviceModel) -> [SSCParameter] {
         switch self {
