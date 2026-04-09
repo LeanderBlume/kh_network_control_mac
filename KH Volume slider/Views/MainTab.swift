@@ -8,6 +8,11 @@
 import Foundation
 import SwiftUI
 
+private enum SelectedDevice: Hashable {
+    case all
+    case specific(_ deviceIndex: Int)
+}
+
 private struct AutoStandbySection: View {
     @Binding var uiState: KHState
     var sendCallback: (SSCParameter) async -> Void
@@ -166,15 +171,10 @@ private struct IndividualDeviceSection: View {
     }
 }
 
-private enum SelectedDevice: Hashable {
-    case all
-    case specific(_ deviceIndex: Int)
-}
-
-private struct MainTab_: View {
+private struct MainTabForDevice: View {
     @Binding var uiState: KHState
+    var deviceStates: [KHState]
     var selectedDevice: SelectedDevice
-    @Binding var mismatchedParameters: Set<SSCParameter>
     var sendCallback: (SSCParameter) async -> Void
 
     @Environment(KHAccess.self) private var khAccess: KHAccess
@@ -196,6 +196,9 @@ private struct MainTab_: View {
         title: String,
         parametersInSection: Set<SSCParameter>,
     ) -> some View {
+        let mismatchedParameters = Set(
+            SSCParameter.allDefaultParameters.filter { !$0.allEqual(deviceStates) }
+        )
         let mps = parametersInSection.filter {
             mismatchedParameters.contains($0)
         }
@@ -429,7 +432,6 @@ private struct MainTab_: View {
 struct MainTab: View {
     @Binding var commonState: KHState
     @Binding var deviceStates: [KHState]
-    @Binding var mismatchedParameters: Set<SSCParameter>
     var fetchCallback: () async -> Void
     var connectCallback: () async -> Void
     var rescanCallback: () async -> Void
@@ -445,7 +447,6 @@ struct MainTab: View {
         deviceStates = deviceStates.map { state in
             p.copy(from: commonState, into: state)
         }
-        mismatchedParameters.remove(p)
     }
 
     func sendCallback(_ parameter: SSCParameter) async {
@@ -479,10 +480,10 @@ struct MainTab: View {
                     $deviceStates[i]
                 }
 
-            MainTab_(
+            MainTabForDevice(
                 uiState: uiStateBinding,
+                deviceStates: deviceStates,
                 selectedDevice: selectedDevice,
-                mismatchedParameters: $mismatchedParameters,
                 sendCallback: sendCallback,
                 textFieldFocused: $textFieldFocused
             ).id(selectedDevice)
@@ -524,10 +525,10 @@ struct MainTab: View {
                     $deviceStates[i]
                 }
 
-            MainTab_(
+            MainTabForDevice(
                 uiState: uiStateBinding,
+                deviceStates: deviceStates,
                 selectedDevice: selectedDevice,
-                mismatchedParameters: $mismatchedParameters,
                 sendCallback: sendCallback,
                 textFieldFocused: $textFieldFocused
             ).id(selectedDevice)

@@ -12,7 +12,6 @@ struct ContentView: View {
     @Binding var commonState: KHState
     @Binding var deviceStates: [KHState]
 
-    @State private var mismatchedParameters: Set<SSCParameter> = []
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var showError: Bool = false
 
@@ -26,9 +25,6 @@ struct ContentView: View {
         for p in SSCParameter.allDefaultParameters {
             if p.allEqual(deviceStates) {
                 commonState = p.copy(from: deviceStates.first!, into: commonState)
-                mismatchedParameters.remove(p)
-            } else {
-                mismatchedParameters.insert(p)
             }
         }
     }
@@ -61,7 +57,6 @@ struct ContentView: View {
                     MainTab(
                         commonState: $commonState,
                         deviceStates: $deviceStates,
-                        mismatchedParameters: $mismatchedParameters,
                         fetchCallback: fetch,
                         connectCallback: setup,
                         rescanCallback: rescan,
@@ -113,7 +108,6 @@ struct ContentView: View {
                     MainTab(
                         commonState: $commonState,
                         deviceStates: $deviceStates,
-                        mismatchedParameters: $mismatchedParameters,
                         fetchCallback: fetch,
                         connectCallback: setup,
                         rescanCallback: rescan,
