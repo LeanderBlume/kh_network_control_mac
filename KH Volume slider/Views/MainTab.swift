@@ -192,31 +192,19 @@ private struct MainTabForDevice: View {
     }
 
     @ViewBuilder
-    func sectionTitleMacOS(
-        title: String,
-        parametersInSection: Set<SSCParameter>,
-    ) -> some View {
+    private func mismatchFooteriOS(_ parameters: Set<SSCParameter>) -> some View {
         let mismatchedParameters = Set(
             SSCParameter.allDefaultParameters.filter { !$0.allEqual(deviceStates) }
         )
-        let mps = parametersInSection.filter {
+        let mps = parameters.filter {
             mismatchedParameters.contains($0)
         }
-
-        HStack(spacing: 15) {
-            Text(title)
-                .font(.title2)
-
-            if selectedDevice == .all && !mps.isEmpty {
-                Text(
-                    "⚠️ Device mismatch: "
-                        + mps.map({ $0.description() }).sorted().joined(separator: ", ")
-                )
-            }
-
-            Spacer()
+        if selectedDevice == .all && !mps.isEmpty {
+            Text(
+                "⚠️ Device mismatch: "
+                    + mps.map({ $0.description() }).sorted().joined(separator: ", ")
+            )
         }
-        // .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -231,7 +219,7 @@ private struct MainTabForDevice: View {
             }
         }
 
-        Section("Volume (dB)") {
+        Section {
             LabeledContent {
                 TextField(
                     "",
@@ -270,11 +258,15 @@ private struct MainTabForDevice: View {
             )
             // .toggleStyle(.button)
             .onChange(of: uiState.muted) { Task { await sendCallback(.muted) } }
+        } header: {
+            Text("Volume")
+        } footer: {
+            mismatchFooteriOS([.volume, .muted])
         }
         .focused($textFieldFocused, equals: .volume)
         .disabled(khAccess.status != .ready)
 
-        Section("Logo brightness") {
+        Section {
             TextField(
                 "",
                 value: $uiState.logoBrightness,
@@ -290,11 +282,15 @@ private struct MainTabForDevice: View {
             } onEditingChanged: { editing in
                 if !editing { Task { await sendCallback(.logoBrightness) } }
             }
+        } header: {
+            Text("Logo brightness")
+        } footer: {
+            mismatchFooteriOS([.logoBrightness])
         }
         .focused($textFieldFocused, equals: .logoBrightness)
         .disabled(khAccess.status != .ready)
 
-        Section("EQ") {
+        Section {
             // TODO this is cursed right now and should be changed somehow.
             if let deviceModel = getActiveDeviceModel() {
                 EqTab(
@@ -306,16 +302,56 @@ private struct MainTabForDevice: View {
             } else {
                 Text("Device model could not be determined")
             }
+        } header: {
+            Text("EQ")
+        } footer: {
+            mismatchFooteriOS(
+                Set(SSCParameter.allDefaultParameters).filter({
+                    if case .eq = $0 { true } else { false }
+                })
+            )
         }
         .disabled(khAccess.status != .ready)
 
-        Section("Auto-standby") {
+        Section {
             AutoStandbySection(
                 uiState: $uiState,
                 sendCallback: sendCallback,
                 textFieldFocused: $textFieldFocused
             )
+        } header: {
+            Text("Auto-standby")
+        } footer: {
+            mismatchFooteriOS([.standbyEnabled, .standbyTimeout])
         }
+    }
+
+    @ViewBuilder
+    private func sectionTitleMacOS(
+        title: String,
+        parametersInSection: Set<SSCParameter>,
+    ) -> some View {
+        let mismatchedParameters = Set(
+            SSCParameter.allDefaultParameters.filter { !$0.allEqual(deviceStates) }
+        )
+        let mps = parametersInSection.filter {
+            mismatchedParameters.contains($0)
+        }
+
+        HStack(spacing: 15) {
+            Text(title)
+                .font(.title2)
+
+            if selectedDevice == .all && !mps.isEmpty {
+                Text(
+                    "⚠️ Device mismatch: "
+                        + mps.map({ $0.description() }).sorted().joined(separator: ", ")
+                )
+            }
+
+            Spacer()
+        }
+        // .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
