@@ -8,15 +8,35 @@ struct MenuBarView: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+
+    func syncCommonToDeviceStates(_ p: SSCParameter) {
+        deviceStates = deviceStates.map { state in
+            p.copy(from: commonState, into: state)
+        }
+    }
     
+    func syncDeviceStatesToCommon() {
+        guard !deviceStates.isEmpty else { return }
+        for p in SSCParameter.allDefaultParameters {
+            if p.allEqual(deviceStates) {
+                commonState = p.copy(from: deviceStates.first!, into: commonState)
+            }
+        }
+    }
+
+    func send(_ parameter: SSCParameter) async {
+        syncCommonToDeviceStates(parameter)
+        await khAccess.sendIndividual(deviceStates)
+    }
+
     func setup() async {
         await khAccess.setup()
         await fetch()
     }
 
     func fetch() async {
-        deviceStates = await khAccess.fetchAll()
-        commonState = deviceStates.first ?? KHState(deviceID: nil)
+        deviceStates = await khAccess.fetchAll().sorted(by: { $0.name < $1.name })
+        syncDeviceStatesToCommon()
     }
 
     func rescan() async {
@@ -68,7 +88,22 @@ struct MenuBarView: View {
     var buttonBarBottom: some View {
         HStack {
             StatusDisplay(status: khAccess.status)
+
             Spacer()
+
+            let mismatchedParameters = Set(
+                SSCParameter.allDefaultParameters.filter { !$0.allEqual(deviceStates) }
+            )
+            let mps = [.muted, .volume, .logoBrightness].filter {
+                mismatchedParameters.contains($0)
+            }
+            if !mps.isEmpty {
+                Image(systemName: "info.circle")
+                Text(
+                    "Device mismatch: "
+                        + mps.map({ $0.description() }).sorted().joined(separator: ", ")
+                )
+            }
         }
     }
 
@@ -88,7 +123,7 @@ struct MenuBarView: View {
                     // .toggleStyle(.button)
                     // .toggleStyle(.switch)
                     .onChange(of: commonState.muted) {
-                        Task { await khAccess.send(commonState) }
+                        Task { await send(.muted) }
                     }
                     .disabled(khAccess.status != .ready)
                     .labelsHidden()
@@ -98,7 +133,7 @@ struct MenuBarView: View {
 
                     Slider(value: $commonState.volume, in: 0...120, step: 3) {
                         editing in
-                        if !editing { Task { await khAccess.send(commonState) } }
+                        if !editing { Task { await send(.volume) } }
                     }
 
                     TextField(
@@ -107,15 +142,15 @@ struct MenuBarView: View {
                         format: .number.precision(.fractionLength(1))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send(commonState) } }
+                    .onSubmit { Task { await send(.volume) } }
                     .labelsHidden()
                 }
                 GridRow {
                     Text("Logo")
 
-                    Slider(value: $commonState.logoBrightness, in: 0...125, step: 5)
-                    { editing in
-                        if !editing { Task { await khAccess.send(commonState) } }
+                    Slider(value: $commonState.logoBrightness, in: 0...125, step: 5) {
+                        editing in
+                        if !editing { Task { await send(.logoBrightness) } }
                     }
 
                     TextField(
@@ -124,7 +159,7 @@ struct MenuBarView: View {
                         format: .number.rounded()
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await khAccess.send(commonState) } }
+                    .onSubmit { Task { await send(.logoBrightness) } }
                     .labelsHidden()
                 }
             }
