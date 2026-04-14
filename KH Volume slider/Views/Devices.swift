@@ -297,11 +297,12 @@ private struct NodeValueView: View {
 
 private struct NodeView: View {
     var node: SSCNode
+    @State private var values: PossibleValues
+    @Environment(KHAccess.self) private var khAccess: KHAccess
+
     private var deviceName: String {
         khAccess.getDeviceByID(node.id.deviceID)?.state.name ?? "Non-existent device"
     }
-    @State var values: PossibleValues
-    @Environment(KHAccess.self) private var khAccess: KHAccess
 
     init(node: SSCNode) {
         self.node = node
