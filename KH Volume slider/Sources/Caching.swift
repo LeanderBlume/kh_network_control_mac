@@ -72,7 +72,7 @@ protocol BackupperProtocol {
     func delete(name: String) throws
     func list() -> [String]
     @MainActor func write(name: String, khAccess: KHAccess) throws
-    @MainActor func load(name: String, khAccess: KHAccess) async throws -> KHState
+    @MainActor func load(name: String, khAccess: KHAccess) async throws -> [KHState]
 }
 
 struct ConnectionCache: ConnectionCacheProtocol {
@@ -294,7 +294,7 @@ struct Backupper: BackupperProtocol {
     }
 
     @MainActor
-    func load(name: String, khAccess: KHAccess) async throws -> KHState {
+    func load(name: String, khAccess: KHAccess) async throws -> [KHState] {
         let backup = try getBackup(name: name)
 
         try khAccess.devices.forEach { device in
@@ -316,6 +316,6 @@ struct Backupper: BackupperProtocol {
             }
         }
         await khAccess.sendParameterTree()
-        return khAccess.devices.first!.state
+        return khAccess.devices.map(\.state)
     }
 }

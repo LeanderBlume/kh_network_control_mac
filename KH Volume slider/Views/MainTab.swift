@@ -102,20 +102,36 @@ private struct IndividualDeviceSection: View {
             .focused($textFieldFocused, equals: .name)
             .onSubmit { Task { await sendCallback(.name) } }
 
-        Toggle("Identify (flash LED)", isOn: $uiState.identify)
+        Toggle("Identify (flash LED)", systemImage: "rays", isOn: $uiState.identify)
             .onChange(of: uiState.identify) {
                 Task { await sendCallback(.identify) }
             }
 
-        Grid {
-            LabeledSliderTextField(
-                name: "Delay (1/48 kHz)",
+        VStack {
+            HStack {
+                Text("Delay (1/48kHz)" + ":")
+
+                TextField(
+                    "Delay (1/48kHz)",
+                    value: $uiState.delay,
+                    format: .number.precision(.fractionLength(0))
+                )
+                .onSubmit { Task { await sendCallback(.delay) } }
+                #if os(iOS)
+                    .keyboardType(.decimalPad)
+                #endif
+            }
+
+            Stepper(
+                "+/- 1",
                 value: $uiState.delay,
-                range: 0...5760,
-                sendCallback: { await sendCallback(.delay) },
-                precision: 0
-            )
-            .focused($textFieldFocused, equals: .delay)
+                in: 0...5760,
+                step: 1
+            ) {
+                editing in
+                if editing { return }
+                Task { await sendCallback(.delay) }
+            }
         }
     }
 
@@ -134,7 +150,7 @@ private struct IndividualDeviceSection: View {
             GridRow {
                 Text("Identify (flash LED)")
 
-                Toggle("Toggle", isOn: $uiState.identify)
+                Toggle("Toggle", systemImage: "rays", isOn: $uiState.identify)
                     .onChange(of: uiState.identify) {
                         Task { await sendCallback(.identify) }
                     }
@@ -143,20 +159,27 @@ private struct IndividualDeviceSection: View {
                 Spacer()
             }
             GridRow {
-                Text("Delay (1/48 kHz)")
-
-                Slider(value: $uiState.delay, in: 0...5760) {
-                    editing in
-                    if !editing { Task { await sendCallback(.delay) } }
-                }
+                Text("Delay (1/48kHz)")
 
                 TextField(
-                    "Delay (1/48 kHz)",
+                    "Delay (1/48kHz)",
                     value: $uiState.delay,
                     format: .number.precision(.fractionLength(0))
                 )
                 .frame(width: 80)
                 .onSubmit { Task { await sendCallback(.delay) } }
+                .labelsHidden()
+
+                Stepper(
+                    "+/- 1",
+                    value: $uiState.delay,
+                    in: 0...5760,
+                    step: 1
+                ) {
+                    editing in
+                    if editing { return }
+                    Task { await sendCallback(.delay) }
+                }
                 .labelsHidden()
             }
         }
@@ -166,7 +189,10 @@ private struct IndividualDeviceSection: View {
         #if os(iOS)
             bodyiOS
         #elseif os(macOS)
-            bodymacOS
+            HStack {
+                bodymacOS
+                Spacer()
+            }
         #endif
     }
 }

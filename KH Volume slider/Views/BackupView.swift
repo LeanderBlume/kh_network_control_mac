@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct BackupView: View {
-    @Binding var commonState: KHState
+    @Binding var deviceStates: [KHState]
     @State var newName: String = ""
     @State var selection: String? = nil
     @FocusState private var textFieldFocused: Bool
@@ -27,7 +27,7 @@ struct BackupView: View {
     private func loadSelected() async throws {
         guard let selection else { return }
         let backupper = try Backupper()
-        commonState = try await backupper.load(
+        deviceStates = try await backupper.load(
             name: selection,
             khAccess: khAccess
         )

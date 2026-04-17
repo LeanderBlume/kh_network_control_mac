@@ -351,11 +351,13 @@ final class KHDevice: @MainActor KHSingleDeviceProtocol {
     func sendNode(path: [String]) async {
         guard let node = _getNodeAtPath(path) else { return }
         await _sendNodes([node])
+        updateStateFromParameterTree()
     }
 
     func fetchNode(path: [String]) async {
         guard let node = _getNodeAtPath(path) else { return }
         await _fetchNodes([node])
+        updateStateFromParameterTree()
     }
 
     func getNodeByID(_ id: SSCNode.ID) -> SSCNode? { parameterTree?.getNodeByID(id) }
