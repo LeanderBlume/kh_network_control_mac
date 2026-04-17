@@ -30,7 +30,7 @@ struct KH_Volume_sliderApp: App {
             print("Error encoding default paths:", error)
         }
         
-        stateManager = StateManager(khAccess: khAccess)
+        stateManager = StateManager(khAccess)
     }
 
     var body: some Scene {

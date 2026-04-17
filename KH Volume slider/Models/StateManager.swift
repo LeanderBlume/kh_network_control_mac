@@ -5,18 +5,20 @@
 //  Created by Leander Blume on 09.04.26.
 //
 
-struct StateManager {
+class StateManager {
     var khAccess: KHAccess
 
     var commonState = KHState(deviceID: nil)
     var deviceStates = [KHState]()
+    
+    init(_ khAccess: KHAccess) { self.khAccess = khAccess }
 
-    mutating func setup() async {
+    func setup() async {
         await khAccess.setup()
         await fetch()
     }
 
-    mutating func syncDeviceStatesToCommon() {
+    func syncDeviceStatesToCommon() {
         guard !deviceStates.isEmpty else { return }
         for p in SSCParameter.allDefaultParameters {
             if p.allEqual(deviceStates) {
@@ -25,23 +27,23 @@ struct StateManager {
         }
     }
 
-    mutating func syncCommonToDeviceStates(_ p: SSCParameter) {
+    func syncCommonToDeviceStates(_ p: SSCParameter) {
         deviceStates = deviceStates.map { state in
             p.copy(from: commonState, into: state)
         }
     }
 
-    mutating func fetch() async {
+    func fetch() async {
         deviceStates = await khAccess.fetchAll().sorted(by: { $0.name < $1.name })
         syncDeviceStatesToCommon()
     }
 
-    mutating func rescan() async {
+    func rescan() async {
         await khAccess.scan()
         await setup()
     }
 
-    mutating func clearCache() async {
+    func clearCache() async {
         do {
             try SchemaCache().clear()
             try StateCache().clear()
@@ -52,12 +54,12 @@ struct StateManager {
         await setup()
     }
 
-    mutating func sendToAll(_ parameter: SSCParameter) async {
+    func sendToAll(_ parameter: SSCParameter) async {
         syncCommonToDeviceStates(parameter)
         await khAccess.sendIndividual(deviceStates)
     }
 
-    mutating func sendIndividual() async {
+    func sendIndividual() async {
         await khAccess.sendIndividual(deviceStates)
         syncDeviceStatesToCommon()
     }
