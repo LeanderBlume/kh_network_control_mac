@@ -286,6 +286,7 @@ private struct NodeValueView: View {
             deviceState = newState
         }
         stateManager.deviceStates[deviceStateIndex] = deviceState
+        stateManager.syncDeviceStatesToCommon()
         await device.sendNode(path: node.pathToNode())
     }
 
