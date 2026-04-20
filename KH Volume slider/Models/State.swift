@@ -62,6 +62,7 @@ private protocol KHStatePathProtocol: Equatable {
     func copy(from: KHState, into: KHState) -> KHState
     func copy(from: JSONData, into: KHState, devicePath: [String]) -> KHState?
     @MainActor func copy(from: KHState, into: SSCNode, devicePath: [String])
+    @MainActor func set(node: SSCNode, into: KHState) -> KHState?
 
     func fetch(
         into: KHState,
@@ -152,6 +153,12 @@ where T: Equatable, T: Codable, T: Sendable {
         default:
             return
         }
+    }
+    
+    @MainActor
+    func set(node: SSCNode, into state: KHState) -> KHState? {
+        guard case .value(let val) = node.value else { return nil }
+        return set(val, into: state)
     }
 
     @MainActor
@@ -322,6 +329,11 @@ enum SSCParameter: Identifiable, Equatable, Hashable {
             into: nodeTree,
             devicePath: deviceModel.getDevicePath(for: self)
         )
+    }
+    
+    @MainActor
+    func set(node: SSCNode, into state: KHState) -> KHState? {
+        getPathObject().set(node: node, into: state)
     }
 
     func fetch(

@@ -25,7 +25,7 @@ struct ContentView: View {
             }
             Tab("Devices", systemImage: "list.bullet.indent") {
                 NavigationStack {
-                    DevicesView()
+                    DevicesView(stateManager: stateManager)
                         .toolbar {
                             BrowserToolbar(
                                 showError: $showError,
@@ -59,7 +59,7 @@ struct ContentView: View {
                 }
             }
             Tab("Devices", systemImage: "list.bullet.indent") {
-                DevicesView()
+                DevicesView(stateManager: stateManager)
                     .toolbar {
                         BrowserToolbar(
                             showError: $showError,

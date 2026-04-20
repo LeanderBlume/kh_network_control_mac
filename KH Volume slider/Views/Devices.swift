@@ -262,6 +262,8 @@ private struct NodeValueEditor: View {
 private struct NodeValueView: View {
     var node: SSCNode
     @Binding var values: PossibleValues
+    var stateManager: StateManager
+    var mappedParameters: [SSCParameter]
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     private func sendValue() async {
@@ -270,6 +272,20 @@ private struct NodeValueView: View {
             print("Device with id \(node.id.deviceID) not found")
             return
         }
+        guard
+            var deviceState = stateManager.deviceStates.first(where: {
+                $0.deviceID == device.id
+            })
+        else {
+            print("No matching device state found")
+            return
+        }
+        let deviceStateIndex = stateManager.deviceStates.firstIndex(of: deviceState)!
+        for p in mappedParameters {
+            guard let newState = p.set(node: node, into: deviceState) else { break }
+            deviceState = newState
+        }
+        stateManager.deviceStates[deviceStateIndex] = deviceState
         await device.sendNode(path: node.pathToNode())
     }
 
@@ -298,15 +314,17 @@ private struct NodeValueView: View {
 private struct NodeView: View {
     var node: SSCNode
     @State private var values: PossibleValues
+    var stateManager: StateManager
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     private var deviceName: String {
         khAccess.getDeviceByID(node.id.deviceID)?.state.name ?? "Non-existent device"
     }
 
-    init(node: SSCNode) {
+    init(node: SSCNode, stateManager: StateManager) {
         self.node = node
         values = .init(fromNode: node)
+        self.stateManager = stateManager
     }
 
     private func getMappedParameters() -> [SSCParameter] {
@@ -324,7 +342,12 @@ private struct NodeView: View {
     var bodyiOS: some View {
         Form {
             Section("Edit value(s)") {
-                NodeValueView(node: node, values: $values)
+                NodeValueView(
+                    node: node,
+                    values: $values,
+                    stateManager: stateManager,
+                    mappedParameters: getMappedParameters()
+                )
             }
 
             #if os(macOS)
@@ -387,6 +410,7 @@ private struct NodeView: View {
 
 private struct DeviceBrowser: View {
     var rootNode: SSCNode
+    var stateManager: StateManager
     var deviceName: String {
         khAccess.getDeviceByID(rootNode.id.deviceID)?.state.name
             ?? "Non-existent device"
@@ -404,7 +428,7 @@ private struct DeviceBrowser: View {
                 children: \.children,
             ) { node in
                 NavigationLink(
-                    destination: NodeView(node: node)
+                    destination: NodeView(node: node, stateManager: stateManager)
                 ) {
                     if let units = node.limits?.units {
                         Text(node.name + " (\(units))")
@@ -499,11 +523,15 @@ private struct ParameterMapper: View {
 
 private struct DeviceBrowserLink: View {
     var device: KHDevice
+    var stateManager: StateManager
 
     var body: some View {
         if let rootNode = device.parameterTree {
             NavigationLink(
-                destination: DeviceBrowser(rootNode: rootNode)
+                destination: DeviceBrowser(
+                    rootNode: rootNode,
+                    stateManager: stateManager
+                )
             ) {
                 Text(device.state.name)
                 Text(device.getModel().description())
@@ -591,6 +619,8 @@ private struct ParameterMappingForDeviceModel: View {
 
 private struct DeviceBrowserForm: View {
     var devices: [KHDevice]
+    var stateManager: StateManager
+
     var deviceModels: [DeviceModel] {
         let models = devices.map({ $0.getModel() })
         return Array(Set(models)).sorted { $0.description() < $1.description() }
@@ -600,7 +630,7 @@ private struct DeviceBrowserForm: View {
         List {
             Section("Parameter Browser") {
                 ForEach(devices) { device in
-                    DeviceBrowserLink(device: device)
+                    DeviceBrowserLink(device: device, stateManager: stateManager)
                 }
             }
             Section("UI mappings") {
@@ -618,6 +648,8 @@ private struct DeviceBrowserForm: View {
 }
 
 struct DevicesView: View {
+    var stateManager: StateManager
+
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @State private var pathStrings: [String: String] = [:]
 
@@ -627,16 +659,8 @@ struct DevicesView: View {
             if devices.isEmpty {
                 Text("No devices")
             } else {
-                DeviceBrowserForm(devices: devices)
+                DeviceBrowserForm(devices: devices, stateManager: stateManager)
             }
         }
     }
-}
-
-#Preview {
-    let khAccess = KHAccess()
-    DevicesView()
-        .environment(khAccess)
-        .task { _ = await khAccess.setup() }
-        .frame(minWidth: 400, minHeight: 800)
 }
