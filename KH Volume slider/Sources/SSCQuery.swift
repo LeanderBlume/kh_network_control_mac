@@ -170,7 +170,7 @@ class SSCNode: @MainActor Identifiable, @MainActor Sequence {
             query: ["osc", "schema"],
             path: path
         )
-        return path.reduce(response) { jd, p in jd[p]! }
+        return response.getAtPath(path)!
     }
 
     static func getLimits(connection: SSCConnection, path: [String]) async throws
