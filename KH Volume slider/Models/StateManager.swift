@@ -5,12 +5,16 @@
 //  Created by Leander Blume on 09.04.26.
 //
 
-class StateManager {
-    var khAccess: KHAccess
+import SwiftUI
 
+@Observable
+@MainActor
+class StateManager {
     var commonState = KHState(deviceID: nil)
     var deviceStates = [KHState]()
-    
+
+    let khAccess: KHAccess
+
     init(_ khAccess: KHAccess) { self.khAccess = khAccess }
 
     func setup() async {

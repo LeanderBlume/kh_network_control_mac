@@ -495,33 +495,21 @@ private struct MainTabForDevice: View {
 }
 
 struct MainTab: View {
-    @Binding var commonState: KHState
-    @Binding var deviceStates: [KHState]
-    var fetchCallback: () async -> Void
-    var connectCallback: () async -> Void
-    var rescanCallback: () async -> Void
-    var clearCacheCallback: () async -> Void
-    var syncDeviceStatesToCommon: () -> Void
+    @Binding var stateManager: StateManager
 
     @State private var selectedDevice: SelectedDevice = .all
     @State private var showError: Bool = false
     @FocusState private var textFieldFocused: SSCParameter?
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
-    func syncCommonToDeviceStates(_ p: SSCParameter) {
-        deviceStates = deviceStates.map { state in
-            p.copy(from: commonState, into: state)
-        }
-    }
-
     func sendCallback(_ parameter: SSCParameter) async {
         switch selectedDevice {
         case .all:
-            syncCommonToDeviceStates(parameter)
+            stateManager.syncCommonToDeviceStates(parameter)
         case .specific:
-            syncDeviceStatesToCommon()
+            stateManager.syncDeviceStatesToCommon()
         }
-        await khAccess.sendIndividual(deviceStates)
+        await khAccess.sendIndividual(stateManager.deviceStates)
     }
 
     var bodyiOS: some View {
@@ -530,8 +518,8 @@ struct MainTab: View {
                 Picker("Device:", selection: $selectedDevice) {
                     Text("All").tag(SelectedDevice.all)
 
-                    ForEach(deviceStates.indices, id: \.self) { i in
-                        Text(deviceStates[i].name).tag(SelectedDevice.specific(i))
+                    ForEach(stateManager.deviceStates.indices, id: \.self) { i in
+                        Text(stateManager.deviceStates[i].name).tag(SelectedDevice.specific(i))
                     }
                 }
                 .pickerStyle(.segmented)
@@ -540,14 +528,14 @@ struct MainTab: View {
             let uiStateBinding =
                 switch selectedDevice {
                 case .all:
-                    $commonState
+                    $stateManager.commonState
                 case .specific(let i):
-                    $deviceStates[i]
+                    $stateManager.deviceStates[i]
                 }
 
             MainTabForDevice(
                 uiState: uiStateBinding,
-                deviceStates: deviceStates,
+                deviceStates: stateManager.deviceStates,
                 selectedDevice: selectedDevice,
                 sendCallback: sendCallback,
                 textFieldFocused: $textFieldFocused
@@ -557,10 +545,7 @@ struct MainTab: View {
         .toolbar {
             MainToolbar(
                 showError: $showError,
-                fetchCallback: fetchCallback,
-                connectCallback: connectCallback,
-                rescanCallback: rescanCallback,
-                clearCacheCallback: clearCacheCallback
+                stateManager: stateManager
             )
             if textFieldFocused != nil {
                 ToolbarDoneAndCancel(
@@ -576,8 +561,8 @@ struct MainTab: View {
             Picker("Device:", selection: $selectedDevice) {
                 Text("All").tag(SelectedDevice.all)
 
-                ForEach(deviceStates.indices, id: \.self) { i in
-                    Text(deviceStates[i].name).tag(SelectedDevice.specific(i))
+                ForEach(stateManager.deviceStates.indices, id: \.self) { i in
+                    Text(stateManager.deviceStates[i].name).tag(SelectedDevice.specific(i))
                 }
             }
             .pickerStyle(.segmented)
@@ -585,14 +570,14 @@ struct MainTab: View {
             let uiStateBinding =
                 switch selectedDevice {
                 case .all:
-                    $commonState
+                    $stateManager.commonState
                 case .specific(let i):
-                    $deviceStates[i]
+                    $stateManager.deviceStates[i]
                 }
 
             MainTabForDevice(
                 uiState: uiStateBinding,
-                deviceStates: deviceStates,
+                deviceStates: stateManager.deviceStates,
                 selectedDevice: selectedDevice,
                 sendCallback: sendCallback,
                 textFieldFocused: $textFieldFocused
@@ -602,10 +587,7 @@ struct MainTab: View {
         .toolbar {
             MainToolbar(
                 showError: $showError,
-                fetchCallback: fetchCallback,
-                connectCallback: connectCallback,
-                rescanCallback: rescanCallback,
-                clearCacheCallback: clearCacheCallback
+                stateManager: stateManager
             )
         }
     }

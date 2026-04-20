@@ -11,13 +11,17 @@ typealias ParameterPathDict = [DeviceModel: [String: [String]]]
 
 @main
 struct KH_Volume_sliderApp: App {
-    @State private var khAccess = KHAccess()
+    @State private var khAccess: KHAccess
     @State private var stateManager: StateManager
 
     // decodes to ParameterPathDict
     @AppStorage("paths") private var paths: Data?
 
     init() {
+        let khAccess = KHAccess()
+        self.khAccess = khAccess
+        stateManager = StateManager(khAccess)
+
         if let p = paths {
             if (try? JSONDecoder().decode(ParameterPathDict.self, from: p)) != nil {
                 return
@@ -29,20 +33,18 @@ struct KH_Volume_sliderApp: App {
         } catch {
             print("Error encoding default paths:", error)
         }
-        
-        stateManager = StateManager(khAccess)
     }
 
     var body: some Scene {
         #if os(macOS)
             MenuBarExtra("SSC Control", systemImage: "hifispeaker.2") {
-                MenuBarView(commonState: $commonState, deviceStates: $deviceStates)
+                MenuBarView(stateManager: $stateManager)
                     .environment(khAccess)
             }
             .menuBarExtraStyle(.window)
         #endif
         WindowGroup(id: "main-window") {
-            ContentView(commonState: $commonState, deviceStates: $deviceStates)
+            ContentView(stateManager: $stateManager)
                 .environment(khAccess)
         }
         .defaultSize(width: 400, height: 400)

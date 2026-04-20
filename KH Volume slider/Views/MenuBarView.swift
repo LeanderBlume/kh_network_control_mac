@@ -7,7 +7,7 @@ struct MenuBarView: View {
     @Environment(KHAccess.self) private var khAccess: KHAccess
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
-    
+
     func fetch() async { await stateManager.fetch() }
 
     @ViewBuilder
@@ -27,7 +27,9 @@ struct MenuBarView: View {
                 ToolbarFetchButton(fetchCallback: fetch)
                 ToolbarConnectButton(connectCallback: { await stateManager.setup() })
                 ToolbarRescanButton(rescanCallback: { await stateManager.rescan() })
-                ToolbarClearCacheButton(clearCacheCallback: { await stateManager.clearCache() })
+                ToolbarClearCacheButton(clearCacheCallback: {
+                    await stateManager.clearCache()
+                })
 
                 #if os(macOS)
                     Button("Quit", systemImage: "xmark.rectangle") {
@@ -47,7 +49,9 @@ struct MenuBarView: View {
             Spacer()
 
             let mismatchedParameters = Set(
-                SSCParameter.allDefaultParameters.filter { !$0.allEqual(deviceStates) }
+                SSCParameter.allDefaultParameters.filter {
+                    !$0.allEqual(stateManager.deviceStates)
+                }
             )
             let mps = [.muted, .volume, .logoBrightness].filter {
                 mismatchedParameters.contains($0)
@@ -86,35 +90,35 @@ struct MenuBarView: View {
                 GridRow {
                     Text("Volume")
 
-                    Slider(value: $commonState.volume, in: 0...120, step: 3) {
+                    Slider(value: $stateManager.commonState.volume, in: 0...120, step: 3) {
                         editing in
-                        if !editing { Task { await send(.volume) } }
+                        if !editing { Task { await stateManager.sendToAll(.volume) } }
                     }
 
                     TextField(
                         "Volume",
-                        value: $commonState.volume,
+                        value: $stateManager.commonState.volume,
                         format: .number.precision(.fractionLength(1))
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await send(.volume) } }
+                    .onSubmit { Task { await stateManager.sendToAll(.volume) } }
                     .labelsHidden()
                 }
                 GridRow {
                     Text("Logo")
 
-                    Slider(value: $commonState.logoBrightness, in: 0...125, step: 5) {
+                    Slider(value: $stateManager.commonState.logoBrightness, in: 0...125, step: 5) {
                         editing in
-                        if !editing { Task { await send(.logoBrightness) } }
+                        if !editing { Task { await stateManager.sendToAll(.logoBrightness) } }
                     }
 
                     TextField(
                         "Logo",
-                        value: $commonState.logoBrightness,
+                        value: $stateManager.commonState.logoBrightness,
                         format: .number.rounded()
                     )
                     .frame(width: 80)
-                    .onSubmit { Task { await send(.logoBrightness) } }
+                    .onSubmit { Task { await stateManager.sendToAll(.logoBrightness) } }
                     .labelsHidden()
                 }
             }
@@ -124,6 +128,6 @@ struct MenuBarView: View {
         }
         .frame(minWidth: 350)
         .scenePadding()
-        .onAppear { Task { await setup() } }
+        .onAppear { Task { await stateManager.setup() } }
     }
 }

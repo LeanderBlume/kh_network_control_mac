@@ -122,10 +122,7 @@ struct ToolbarConnectButton: View {
 
 struct MainToolbar: ToolbarContent {
     @Binding var showError: Bool
-    var fetchCallback: () async -> Void
-    var connectCallback: () async -> Void
-    var rescanCallback: () async -> Void
-    var clearCacheCallback: () async -> Void
+    var stateManager: StateManager
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     @ToolbarContentBuilder
@@ -136,15 +133,15 @@ struct MainToolbar: ToolbarContent {
             }
         #endif
         ToolbarItemGroup(placement: .secondaryAction) {
-            ToolbarFetchButton(fetchCallback: fetchCallback)
+            ToolbarFetchButton(fetchCallback: stateManager.fetch)
             // ToolbarFetchParametersButton()
 
-            ToolbarConnectButton(connectCallback: connectCallback)
-            ToolbarRescanButton(rescanCallback: rescanCallback)
-            ToolbarClearCacheButton(clearCacheCallback: clearCacheCallback)
+            ToolbarConnectButton(connectCallback: stateManager.setup)
+            ToolbarRescanButton(rescanCallback: stateManager.rescan)
+            ToolbarClearCacheButton(clearCacheCallback: stateManager.clearCache)
         }
         ToolbarItem(placement: .primaryAction) {
-            ToolbarFetchButton(fetchCallback: fetchCallback)
+            ToolbarFetchButton(fetchCallback: stateManager.fetch)
         }
     }
 
@@ -156,12 +153,12 @@ struct MainToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .secondaryAction) {
             // ToolbarFetchParametersButton()
 
-            ToolbarConnectButton(connectCallback: connectCallback)
-            ToolbarRescanButton(rescanCallback: rescanCallback)
-            ToolbarClearCacheButton(clearCacheCallback: clearCacheCallback)
+            ToolbarConnectButton(connectCallback: stateManager.setup)
+            ToolbarRescanButton(rescanCallback: stateManager.rescan)
+            ToolbarClearCacheButton(clearCacheCallback: stateManager.clearCache)
         }
         ToolbarItem(placement: .primaryAction) {
-            ToolbarFetchButton(fetchCallback: fetchCallback)
+            ToolbarFetchButton(fetchCallback: stateManager.fetch)
         }
     }
 
@@ -176,10 +173,7 @@ struct MainToolbar: ToolbarContent {
 
 struct BrowserToolbar: ToolbarContent {
     @Binding var showError: Bool
-    var fetchCallback: () async -> Void
-    var connectCallback: () async -> Void
-    var rescanCallback: () async -> Void
-    var clearCacheCallback: () async -> Void
+    var stateManager: StateManager
     @Environment(KHAccess.self) private var khAccess: KHAccess
 
     @ToolbarContentBuilder
@@ -193,9 +187,9 @@ struct BrowserToolbar: ToolbarContent {
             // ToolbarFetchButton()
             ToolbarFetchParametersButton()
 
-            ToolbarConnectButton(connectCallback: connectCallback)
-            ToolbarRescanButton(rescanCallback: rescanCallback)
-            ToolbarClearCacheButton(clearCacheCallback: clearCacheCallback)
+            ToolbarConnectButton(connectCallback: stateManager.setup)
+            ToolbarRescanButton(rescanCallback: stateManager.rescan)
+            ToolbarClearCacheButton(clearCacheCallback: stateManager.clearCache)
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchParametersButton()
@@ -210,9 +204,9 @@ struct BrowserToolbar: ToolbarContent {
         ToolbarItemGroup(placement: .secondaryAction) {
             // ToolbarFetchButton()
 
-            ToolbarConnectButton(connectCallback: connectCallback)
-            ToolbarRescanButton(rescanCallback: rescanCallback)
-            ToolbarClearCacheButton(clearCacheCallback: clearCacheCallback)
+            ToolbarConnectButton(connectCallback: stateManager.setup)
+            ToolbarRescanButton(rescanCallback: stateManager.rescan)
+            ToolbarClearCacheButton(clearCacheCallback: stateManager.clearCache)
         }
         ToolbarItem(placement: .primaryAction) {
             ToolbarFetchParametersButton()

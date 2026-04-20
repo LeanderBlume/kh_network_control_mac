@@ -18,15 +18,7 @@ struct ContentView: View {
         TabView {
             Tab("Controls", systemImage: "speaker.wave.3") {
                 NavigationStack {
-                    MainTab(
-                        commonState: $commonState,
-                        deviceStates: $deviceStates,
-                        fetchCallback: fetch,
-                        connectCallback: setup,
-                        rescanCallback: rescan,
-                        clearCacheCallback: clearCache,
-                        syncDeviceStatesToCommon: syncDeviceStatesToCommon
-                    )
+                    MainTab(stateManager: $stateManager)
                     // toolbar is handled in Tab view
                     // .navigationTitle(Text("Controls"))
                 }
@@ -37,10 +29,7 @@ struct ContentView: View {
                         .toolbar {
                             BrowserToolbar(
                                 showError: $showError,
-                                fetchCallback: fetch,
-                                connectCallback: setup,
-                                rescanCallback: rescan,
-                                clearCacheCallback: clearCache
+                                stateManager: stateManager
                             )
                         }
                     // .navigationTitle(Text("Device browser"))
@@ -48,36 +37,25 @@ struct ContentView: View {
             }
             Tab("Backups", systemImage: "externaldrive") {
                 NavigationStack {
-                    BackupView(deviceStates: $deviceStates)
+                    BackupView(deviceStates: $stateManager.deviceStates)
                         .toolbar {
                             BrowserToolbar(
                                 showError: $showError,
-                                fetchCallback: fetch,
-                                connectCallback: setup,
-                                rescanCallback: rescan,
-                                clearCacheCallback: clearCache
+                                stateManager: stateManager
                             )
                         }
                     // .navigationTitle(Text("Backups"))
                 }
             }
         }
-        .onAppear { Task { await setup() } }
+        .onAppear { Task { await stateManager.setup() } }
     }
 
     var bodymacOS: some View {
         TabView {
             Tab("Controls", systemImage: "speaker.wave.3") {
                 ScrollView {
-                    MainTab(
-                        commonState: $commonState,
-                        deviceStates: $deviceStates,
-                        fetchCallback: fetch,
-                        connectCallback: setup,
-                        rescanCallback: rescan,
-                        clearCacheCallback: clearCache,
-                        syncDeviceStatesToCommon: syncDeviceStatesToCommon
-                    )
+                    MainTab(stateManager: $stateManager)
                 }
             }
             Tab("Devices", systemImage: "list.bullet.indent") {
@@ -85,22 +63,16 @@ struct ContentView: View {
                     .toolbar {
                         BrowserToolbar(
                             showError: $showError,
-                            fetchCallback: fetch,
-                            connectCallback: setup,
-                            rescanCallback: rescan,
-                            clearCacheCallback: clearCache
+                            stateManager: stateManager
                         )
                     }
             }
             Tab("Backups", systemImage: "externaldrive") {
-                BackupView(deviceStates: $deviceStates)
+                BackupView(deviceStates: $stateManager.deviceStates)
                     .toolbar {
                         BrowserToolbar(
                             showError: $showError,
-                            fetchCallback: fetch,
-                            connectCallback: setup,
-                            rescanCallback: rescan,
-                            clearCacheCallback: clearCache
+                            stateManager: stateManager
                         )
                     }
             }
@@ -122,10 +94,8 @@ struct ContentView: View {
 }
 
 #Preview {
-    @Previewable @State var commonState = KHState(deviceID: nil)
-    @Previewable @State var deviceStates = [KHState]()
-    let khAccess = KHAccess()
+    @Previewable @State var stateManager = StateManager(KHAccess())
 
-    ContentView(commonState: $commonState, deviceStates: $deviceStates)
-        .environment(khAccess)
+    ContentView(stateManager: $stateManager)
+        .environment(stateManager.khAccess)
 }
