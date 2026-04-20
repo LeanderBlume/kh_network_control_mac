@@ -37,7 +37,7 @@ struct ContentView: View {
             }
             Tab("Backups", systemImage: "externaldrive") {
                 NavigationStack {
-                    BackupView(deviceStates: $stateManager.deviceStates)
+                    BackupView(stateManager: stateManager)
                         .toolbar {
                             BrowserToolbar(
                                 showError: $showError,
@@ -68,7 +68,7 @@ struct ContentView: View {
                     }
             }
             Tab("Backups", systemImage: "externaldrive") {
-                BackupView(deviceStates: $stateManager.deviceStates)
+                BackupView(stateManager: stateManager)
                     .toolbar {
                         BrowserToolbar(
                             showError: $showError,
