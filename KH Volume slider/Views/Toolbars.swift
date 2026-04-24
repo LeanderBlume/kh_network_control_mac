@@ -18,39 +18,38 @@ struct ToolbarStatusDisplay: View {
             StatusDisplayCompact(status: status)
         }
         .sheet(isPresented: $showError) {
-            VStack {
-                ScrollView {
-                    VStack(alignment: .leading) {
-                        if khAccess.devices.isEmpty {
-                            StatusDisplay(status: status)
-                                .padding(.bottom, 10)
-                        }
-                        ForEach(
-                            khAccess.devices.sorted { $0.state.name < $1.state.name }
-                        ) { device in
-                            let ds = device.status
-                            HStack {
-                                Text("Device: \(device.state.name)")
-                                    .font(.title2)
-                                Spacer()
-                                StatusDisplayCompact(status: ds)
-                            }
-                            .padding(.bottom, 5)
+            ScrollView {
+                VStack(alignment: .leading) {
+                    Text("Status")
+                        .font(.title)
+                        .padding(.bottom, 10)
 
-                            StatusDisplayText(status: ds)
-                                .padding(.bottom, 10)
-                            
-                            if device.id != khAccess.devices.last?.id {
-                                Divider()
-                            }
+                    if khAccess.devices.isEmpty {
+                        StatusDisplay(status: status)
+                            .padding(.bottom, 10)
+                    }
+                    ForEach(
+                        khAccess.devices.sorted { $0.state.name < $1.state.name }
+                    ) { device in
+                        let ds = device.status
+                        HStack {
+                            Text(device.state.name)
+                                .font(.title2)
+                            Spacer()
+                            StatusDisplayCompact(status: ds)
+                        }
+                        .padding(.bottom, 5)
+
+                        StatusDisplayText(status: ds)
+                            .padding(.bottom, 10)
+
+                        if device.id != khAccess.devices.last?.id {
+                            Divider()
                         }
                     }
                 }
-
-                Button("Dismiss") { showError.toggle() }
-                    .padding(.top, 10)
+                .scenePadding()
             }
-            .scenePadding()
             .presentationDetents([.medium])
         }
         .help("Show status")

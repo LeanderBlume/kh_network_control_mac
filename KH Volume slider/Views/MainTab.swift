@@ -513,7 +513,7 @@ struct MainTab: View {
     var bodyiOS: some View {
         Form {
             Section("Select device") {
-                Picker("Device:", selection: $selectedDevice) {
+                Picker("Device", selection: $selectedDevice) {
                     Text("All").tag(SelectedDevice.all)
 
                     ForEach(stateManager.deviceStates.indices, id: \.self) { i in
