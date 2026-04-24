@@ -237,6 +237,28 @@ private struct MainTabForDevice: View {
         }
     }
 
+    private func sectionTitleMacOS(
+        title: String,
+        parametersInSection: Set<SSCParameter>,
+    ) -> some View {
+        HStack(spacing: 15) {
+            Text(title).font(.title2)
+            mismatchInfo(parametersInSection)
+            Spacer()
+        }
+    }
+
+    private func sectionTitleiOS(
+        title: String,
+        parametersInSection: Set<SSCParameter>,
+    ) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            mismatchInfo(parametersInSection)
+        }
+    }
+
     @ViewBuilder
     var bodyiOS: some View {
         if case .specific = selectedDevice {
@@ -289,11 +311,7 @@ private struct MainTabForDevice: View {
             // .toggleStyle(.button)
             .onChange(of: uiState.muted) { Task { await sendCallback(.muted) } }
         } header: {
-            HStack {
-                Text("Volume")
-                Spacer()
-                mismatchInfo([.volume, .muted])
-            }
+            sectionTitleiOS(title: "Volume", parametersInSection: [.volume, .muted])
         }
         .focused($textFieldFocused, equals: .volume)
         .disabled(khAccess.status != .ready)
@@ -315,11 +333,10 @@ private struct MainTabForDevice: View {
                 if !editing { Task { await sendCallback(.logoBrightness) } }
             }
         } header: {
-            HStack {
-                Text("Logo brightness")
-                Spacer()
-                mismatchInfo([.logoBrightness])
-            }
+            sectionTitleiOS(
+                title: "Logo brightness",
+                parametersInSection: [.logoBrightness]
+            )
         }
         .focused($textFieldFocused, equals: .logoBrightness)
         .disabled(khAccess.status != .ready)
@@ -337,17 +354,11 @@ private struct MainTabForDevice: View {
                 Text("Device model could not be determined")
             }
         } header: {
-            HStack {
-                Text("EQ")
+            let eqParams = Set(SSCParameter.allDefaultParameters).filter({
+                if case .eq = $0 { true } else { false }
+            })
 
-                Spacer()
-
-                mismatchInfo(
-                    Set(SSCParameter.allDefaultParameters).filter({
-                        if case .eq = $0 { true } else { false }
-                    })
-                )
-            }
+            sectionTitleiOS(title: "EQ", parametersInSection: eqParams)
         }
         .disabled(khAccess.status != .ready)
 
@@ -358,26 +369,10 @@ private struct MainTabForDevice: View {
                 textFieldFocused: $textFieldFocused
             )
         } header: {
-            HStack {
-                Text("Auto-standby")
-                Spacer()
-                mismatchInfo([.standbyEnabled, .standbyTimeout])
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func sectionTitleMacOS(
-        title: String,
-        parametersInSection: Set<SSCParameter>,
-    ) -> some View {
-        HStack(spacing: 15) {
-            Text(title)
-                .font(.title2)
-
-            mismatchInfo(parametersInSection)
-
-            Spacer()
+            sectionTitleiOS(
+                title: "Auto-standby",
+                parametersInSection: [.standbyEnabled, .standbyTimeout]
+            )
         }
     }
 
