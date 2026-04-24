@@ -116,6 +116,7 @@ private struct IndividualDeviceSection: View {
                     value: $uiState.delay,
                     format: .number.precision(.fractionLength(0))
                 )
+                .focused($textFieldFocused, equals: .delay)
                 .onSubmit { Task { await sendCallback(.delay) } }
                 #if os(iOS)
                     .keyboardType(.decimalPad)
