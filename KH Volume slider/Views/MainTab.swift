@@ -218,7 +218,7 @@ private struct MainTabForDevice: View {
     }
 
     @ViewBuilder
-    private func mismatchFooteriOS(_ parameters: Set<SSCParameter>) -> some View {
+    private func mismatchInfo(_ parameters: Set<SSCParameter>) -> some View {
         let mismatchedParameters = Set(
             SSCParameter.allDefaultParameters.filter { !$0.allEqual(deviceStates) }
         )
@@ -233,6 +233,7 @@ private struct MainTabForDevice: View {
                         + mps.map({ $0.description() }).sorted().joined(separator: ", ")
                 )
             }
+            .font(.footnote)
         }
     }
 
@@ -288,9 +289,11 @@ private struct MainTabForDevice: View {
             // .toggleStyle(.button)
             .onChange(of: uiState.muted) { Task { await sendCallback(.muted) } }
         } header: {
-            Text("Volume")
-        } footer: {
-            mismatchFooteriOS([.volume, .muted])
+            HStack {
+                Text("Volume")
+                Spacer()
+                mismatchInfo([.volume, .muted])
+            }
         }
         .focused($textFieldFocused, equals: .volume)
         .disabled(khAccess.status != .ready)
@@ -312,9 +315,11 @@ private struct MainTabForDevice: View {
                 if !editing { Task { await sendCallback(.logoBrightness) } }
             }
         } header: {
-            Text("Logo brightness")
-        } footer: {
-            mismatchFooteriOS([.logoBrightness])
+            HStack {
+                Text("Logo brightness")
+                Spacer()
+                mismatchInfo([.logoBrightness])
+            }
         }
         .focused($textFieldFocused, equals: .logoBrightness)
         .disabled(khAccess.status != .ready)
@@ -332,13 +337,17 @@ private struct MainTabForDevice: View {
                 Text("Device model could not be determined")
             }
         } header: {
-            Text("EQ")
-        } footer: {
-            mismatchFooteriOS(
-                Set(SSCParameter.allDefaultParameters).filter({
-                    if case .eq = $0 { true } else { false }
-                })
-            )
+            HStack {
+                Text("EQ")
+
+                Spacer()
+
+                mismatchInfo(
+                    Set(SSCParameter.allDefaultParameters).filter({
+                        if case .eq = $0 { true } else { false }
+                    })
+                )
+            }
         }
         .disabled(khAccess.status != .ready)
 
@@ -349,9 +358,11 @@ private struct MainTabForDevice: View {
                 textFieldFocused: $textFieldFocused
             )
         } header: {
-            Text("Auto-standby")
-        } footer: {
-            mismatchFooteriOS([.standbyEnabled, .standbyTimeout])
+            HStack {
+                Text("Auto-standby")
+                Spacer()
+                mismatchInfo([.standbyEnabled, .standbyTimeout])
+            }
         }
     }
 
@@ -360,27 +371,14 @@ private struct MainTabForDevice: View {
         title: String,
         parametersInSection: Set<SSCParameter>,
     ) -> some View {
-        let mismatchedParameters = Set(
-            SSCParameter.allDefaultParameters.filter { !$0.allEqual(deviceStates) }
-        )
-        let mps = parametersInSection.filter {
-            mismatchedParameters.contains($0)
-        }
-
         HStack(spacing: 15) {
             Text(title)
                 .font(.title2)
 
-            if selectedDevice == .all && !mps.isEmpty {
-                Text(
-                    "⚠️ Device mismatch: "
-                        + mps.map({ $0.description() }).sorted().joined(separator: ", ")
-                )
-            }
+            mismatchInfo(parametersInSection)
 
             Spacer()
         }
-        // .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -534,13 +532,23 @@ struct MainTab: View {
                     $stateManager.deviceStates[i]
                 }
 
+            let navTitle =
+                switch selectedDevice {
+                case .all:
+                    "All"
+                case .specific(let i):
+                    stateManager.deviceStates[i].name
+                }
+
             MainTabForDevice(
                 uiState: uiStateBinding,
                 deviceStates: stateManager.deviceStates,
                 selectedDevice: selectedDevice,
                 sendCallback: sendCallback,
                 textFieldFocused: $textFieldFocused
-            ).id(selectedDevice)
+            )
+            .id(selectedDevice)
+            .navigationTitle(Text(navTitle))
         }
         // .toolbar(removing: .title)
         .toolbar {
