@@ -31,7 +31,6 @@ struct BackupView: View {
             name: selection,
             khAccess: khAccess
         )
-        stateManager.syncDeviceStatesToCommon()
     }
     
     private func deleteSelected() {

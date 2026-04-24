@@ -11,7 +11,9 @@ import SwiftUI
 @MainActor
 class StateManager {
     var commonState = KHState(deviceID: nil)
-    var deviceStates = [KHState]()
+    var deviceStates = [KHState]() {
+        didSet { syncDeviceStatesToCommon() }
+    }
 
     let khAccess: KHAccess
 
@@ -22,7 +24,7 @@ class StateManager {
         await fetch()
     }
 
-    func syncDeviceStatesToCommon() {
+    private func syncDeviceStatesToCommon() {
         guard !deviceStates.isEmpty else { return }
         for p in SSCParameter.allDefaultParameters {
             if p.allEqual(deviceStates) {
@@ -31,7 +33,7 @@ class StateManager {
         }
     }
 
-    func syncCommonToDeviceStates(_ p: SSCParameter) {
+    private func syncCommonToDeviceStates(_ p: SSCParameter) {
         deviceStates = deviceStates.map { state in
             p.copy(from: commonState, into: state)
         }
@@ -39,7 +41,6 @@ class StateManager {
 
     func fetch() async {
         deviceStates = await khAccess.fetchAll().sorted(by: { $0.name < $1.name })
-        syncDeviceStatesToCommon()
     }
 
     func rescan() async {
@@ -65,6 +66,5 @@ class StateManager {
 
     func sendIndividual() async {
         await khAccess.sendIndividual(deviceStates)
-        syncDeviceStatesToCommon()
     }
 }

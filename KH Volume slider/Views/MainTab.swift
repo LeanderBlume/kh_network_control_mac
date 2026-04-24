@@ -504,11 +504,10 @@ struct MainTab: View {
     func sendCallback(_ parameter: SSCParameter) async {
         switch selectedDevice {
         case .all:
-            stateManager.syncCommonToDeviceStates(parameter)
+            await stateManager.sendToAll(parameter)
         case .specific:
-            stateManager.syncDeviceStatesToCommon()
+            await stateManager.sendIndividual()
         }
-        await khAccess.sendIndividual(stateManager.deviceStates)
     }
 
     var bodyiOS: some View {
