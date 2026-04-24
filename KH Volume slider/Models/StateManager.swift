@@ -40,6 +40,7 @@ class StateManager {
     }
 
     func fetch() async {
+        /// Sorting is just for consistency in the UI. Functionality doesn't depend on this order.
         deviceStates = await khAccess.fetchAll().sorted(by: { $0.name < $1.name })
     }
 
