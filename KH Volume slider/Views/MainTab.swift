@@ -213,7 +213,6 @@ private struct MainTabForDevice: View {
             khAccess.devices.first?.getModel()
         case .specific(let i):
             khAccess.devices[i].getModel()
-
         }
     }
 
@@ -519,10 +518,12 @@ struct MainTab: View {
                     Text("All").tag(SelectedDevice.all)
 
                     ForEach(stateManager.deviceStates.indices, id: \.self) { i in
-                        Text(stateManager.deviceStates[i].name).tag(SelectedDevice.specific(i))
+                        Text(stateManager.deviceStates[i].name).tag(
+                            SelectedDevice.specific(i)
+                        )
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
             }
 
             let uiStateBinding =
@@ -562,10 +563,12 @@ struct MainTab: View {
                 Text("All").tag(SelectedDevice.all)
 
                 ForEach(stateManager.deviceStates.indices, id: \.self) { i in
-                    Text(stateManager.deviceStates[i].name).tag(SelectedDevice.specific(i))
+                    Text(stateManager.deviceStates[i].name).tag(
+                        SelectedDevice.specific(i)
+                    )
                 }
             }
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
 
             let uiStateBinding =
                 switch selectedDevice {
