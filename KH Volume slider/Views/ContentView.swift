@@ -35,9 +35,9 @@ struct ContentView: View {
                     // .navigationTitle(Text("Device browser"))
                 }
             }
-            Tab("Backups", systemImage: "externaldrive") {
+            Tab("Settings", systemImage: "gear") {
                 NavigationStack {
-                    BackupView(stateManager: stateManager)
+                    SettingsView(stateManager: stateManager)
                         .toolbar {
                             BrowserToolbar(
                                 showError: $showError,
@@ -67,7 +67,7 @@ struct ContentView: View {
                         )
                     }
             }
-            Tab("Settings", systemImage: "externaldrive") {
+            Tab("Settings", systemImage: "gear") {
                 SettingsView(stateManager: stateManager)
                     .toolbar {
                         BrowserToolbar(
