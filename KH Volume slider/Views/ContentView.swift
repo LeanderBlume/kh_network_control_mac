@@ -67,8 +67,8 @@ struct ContentView: View {
                         )
                     }
             }
-            Tab("Backups", systemImage: "externaldrive") {
-                BackupView(stateManager: stateManager)
+            Tab("Settings", systemImage: "externaldrive") {
+                SettingsView(stateManager: stateManager)
                     .toolbar {
                         BrowserToolbar(
                             showError: $showError,

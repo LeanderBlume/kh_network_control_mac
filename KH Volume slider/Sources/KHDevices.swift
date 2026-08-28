@@ -409,6 +409,21 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
         devices = await Self.connectionsToDevices(connections)
         statusOverride = nil
     }
+    
+    private func connectToStatic() async {
+        guard let ipString: String = AppStorage("staticIp6s").wrappedValue else {
+            statusOverride = .error("No static ips configured")
+            return
+        }
+        let ips: [String] = ipString.split(separator: ",").map(String.init)
+        let connections: [SSCConnection] = ips.compactMap { SSCConnection(ip: $0) }
+        if ips.isEmpty {
+            statusOverride = .error("All IPs invalid")
+            return
+        }
+        devices = await Self.connectionsToDevices(connections)
+        statusOverride = nil
+    }
 
     func getDeviceByID(_ id: KHDevice.ID) -> KHDevice? {
         devices.first(where: { $0.id == id })
@@ -425,7 +440,8 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
     }
 
     private func populateDevices() async {
-        guard devices.isEmpty else { return }
+        let autoDiscover: Bool = AppStorage("autoDiscover").wrappedValue ?? true
+        guard !autoDiscover || devices.isEmpty else { return }
         var connections: [SSCConnection] = []
         do {
             connections = try ConnectionCache().getConnections()
@@ -433,7 +449,11 @@ final class KHDeviceGroup: KHDeviceGroupProtocol {
             print("error loading connection cache: \(error)")
         }
         if connections.isEmpty {
-            await scan()
+            if autoDiscover {
+                await scan()
+            } else {
+                await connectToStatic()
+            }
         } else {
             devices = await Self.connectionsToDevices(connections)
         }
