@@ -45,6 +45,6 @@ struct SettingsView: View {
 
             BackupView(stateManager: stateManager)
         }
-        .onAppear(perform: updateStorage)
+        .onAppear(perform: loadFromStorage)
     }
 }
