@@ -7,41 +7,53 @@
 
 import SwiftUI
 
+struct DeviceRow: Identifiable, Equatable {
+    let id = UUID()
+    var ip6: String = ""
+}
+
 struct SettingsView: View {
     var stateManager: StateManager
     @AppStorage("autoDiscover") var autoDiscover: Bool = true
     @AppStorage("staticIp6s") var staticIp6s: String = ""
-    @State private var staticIp6sArray: [String] = []
-    
+    @State private var staticIp6sArray: [DeviceRow] = []
+
     private func loadFromStorage() {
-        staticIp6sArray = staticIp6s.split(separator: ",").map(String.init)
+        let strings = staticIp6s.split(separator: ",").map(String.init)
+        staticIp6sArray = strings.map { DeviceRow(ip6: $0) }
     }
-    
+
     private func updateStorage() {
-        staticIp6s = staticIp6sArray.joined(separator: ",")
+        staticIp6s = staticIp6sArray.map(\.ip6).joined(separator: ",")
     }
-    
+
     var body: some View {
-        VStack {
-            Form {
-                Toggle("Auto discover", isOn: $autoDiscover)
-                
-                Group {
-                    List(staticIp6sArray.indices, id: \.self) { i in
-                        TextField("IPv6 \(i + 1)", text: $staticIp6sArray[i])
-                    }
-                    .onChange(of: staticIp6sArray, updateStorage)
-                    
-                    Button("Add device") {
-                        staticIp6sArray.append("")
-                    }
-                    Button("Test") {
-                        print(staticIp6sArray)
-                        print(staticIp6s)
+        Form {
+            Toggle("Bonjour discovery", isOn: $autoDiscover)
+
+            Group {
+                List($staticIp6sArray) { $d in
+                    HStack {
+                        TextField("IPv6", text: $d.ip6)
+                            .disableAutocorrection(true)
+                        #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                        #endif
+
+                        Button {
+                            staticIp6sArray.removeAll { $0.id == d.id }
+                        } label: {
+                            Image(systemName: "trash")
+                        }
                     }
                 }
-                .disabled(autoDiscover)
+                .onChange(of: staticIp6sArray, updateStorage)
+
+                Button("Add device") {
+                    staticIp6sArray.append(DeviceRow())
+                }
             }
+            .disabled(autoDiscover)
 
             BackupView(stateManager: stateManager)
         }

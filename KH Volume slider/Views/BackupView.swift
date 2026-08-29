@@ -32,7 +32,7 @@ struct BackupView: View {
             khAccess: khAccess
         )
     }
-    
+
     private func deleteSelected() {
         guard let s = selection else { return }
         do {
@@ -50,7 +50,7 @@ struct BackupView: View {
     }
 
     var bodyiOS: some View {
-        Form {
+        Group {
             Section("New backup") {
                 TextField("Name", text: $newName)
                     .textFieldStyle(.automatic)
