@@ -16,49 +16,16 @@ struct ContentView: View {
 
     var bodyiOS: some View {
         TabView {
-            Tab("Controls", systemImage: "speaker.wave.3") {
-                NavigationStack {
-                    MainTab(stateManager: $stateManager)
-                    // toolbar is handled in Tab view
-                    // .navigationTitle(Text("Controls"))
-                }
+            NavigationStack {
+                MainTab(stateManager: $stateManager)
+                // toolbar is handled in Tab view
+                // .navigationTitle(Text("Controls"))
             }
-            Tab("Devices", systemImage: "list.bullet.indent") {
-                NavigationStack {
-                    DevicesView(stateManager: stateManager)
-                        .toolbar {
-                            BrowserToolbar(
-                                showError: $showError,
-                                stateManager: stateManager
-                            )
-                        }
-                    // .navigationTitle(Text("Device browser"))
-                }
+            .tabItem {
+                Label("Controls", systemImage: "speaker.wave.3")
             }
-            Tab("Settings", systemImage: "gear") {
-                NavigationStack {
-                    SettingsView(stateManager: stateManager)
-                        .toolbar {
-                            BrowserToolbar(
-                                showError: $showError,
-                                stateManager: stateManager
-                            )
-                        }
-                    // .navigationTitle(Text("Backups"))
-                }
-            }
-        }
-        .onAppear { Task { await stateManager.setup() } }
-    }
 
-    var bodymacOS: some View {
-        TabView {
-            Tab("Controls", systemImage: "speaker.wave.3") {
-                ScrollView {
-                    MainTab(stateManager: $stateManager)
-                }
-            }
-            Tab("Devices", systemImage: "list.bullet.indent") {
+            NavigationStack {
                 DevicesView(stateManager: stateManager)
                     .toolbar {
                         BrowserToolbar(
@@ -66,8 +33,13 @@ struct ContentView: View {
                             stateManager: stateManager
                         )
                     }
+                // .navigationTitle(Text("Device browser"))
             }
-            Tab("Settings", systemImage: "gear") {
+            .tabItem {
+                Label("Devices", systemImage: "list.bullet.indent")
+            }
+
+            NavigationStack {
                 SettingsView(stateManager: stateManager)
                     .toolbar {
                         BrowserToolbar(
@@ -75,7 +47,45 @@ struct ContentView: View {
                             stateManager: stateManager
                         )
                     }
+                // .navigationTitle(Text("Backups"))
             }
+            .tabItem {
+                Label("Settings", systemImage: "gear")
+            }
+        }
+        .onAppear { Task { await stateManager.setup() } }
+    }
+
+    var bodymacOS: some View {
+        TabView {
+            ScrollView {
+                MainTab(stateManager: $stateManager)
+            }
+            .tabItem {
+                Label("Controls", systemImage: "speaker.wave.3")
+            }
+
+            DevicesView(stateManager: stateManager)
+                .toolbar {
+                    BrowserToolbar(
+                        showError: $showError,
+                        stateManager: stateManager
+                    )
+                }
+                .tabItem {
+                    Label("Devices", systemImage: "list.bullet.indent")
+                }
+
+            SettingsView(stateManager: stateManager)
+                .toolbar {
+                    BrowserToolbar(
+                        showError: $showError,
+                        stateManager: stateManager
+                    )
+                }
+                .tabItem {
+                    Label("Settings", systemImage: "gear")
+                }
         }
         // .onAppear { Task { await setup() } }
         .scenePadding()
