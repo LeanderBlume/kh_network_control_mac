@@ -14,23 +14,32 @@ struct BackupView: View {
     @FocusState private var textFieldFocused: Bool
     @Environment(KHAccess.self) private var khAccess
 
-    private func createBackup() async throws {
+    private func createBackup() async {
         // TODO better: Load parameters from state.
         await khAccess.fetchParameterTree()
-        let backupper = try Backupper()
-        try backupper.write(name: newName, khAccess: khAccess)
+        do {
+            let backupper = try Backupper()
+            try backupper.write(name: newName, khAccess: khAccess)
+        } catch {
+            print("Writing backup failed:", error)
+            return
+        }
         selection = newName
         newName = ""
         textFieldFocused = false
     }
 
-    private func loadSelected() async throws {
+    private func loadSelected() async {
         guard let selection else { return }
-        let backupper = try Backupper()
-        stateManager.deviceStates = try await backupper.load(
-            name: selection,
-            khAccess: khAccess
-        )
+        do {
+            let backupper = try Backupper()
+            stateManager.deviceStates = try await backupper.load(
+                name: selection,
+                khAccess: khAccess
+            )
+        } catch {
+            print("Loading backup failed:", error)
+        }
     }
 
     private func deleteSelected() {
@@ -56,7 +65,7 @@ struct BackupView: View {
                     .textFieldStyle(.automatic)
                     .focused($textFieldFocused)
                 Button("Save") {
-                    Task { try await createBackup() }
+                    Task { await createBackup() }
                 }
             }
 
@@ -77,7 +86,7 @@ struct BackupView: View {
                         systemImage:
                             "clock.arrow.trianglehead.counterclockwise.rotate.90"
                     ) {
-                        Task { try await loadSelected() }
+                        Task { await loadSelected() }
                     }
 
                     Button("Delete", systemImage: "trash", action: deleteSelected)
@@ -92,7 +101,7 @@ struct BackupView: View {
             TextField("New backup", text: $newName)
 
             Button("Create") {
-                Task { try await createBackup() }
+                Task { await createBackup() }
             }
 
             Divider()
@@ -113,11 +122,7 @@ struct BackupView: View {
                             "clock.arrow.trianglehead.counterclockwise.rotate.90"
                     ) {
                         Task {
-                            do {
-                                try await loadSelected()
-                            } catch {
-                                print("Loading backup failed:", error)
-                            }
+                            await loadSelected()
                         }
                     }
                     Button("Delete", systemImage: "trash", action: deleteSelected)
