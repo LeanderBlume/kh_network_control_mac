@@ -6,7 +6,15 @@
 //
 
 import Charts
+import Foundation
 import SwiftUI
+
+private struct ResponseSample: Identifiable {
+    let frequency: Double
+    let gain: Double
+
+    var id: Double { frequency }
+}
 
 private func magnitudeResponse(eqs: [Eq]) -> (@Sendable (Double) -> Double) {
     let activeBands = eqs.map { eq in
@@ -21,13 +29,35 @@ private func magnitudeResponse(eqs: [Eq]) -> (@Sendable (Double) -> Double) {
     }
 }
 
+private func responseSamples(
+    for response: @escaping @Sendable (Double) -> Double
+) -> [ResponseSample] {
+    let sampleCount = 512
+    let lowerFrequency = 20.0
+    let upperFrequency = 20_000.0
+    let logarithmicRange = log10(upperFrequency / lowerFrequency)
+
+    return (0..<sampleCount).map { index in
+        let position = Double(index) / Double(sampleCount - 1)
+        let frequency = lowerFrequency * pow(10, position * logarithmicRange)
+        return ResponseSample(frequency: frequency, gain: response(frequency))
+    }
+}
+
 struct EqChart: View {
     var eqs: [Eq]
 
     var body: some View {
         let mr = magnitudeResponse(eqs: eqs)
+        let samples = responseSamples(for: mr)
+
         Chart {
-            LinePlot(x: "f", y: "Gain", function: mr)
+            ForEach(samples) { sample in
+                LineMark(
+                    x: .value("f", sample.frequency),
+                    y: .value("Gain", sample.gain)
+                )
+            }
 
             let colors = [Color.yellow, Color.orange]
             ForEach(eqs.indices, id: \.self) { i in
